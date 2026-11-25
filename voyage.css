@@ -1,0 +1,66 @@
+@font-face{font-family:Nunito;src:url("assets/Nunito.ttf") format("truetype");font-style:normal;font-weight:200 1000;font-display:swap}
+:root{font-family:Nunito,"Segoe UI",sans-serif;--ink:#203455;--green:#216aad;--green-dark:#215f99;--mint:#e7f3ff;--mint-2:#f2f8ff}
+body,button,input,select,textarea,.shelf-form textarea{font-family:Nunito,"Segoe UI",sans-serif}
+body{color:#203455;background:#ebf6fc}
+.app-shell{background:linear-gradient(#edf8fe,#f8fbfd)}
+.app-shell:has(.voyage-home){background:radial-gradient(ellipse 13% 3% at 0 48%,#ffffff36 99%,transparent),radial-gradient(ellipse 10% 3% at 97% 57%,#ffffff52 99%,transparent),linear-gradient(171deg,#337fce 0%,#53a9ef 34%,#a5dafb 78%,#d2eeff 100%)}
+.main-area{margin-left:0;width:100%;min-width:0;padding-bottom:84px}
+.main-area .view-root{width:min(100%,960px);max-width:960px;margin:auto;padding:26px 26px 12px}
+.topbar{height:64px;background:#e5f3ff;border-bottom:1px solid #bed9f3;padding:0 max(18px,calc((100vw - 920px)/2));gap:12px;position:relative;z-index:5}
+.mast-brand{display:flex;gap:9px;align-items:center;border:0;padding:0;background:transparent;white-space:nowrap;color:#213759;font-size:21px;letter-spacing:-.6px;font-weight:900}
+.compass-logo{background:#25476c;color:#ffda77;border-radius:50%;width:35px;height:35px;display:grid;place-items:center;font-size:27px}
+#crumbCurrent{font-size:13px;color:#475e78;border-left:1px solid #abc6df;padding-left:12px}
+.topbar-actions{margin-left:auto}
+.grade-picker,.profile-button,.streak-pill,#soundToggle{border:1px solid #c2d9ec;background:white;color:#263859;border-radius:16px;font-size:14px}
+.sidebar{width:min(280px,85vw);transform:translateX(-105%);visibility:hidden;transition:transform .18s;background:#f8fcff;box-shadow:6px 0 26px #152c5226}
+.sidebar.mobile-open{transform:none;visibility:visible}
+.topbar .mobile-menu{display:block;color:#27496c;background:transparent;border:0;font-size:23px;min-width:38px;min-height:44px}
+.nav-item.active{background:#daedff;color:#184e86}
+.voyage-intro{margin:0 0 17px;color:#fff;text-shadow:0 1px 2px #18518f40}
+.voyage-kicker{font-size:13px;font-weight:950;letter-spacing:.14em}
+.voyage-intro h1{margin:3px 0;font-size:clamp(32px,4.5vw,44px);font-weight:950;letter-spacing:-1.5px;line-height:1.26}
+.voyage-intro p{margin:4px 0 0;font-size:17px;font-weight:650}
+.hero-card.voyage-actions{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;min-height:0;width:100%;max-width:none;background:none;border:0;padding:0 0 5px;border-radius:0;overflow:visible;margin-bottom:20px;z-index:auto}
+.voyage-choice{display:flex;align-items:center;gap:11px;text-align:left;padding:14px 12px;border:1px solid #fff;border-radius:18px;background:#fff;color:#203455;box-shadow:0 4px 0 #c5d5e9,0 8px 14px #234f7421;min-height:79px}
+.choice-symbol{width:43px;height:43px;display:grid;place-items:center;border-radius:14px;background:linear-gradient(#4bc874,#188a56);color:#fff;font:850 29px/1 Nunito;flex:none}
+.voyage-choice:nth-child(2) .choice-symbol{background:linear-gradient(#ffcb54,#ee930f)}
+.voyage-choice:nth-child(3) .choice-symbol{background:linear-gradient(#ff9a60,#e6652f)}
+.voyage-choice:nth-child(4) .choice-symbol{background:linear-gradient(#a58eff,#6856d8)}
+.voyage-choice b,.voyage-choice small{display:block;line-height:1.35}
+.voyage-choice b{font-size:17px;font-weight:900}.voyage-choice small{font-size:13px;color:#526582}
+.sea-chart{padding:8px 12px 12px;background:linear-gradient(110deg,#f5dc9b,#fff0c7 45%,#f6dda0);border:4px solid #d9b773;border-bottom-color:#bb924f;border-radius:24px;box-shadow:0 6px 0 #ae894d,0 15px 32px #28648940;position:relative}
+.sea-chart header{display:flex;justify-content:space-between;align-items:center;padding:3px 5px 10px;color:#62461e}
+.sea-chart h2{font-size:23px;line-height:1.3;margin:0;font-weight:950;letter-spacing:-.7px}.sea-chart header span{font-size:13px;font-weight:800}.sea-chart header i{color:#966800;font-style:normal}
+.chart-water{background:#54cce5;border:2px solid #fff3cf;border-radius:12px;position:relative;overflow:hidden;aspect-ratio:3/2}
+.island-art{display:block;width:100%;height:100%;object-fit:fill}
+.island-pin{position:absolute;transform:translate(-50%,-50%);text-align:center;background:#fff4cf;color:#533a1d;border:2px solid #fff9e6;border-radius:12px;box-shadow:0 3px 0 #ad864e,0 4px 7px #224d6950;padding:3px 12px;min-width:100px;min-height:44px;line-height:1.15;white-space:nowrap}
+.island-pin b,.island-pin span{display:block}.island-pin b{font-size:17px;font-weight:950}.island-pin span{font-size:12px;font-weight:800}
+.island-pin.selected{background:#ffdc68;border-color:#fff3ad;box-shadow:0 4px 0 #ba811b,0 0 0 3px #ffffff70}
+.island-1{left:19%;top:42%}.island-2{left:50%;top:42%}.island-3{left:81%;top:42%}.island-4{left:75%;top:85%}.island-5{left:25%;top:85%}
+.voyage-lessons{margin-top:32px}
+.voyage-lessons .section-title-row h2{color:#1c3a5a;font-weight:900}.voyage-lessons .text-link{color:#123f6b}
+.voyage-dock{position:fixed;z-index:12;left:50%;bottom:max(10px,env(safe-area-inset-bottom));transform:translateX(-50%);background:#263754;border:1px solid #fff8;border-radius:21px;box-shadow:0 6px 24px #20345435;display:flex;padding:5px;gap:3px;width:min(440px,94vw)}
+.voyage-dock button{background:transparent;color:#dfebfd;flex:1;border:none;border-radius:16px;min-height:49px;font-size:12px;font-weight:800;line-height:1.2}
+.voyage-dock span{font-size:24px;display:block;line-height:1}
+.voyage-dock button.active{background:#445879;color:#ffda74}
+body.modal-open .voyage-dock{visibility:hidden}
+.voyage-choice:hover,.island-pin:hover{filter:brightness(1.035);outline:2px solid #fff}
+.page-heading h1,.section-title-row h2,.deck-info h2{color:#233b5b}
+.page-heading .eyebrow,.page-heading p{color:#48617e}
+.primary-btn,.shelf-manager .primary-btn,.memory-primary{background:#326dac;color:white}
+.page-footer{max-width:910px;margin:10px auto;color:#3a5979;padding:10px 18px}
+@media(max-width:760px){
+ .main-area .view-root{padding:20px 14px 12px}
+ .hero-card.voyage-actions{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin-bottom:14px}
+ .voyage-choice{min-height:64px;padding:9px;gap:8px;border-radius:14px}
+ .voyage-choice b{font-size:15px}.choice-symbol{width:35px;height:37px;border-radius:10px;font-size:24px}
+ .topbar{height:58px;padding:0 8px;gap:4px}.mast-brand{font-size:16px;gap:4px}.compass-logo{width:28px;height:28px;font-size:20px}
+ #crumbCurrent{display:none}.streak-pill small{display:none}.topbar-actions{gap:4px}
+ .voyage-intro p{font-size:15px}.voyage-kicker{font-size:11px}
+ .sea-chart{padding:6px;border-width:3px;border-radius:18px}
+ .sea-chart h2{font-size:18px}.sea-chart header span{font-size:11px}
+ .island-pin{padding:3px 5px;border-radius:8px;min-width:0}.island-pin span{font-size:10px}.island-pin b{font-size:14px}
+ .sea-chart header{padding:4px 5px 8px}
+}
+@media(max-width:360px){.mast-brand .compass-logo{display:none}.voyage-choice small{font-size:11px}}
+@media print{.voyage-dock{display:none!important}.main-area{padding:0}.app-shell{background:white}}

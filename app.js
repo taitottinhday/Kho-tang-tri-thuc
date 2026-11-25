@@ -1,0 +1,1210 @@
+/* Vườn Chữ – ứng dụng luyện chính tả tiểu học
+ * Khung giao diện: Codex v1 · Logic & nội dung: Claude Code v2
+ * Chạy độc lập (mở index.html), lưu tiến độ bằng localStorage.
+ */
+'use strict';
+
+/* ============================== DỮ LIỆU ============================== */
+const DATA = window.NGAN_HANG_CHINH_TA || { chuDe: [], doanNgheViet: {} };
+const ALL_TOPICS = DATA.chuDe;
+const STORE_KEY = 'vuonchu.v2';
+const AVATARS = ['🐰', '🐻', '🦊', '🐼', '🐸', '🦄', '🐯', '🐧', '🐨', '🐵'];
+const GARDEN = [
+  { xp: 0, icon: '🌱', name: 'Mầm nhỏ' },
+  { xp: 60, icon: '🌿', name: 'Chồi xanh' },
+  { xp: 180, icon: '🌷', name: 'Nụ hoa' },
+  { xp: 400, icon: '🌻', name: 'Hoa nở rộ' },
+  { xp: 800, icon: '🌳', name: 'Cây cổ thụ' },
+  { xp: 1500, icon: '🏡', name: 'Khu vườn chữ' }
+];
+const BADGES = [
+  { id: 'first', icon: '🌱', name: 'Bước đầu tiên', desc: 'Hoàn thành bài học đầu tiên' },
+  { id: 'perfect', icon: '💯', name: 'Không sai câu nào', desc: 'Đạt 100% trong một bài' },
+  { id: 'combo10', icon: '⚡', name: 'Tia chớp', desc: 'Đúng 10 câu liên tiếp' },
+  { id: 'streak3', icon: '🔥', name: 'Chăm chỉ', desc: 'Học 3 ngày liền' },
+  { id: 'streak7', icon: '🏆', name: 'Kiên trì', desc: 'Học 7 ngày liền' },
+  { id: 'xp100', icon: '⭐', name: 'Trăm điểm', desc: 'Đạt 100 XP' },
+  { id: 'xp500', icon: '🌟', name: 'Ngôi sao sáng', desc: 'Đạt 500 XP' },
+  { id: 'listener', icon: '🎧', name: 'Đôi tai tinh', desc: 'Nghe – viết đúng 5 câu' },
+  { id: 'hunter', icon: '🔎', name: 'Thám tử chữ', desc: 'Tìm đúng 10 lỗi sai' },
+  { id: 'speed15', icon: '🚀', name: 'Nhanh như gió', desc: 'Đạt 15 điểm trò Nhanh tay' },
+  { id: 'reviewer', icon: '🔁', name: 'Sửa sai giỏi', desc: 'Ôn xong 5 từ hay nhầm' },
+  { id: 'allDone', icon: '👑', name: 'Vua chính tả', desc: 'Hoàn thành mọi bài của lớp' },
+  { id: 'boss', icon: '🌳', name: 'Người giữ vườn', desc: 'Đánh thức Cây Chữ Thần' },
+  { id: 'flowers20', icon: '🌸', name: 'Vườn hoa rực rỡ', desc: 'Sưu tầm 20 bông hoa' }
+];
+const PRAISE = ['Giỏi quá!', 'Chính xác!', 'Tuyệt vời!', 'Em làm đúng rồi!', 'Hay lắm!', 'Xuất sắc!'];
+const ENCOURAGE = ['Không sao, mình học thêm nhé!', 'Sắp đúng rồi, cố lên!', 'Nhìn kĩ lại một chút nhé!'];
+const LEVELS = { de: '★ Mức Dễ', vua: '★★ Mức Vừa', kho: '★★★ Mức Khó' };
+/* 3 mức mỗi bài (kiểu ForumFlash): qua mức nào nhận sao mức đó; mức sau mở khi đã qua mức trước. */
+const TIERS = {
+  de: { stars: 1, name: 'Dễ', pass: 70, hints: 2, desc: 'Bộ câu cơ bản nhất, có <b>2 lần gợi ý</b>. Đúng từ 70% là qua màn, nhận <b>1★</b> và mở bài tiếp theo.' },
+  vua: { stars: 2, name: 'Vừa', pass: 70, hints: 1, desc: 'Thêm ghép chữ, tìm lỗi và nghe. Có <b>1 lần gợi ý</b>. Đúng từ 70% nhận <b>2★</b>.' },
+  kho: { stars: 3, name: 'Khó', pass: 80, hints: 0, desc: 'Toàn bộ câu của bài, <b>không có gợi ý</b>. Đúng từ 80% nhận <b>3★</b> – em đã thành thạo!' }
+};
+function tierOpen(ts, k) { return db.settings.unlockAll || k === 'de' || (k === 'vua' && ts.stars >= 1) || (k === 'kho' && ts.stars >= 2); }
+function suggestTier(ts) { return ts.stars >= 2 ? 'kho' : ts.stars >= 1 ? 'vua' : 'de'; }
+
+/* ============================== LƯU TRỮ ============================== */
+function newProfile(name, grade, avatar) {
+  return {
+    id: 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+    name: name || 'Bạn nhỏ', grade: String(grade || 2), avatar: avatar || '🐰',
+    xp: 0, streak: 0, lastDay: '', topics: {}, review: {}, wrongLog: {},
+    attempts: 0, correct: 0, combo: 0, bestCombo: 0,
+    daily: { day: '', done: false }, badges: [], bestSpeed: 0,
+    dictCorrect: 0, hunted: 0, reviewed: 0, history: [],
+    flowers: 0, nodes: {}, mission: null, bossWins: 0, skip: {}
+  };
+}
+function loadDB() {
+  try {
+    const db = JSON.parse(localStorage.getItem(STORE_KEY));
+    if (db && db.profiles && db.profiles[db.current]) {
+      for (const id in db.profiles) db.profiles[id] = Object.assign(newProfile(), db.profiles[id], { id });
+      db.settings = Object.assign({ sound: true, unlockAll: false, rate: 1, voice: '' }, db.settings);
+      return db;
+    }
+  } catch (e) { /* bỏ qua dữ liệu hỏng */ }
+  const p = newProfile();
+  return { profiles: { [p.id]: p }, current: p.id, settings: { sound: true, unlockAll: false, rate: 1, voice: '' } };
+}
+let db = loadDB();
+let S = db.profiles[db.current];
+function save() {
+  try { localStorage.setItem(STORE_KEY, JSON.stringify(db)); } catch (e) { /* hết bộ nhớ / chế độ riêng tư */ }
+  updateChrome();
+}
+
+/* ============================== TIỆN ÍCH ============================== */
+const $ = (sel, root) => (root || document).querySelector(sel);
+const $$ = (sel, root) => Array.from((root || document).querySelectorAll(sel));
+function esc(s) { return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+function md(s) { return esc(s).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>'); }
+function plain(s) { return String(s).replace(/\*\*/g, ''); }
+function shuffle(a) { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+function pick(a) { return a[Math.floor(Math.random() * a.length)]; }
+function dayKey(d) { d = d || new Date(); return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate(); }
+function pct(a, b) { return b ? Math.round(a / b * 100) : 0; }
+function getTopic(id) { return ALL_TOPICS.find(t => t.id === id); }
+function tstat(id) { return S.topics[id] || (S.topics[id] = { stars: 0, done: false, attempts: 0, correct: 0, best: 0 }); }
+function itemOf(key) { const [tid, i] = key.split(':'); const t = getTopic(tid); const b = t && t.baiTap[Number(i)]; return b ? Object.assign({}, b, { _t: tid, _i: Number(i) }) : null; }
+function fullSentence(item) { return item.de.includes('___') ? item.de.replace('___', item.dapAn) : item.dapAn; }
+function itemWord(item) { // từ đúng để hiển thị trong danh sách ôn
+  if (item.loai === 'timLoi') return item.tuDung;
+  if (item.loai === 'ngheViet') return item.cau;
+  if (!item.de.includes('___')) return item.dapAn;
+  const s = fullSentence(item); const pos = item.de.indexOf('___');
+  const start = item.de.lastIndexOf(' ', pos) + 1; let end = s.indexOf(' ', pos + item.dapAn.length);
+  if (end < 0) end = s.length;
+  return s.slice(start, end).replace(/[.,!?:;]/g, '');
+}
+
+/* ============================== CHỦ ĐỀ THEO LỚP ============================== */
+function myTopics() { const g = Number(S.grade); return ALL_TOPICS.filter(t => t.lop[0] <= g && g <= t.lop[1]); }
+function topicStatus(t) {
+  if (tstat(t.id).done) return 'done';
+  const list = myTopics(); const i = list.indexOf(t);
+  if (db.settings.unlockAll || (S.skip && S.skip[S.grade]) || i <= 0 || tstat(list[i - 1].id).done) return 'open';
+  return 'locked';
+}
+function nextTopic() { return myTopics().find(t => topicStatus(t) === 'open') || null; }
+function chapters() {
+  const map = new Map();
+  myTopics().forEach(t => { if (!map.has(t.nhom)) map.set(t.nhom, []); map.get(t.nhom).push(t); });
+  const icons = { 'Phụ âm đầu': '🪴', 'Vần': '🌷', 'Dấu thanh': '🌼', 'Tổng hợp': '🧠', 'Viết hoa': '🍃' };
+  return Array.from(map, ([nhom, topics]) => ({ title: nhom, icon: icons[nhom] || '🌿', topics }));
+}
+function openTopics() { const l = myTopics().filter(t => topicStatus(t) !== 'locked'); return l.length ? l : myTopics().slice(0, 1); }
+function gardenStage(xp) { let s = GARDEN[0]; GARDEN.forEach(g => { if (xp >= g.xp) s = g; }); return s; }
+
+/* ============================== ÂM THANH ============================== */
+let audioCtx = null;
+function tone(freq, start, dur, type, vol) {
+  const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+  o.type = type || 'sine'; o.frequency.value = freq;
+  g.gain.setValueAtTime(0.0001, audioCtx.currentTime + start);
+  g.gain.exponentialRampToValueAtTime(vol || 0.18, audioCtx.currentTime + start + 0.02);
+  g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + start + dur);
+  o.connect(g); g.connect(audioCtx.destination);
+  o.start(audioCtx.currentTime + start); o.stop(audioCtx.currentTime + start + dur + 0.05);
+}
+function sfx(kind) {
+  if (!db.settings.sound) return;
+  try {
+    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    if (kind === 'good') { tone(660, 0, 0.15, 'triangle'); tone(990, 0.1, 0.25, 'triangle'); }
+    else if (kind === 'bad') { tone(300, 0, 0.18, 'sine', 0.12); tone(220, 0.14, 0.25, 'sine', 0.1); }
+    else if (kind === 'win') { [523, 659, 784, 1047].forEach((f, i) => tone(f, i * 0.12, 0.3, 'triangle')); }
+    else if (kind === 'tap') { tone(880, 0, 0.06, 'sine', 0.06); }
+  } catch (e) { /* trình duyệt không hỗ trợ */ }
+}
+
+/* ============================== GIỌNG ĐỌC ============================== */
+let viVoice = null, viVoices = [];
+function findVoice() {
+  if (!('speechSynthesis' in window)) return;
+  viVoices = speechSynthesis.getVoices().filter(v => /^vi/i.test(v.lang));
+  viVoice = viVoices.find(v => v.name === db.settings.voice) || viVoices[0] || null;
+}
+if ('speechSynthesis' in window) {
+  findVoice();
+  speechSynthesis.onvoiceschanged = () => { findVoice(); if (currentView === 'teacher' && teacherOK) render(); };
+}
+function speak(text, rate) {
+  if (!db.settings.sound) return;
+  if (!('speechSynthesis' in window)) { toast('Máy này chưa đọc được thành tiếng 😢'); return; }
+  speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(plain(text));
+  u.lang = 'vi-VN'; u.rate = (rate || 0.85) * (db.settings.rate || 1);
+  if (viVoice) u.voice = viVoice;
+  speechSynthesis.speak(u);
+}
+function stopSpeak() { if ('speechSynthesis' in window) speechSynthesis.cancel(); }
+
+/* ============================== HIỆU ỨNG ============================== */
+let toastTimer;
+function toast(text) {
+  const el = $('#toast'); el.textContent = text; el.classList.add('show');
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => el.classList.remove('show'), 2600);
+}
+function confetti() {
+  if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const layer = $('#confetti'); const colors = ['#f4c85a', '#ef9b55', '#64b281', '#64b5f6', '#f06292', '#ba68c8'];
+  for (let i = 0; i < 70; i++) {
+    const p = document.createElement('i');
+    p.style.left = Math.random() * 100 + 'vw';
+    p.style.background = pick(colors);
+    p.style.animationDelay = Math.random() * 0.5 + 's';
+    p.style.animationDuration = 1.8 + Math.random() * 1.4 + 's';
+    p.style.transform = 'rotate(' + Math.random() * 360 + 'deg)';
+    layer.appendChild(p);
+  }
+  setTimeout(() => { layer.innerHTML = ''; }, 3600);
+}
+
+/* ============================== KHUNG CHUNG ============================== */
+let currentView = 'home';
+let teacherOK = false;
+function updateChrome() {
+  $('#profileName').textContent = S.name;
+  $('.avatar').textContent = S.avatar;
+  $('#gradeSelect').value = S.grade;
+  $('#streakCount').textContent = S.streak;
+  $('#sidebarXP').textContent = S.xp + ' XP';
+  $('#reviewNavCount').textContent = Object.keys(S.review).length + WordShelf.dueCount();
+  $('#soundIcon').textContent = db.settings.sound ? '🔊' : '🔇';
+  const fc = $('#flowerCount'); if (fc) fc.textContent = S.flowers;
+  const sc = $('#starCount'); if (sc) sc.textContent = Object.values(S.topics).reduce((a, t) => a + (t.stars || 0), 0);
+  const st = gardenStage(S.xp), idx = GARDEN.indexOf(st), nx = GARDEN[idx + 1];
+  $('#gardenIcon').textContent = st.icon;
+  $('#gardenName').textContent = st.name;
+  $('#gardenHint').innerHTML = nx ? 'Còn <b>' + (nx.xp - S.xp) + ' XP</b> nữa<br />vườn sẽ thành ' + nx.icon : 'Khu vườn đã<br />rực rỡ nhất! 🎉';
+  $('#gardenBar').style.width = nx ? pct(S.xp - st.xp, nx.xp - st.xp) + '%' : '100%';
+}
+const VIEW_NAMES = { home: 'Trang học', roadmap: 'Lộ trình của em', shelf: 'Tủ thẻ từ', games: 'Trò chơi', review: 'Ôn lại từ sai', badges: 'Huy hiệu', teacher: 'Góc thầy cô' };
+/* Điểm nối cho module ngoài (settings.js, onboarding.js, …): nạp SAU app.js rồi gọi
+   registerView('settings', 'Cài đặt', () => html, () => { gắn sự kiện });  → điều hướng bằng data-view="settings" */
+const EXT_VIEWS = {};
+function registerView(name, title, page, bind) { EXT_VIEWS[name] = { page, bind }; VIEW_NAMES[name] = title; }
+const AFTER_RENDER = []; // module có thể đẩy hàm chạy sau mỗi lần render (vd. thanh tab dưới)
+function render() {
+  updateChrome();
+  const views = { home: renderHome, roadmap: renderRoadmap, shelf: WordShelf.page, games: renderGames, review: renderReview, badges: renderBadges, teacher: renderTeacher };
+  const ext = EXT_VIEWS[currentView];
+  $('#viewRoot').innerHTML = ext ? ext.page() : (views[currentView] || renderHome)();
+  $$('.nav-item, [data-tab]').forEach(n => n.classList.toggle('active', (n.dataset.view || n.dataset.tab) === currentView));
+  $('#crumbCurrent').textContent = VIEW_NAMES[currentView] || 'Trang học';
+  if (currentView === 'teacher') bindTeacher();
+  if (currentView === 'shelf') WordShelf.bind();
+  if (currentView === 'roadmap' && typeof bindRoadmap === 'function') bindRoadmap();
+  if (ext && ext.bind) ext.bind();
+  AFTER_RENDER.forEach(f => { try { f(currentView); } catch (e) { console.warn(e); } });
+}
+function go(view) {
+  if (view === 'teacher' && !teacherOK) { teacherGate(); return; }
+  currentView = view; closeSidebar(); render(); window.scrollTo(0, 0);
+}
+function pageHeading(kicker, title, desc, actions) {
+  return '<div class="page-heading"><div><div class="eyebrow">' + kicker + '</div><h1>' + title + '</h1><p>' + desc + '</p></div>' + (actions ? '<div class="heading-actions">' + actions + '</div>' : '') + '</div>';
+}
+function starsHtml(n, max) { max = max || 3; let s = ''; for (let i = 0; i < max; i++) s += '<span class="star ' + (i < n ? 'on' : '') + '">★</span>'; return '<span class="stars">' + s + '</span>'; }
+function accuracy() { return pct(S.correct, S.attempts); }
+
+/* ============================== TRANG HỌC: QUẦN ĐẢO VƯỜN CHỮ ==============================
+   Giao diện theo voyage.css + tranh assets/quan-dao.webp của Codex. Mỗi đảo là một lớp,
+   chạm vào đảo → chọn lớp và mở con đường trong vườn của đảo đó. */
+const ISLAND_SHORT = { 1: 'Phượng Đỏ', 2: 'Thác Bạc', 3: 'Cối Gió', 4: 'Hải Đăng', 5: 'Lâu Đài' };
+function gradeTopics(g) { g = Number(g); return ALL_TOPICS.filter(t => t.lop[0] <= g && g <= t.lop[1]); }
+function islandProgress(g) { const tl = gradeTopics(g); return { done: tl.filter(t => S.topics[t.id] && S.topics[t.id].done).length, total: tl.length }; }
+function voyageChoice(action, sym, title, sub) {
+  return '<button class="voyage-choice" data-action="' + action + '"><span class="choice-symbol" aria-hidden="true">' + sym + '</span><span><b>' + title + '</b><small>' + sub + '</small></span></button>';
+}
+function chooseIsland(g) {
+  S.grade = String(g); save(); sfx('tap');
+  go('roadmap'); toast('⛵ Cập bến ' + gardenName() + '!');
+}
+function renderHome() {
+  const topics = myTopics(), done = topics.filter(t => tstat(t.id).done).length, next = nextTopic();
+  const reviewN = Object.keys(S.review).length + WordShelf.dueCount();
+  const hour = new Date().getHours(), greet = hour < 11 ? 'Chào buổi sáng' : hour < 14 ? 'Chào buổi trưa' : hour < 18 ? 'Chào buổi chiều' : 'Chào buổi tối';
+  const tip = next ? next.quyTac[0] : 'Em đã học hết các bài của ' + gardenName() + '. Hãy đánh thức Cây Chữ Thần hoặc sang đảo mới nhé!';
+  return '<div class="voyage-home">' +
+    '<section class="voyage-intro"><div class="voyage-kicker">BẢN ĐỒ VƯỜN CHỮ</div><h1>' + greet + ', ' + esc(S.name) + '! <span aria-hidden="true">' + S.avatar + '</span></h1>' +
+    '<p>Chọn hòn đảo để học. Đảo của em: <b>Lớp ' + esc(S.grade) + ' – ' + gardenName() + '</b>.</p></section>' +
+    WordShelf.home() +
+    '<section class="hero-card voyage-actions" aria-label="Lối tắt">' +
+    voyageChoice('continue', '⚑', 'Tiếp tục hành trình', next ? esc(next.ten) : 'Cây Chữ Thần đang chờ') +
+    voyageChoice('quick', '✦', 'Luyện nhanh', '10 câu ngẫu nhiên') +
+    voyageChoice('review', '↻', 'Ôn câu sai', reviewN ? reviewN + ' mục đang chờ' : 'Chưa có câu sai') +
+    voyageChoice('placement', '◎', 'Kiểm tra trình độ', S.placement ? 'Lần trước: hợp lớp ' + S.placement.level : 'Gợi ý lớp phù hợp') +
+    '</section>' +
+    '<section class="sea-chart" aria-label="Bản đồ quần đảo"><header><h2>Quần đảo Vườn Chữ</h2><span>Đảo của em: <i>Lớp ' + esc(S.grade) + '</i></span></header>' +
+    '<div class="chart-water"><img class="island-art" src="assets/quan-dao.webp" alt="Bản đồ năm hòn đảo: nhà cây phượng, rừng thác nước, đồi cối xay gió, ngọn hải đăng và lâu đài" width="1536" height="1024" />' +
+    [1, 2, 3, 4, 5].map(g => { const p = islandProgress(g);
+      return '<button class="island-pin island-' + g + (String(g) === S.grade ? ' selected' : '') + '" data-island="' + g + '" aria-label="Lớp ' + g + ' – ' + gardenName(g) + ', ' + p.done + ' trên ' + p.total + ' bài đã xong"><b>Lớp ' + g + '</b><span>' + ISLAND_SHORT[g] + (p.done ? ' · ' + p.done + '/' + p.total : '') + '</span></button>'; }).join('') +
+    '</div></section>' +
+    '<section class="hero-card next-voyage"><div class="hero-copy"><div class="eyebrow">BÀI HỌC TIẾP THEO · ' + gardenName().toUpperCase() + '</div>' +
+    (next ? '<h2><span class="hero-topic-icon">' + next.bieuTuong + '</span> ' + esc(next.ten) + '</h2><p class="hero-tip">💡 ' + md(tip) + '</p><div class="hero-actions"><button class="primary-btn big" data-start="' + next.id + '">▶ Học ngay</button><button class="soft-btn big" data-view="roadmap">🗺️ Xem con đường</button></div>'
+      : '<h2>🎉 Em đã học hết ' + gardenName() + '!</h2><p class="hero-tip">' + esc(tip) + '</p><div class="hero-actions"><button class="primary-btn big" data-action="continue">🌳 Tới Cây Chữ Thần</button><button class="soft-btn big" data-view="games">🎮 Trò chơi</button></div>') +
+    '</div><img class="garden-illustration" src="assets/tho-doc-sach.webp" alt="" width="1000" height="667" /></section>' +
+    '<section class="stats-row" aria-label="Tiến độ học tập">' +
+    stat('⭐', 'gold', S.xp, 'Điểm XP') +
+    stat('🌱', '', done + '<small> / ' + topics.length + '</small>', 'Bài đã xong') +
+    stat('🌸', 'pink', S.flowers, 'Bông hoa') +
+    stat('🔥', 'blue', S.streak, 'Ngày liên tiếp') + '</section>' +
+    '<div class="two-column"><section><div class="section-title-row"><h2>Nhiệm vụ hôm nay</h2><span class="eyebrow">🎁 +2 🌸</span></div>' + missionCard() + '</section>' +
+    '<section><div class="section-title-row"><h2>Khu vườn của em</h2></div>' + gardenCard() + '</section></div>' +
+    '<section class="voyage-lessons"><div class="section-title-row"><h2>Các bài trên ' + gardenName() + '</h2><button class="text-link" data-view="roadmap">Xem con đường →</button></div>' +
+    '<div class="topic-strip">' + topics.map(topicTile).join('') + '</div></section></div>';
+}
+
+/* ============================== KIỂM TRA TRÌNH ĐỘ ==============================
+   10 câu = 2 câu × 5 mức khó. Mức nào đúng ít nhất 1/2 thì qua; dừng ở mức đầu tiên chưa qua.
+   Kết quả chỉ là GỢI Ý lớp – không ghi vào danh sách ôn, không tính sao bài học. */
+const PLACEMENT_LEVELS = [
+  ['c-k-q', 'g-gh', 'ng-ngh'],
+  ['l-n', 'an-ang', 'viet-hoa'],
+  ['s-x', 'ch-tr', 'uon-uong', 'uon-uong-2', 'ien-ieng'],
+  ['d-gi-r', 'hoi-nga'],
+  ['tu-kho']
+];
+function startPlacement() {
+  const items = [];
+  PLACEMENT_LEVELS.forEach((ids, k) => {
+    const pool = [];
+    ids.map(getTopic).filter(Boolean).forEach(t => t.baiTap.forEach((b, i) => { if (b.loai === 'chon' || b.loai === 'timLoi') pool.push(Object.assign({}, b, { _t: t.id, _i: i, _lv: k + 1 })); }));
+    shuffle(pool).slice(0, 2).forEach(it => items.push(it.loai === 'chon' && Math.random() < 0.3 ? Object.assign(makeDungSai(it), { _lv: k + 1 }) : it));
+  });
+  openModal('◎ Kiểm tra trình độ', '10 câu · không tính giờ', '<div class="speed-intro"><div class="big-emoji">🧭</div><h3>Em hợp với đảo nào?</h3><p>Làm <b>10 câu</b> từ dễ đến khó. Cứ bình tĩnh làm hết sức nhé – câu sai không bị trừ gì cả!</p><button class="primary-btn big" id="goPlace">Bắt đầu ◎</button></div>');
+  $('#goPlace').onclick = () => startQuiz({ kind: 'placement', title: 'Kiểm tra trình độ', icon: '🧭', subtitle: 'Từ dễ đến khó', items });
+}
+function finishPlacement(q) {
+  const per = PLACEMENT_LEVELS.map((_, k) => q.log.filter(x => x.lv === k + 1));
+  let passed = 0;
+  for (const arr of per) { if (arr.length && arr.some(x => x.right)) passed++; else break; }
+  const suggest = String(Math.max(1, passed));
+  S.placement = { day: dayKey(), level: suggest, score: q.correct };
+  S.xp += q.correct * 5; mission().games++; bumpDay(); checkBadges(); save();
+  sfx('win'); confetti();
+  const body = '<div class="lesson-complete"><div class="result-mascot" aria-hidden="true">' + S.avatar + '</div><div class="complete-medal">🧭</div>' +
+    '<h3>Em hợp với Lớp ' + suggest + ' – ' + gardenName(suggest) + '!</h3><p>Đây chỉ là gợi ý. Thầy cô và bố mẹ sẽ giúp em chọn lớp phù hợp nhất.</p>' +
+    '<div class="place-levels">' + per.map((arr, k) => { const ok = arr.filter(x => x.right).length; return '<div class="place-row ' + (k < passed ? 'pass' : '') + '"><span>Mức ' + (k + 1) + '</span><div class="mission-bar"><span style="width:' + pct(ok, arr.length || 1) + '%"></span></div><b>' + ok + '/' + arr.length + '</b></div>'; }).join('') + '</div>' +
+    '<div class="score-pills"><span>✅ ' + q.correct + ' / ' + q.items.length + ' câu đúng</span><span>⭐ +' + q.correct * 5 + ' XP</span></div>' +
+    '<div class="modal-actions center">' + (suggest !== S.grade ? '<button class="primary-btn big" id="goSuggest">⛵ Sang ' + gardenName(suggest) + '</button><button class="soft-btn" id="home">Giữ Lớp ' + esc(S.grade) + '</button>' : '<button class="primary-btn big" id="home">Tuyệt! Về trang học</button>') + '</div></div>';
+  openModal('Kết quả kiểm tra', q.correct + ' / ' + q.items.length + ' câu đúng', body, 'result');
+  Q = null;
+  onModalClose = render;
+  $('#home').onclick = () => { closeModal(); go('home'); };
+  const gs = $('#goSuggest'); if (gs) gs.onclick = () => { closeModal(); chooseIsland(suggest); };
+}
+function stat(icon, cls, val, label) { return '<div class="stat-card"><div class="stat-icon ' + cls + '">' + icon + '</div><div><div class="stat-value">' + val + '</div><div class="stat-label">' + label + '</div></div></div>'; }
+function actCard(action, icon, title, meta) { return '<button class="activity-card" data-action="' + action + '"><span class="activity-art">' + icon + '</span><span><b>' + title + '</b><small>' + meta + '</small></span></button>'; }
+function gardenCard() {
+  const st = gardenStage(S.xp), i = GARDEN.indexOf(st), nx = GARDEN[i + 1];
+  return '<div class="daily-card garden-card"><div class="garden-row">' + GARDEN.map((g, k) => '<span class="' + (k <= i ? 'reached' : '') + '" title="' + g.name + ' – ' + g.xp + ' XP">' + g.icon + '</span>').join('') + '</div>' +
+    '<h3>' + st.icon + ' ' + st.name + '</h3><p>' + (nx ? 'Thêm ' + (nx.xp - S.xp) + ' XP để vườn lớn thành <b>' + nx.name + '</b>.' : 'Vườn của em đã lớn nhất rồi!') + '</p>' +
+    '<div class="daily-progress"><span style="width:' + (nx ? pct(S.xp - st.xp, nx.xp - st.xp) : 100) + '%"></span></div></div>';
+}
+function topicTile(t) {
+  const st = topicStatus(t), ts = tstat(t.id);
+  return '<button class="topic-tile ' + st + '" style="--c:' + t.mau + '" ' + (st === 'locked' ? 'data-locked="1"' : 'data-start="' + t.id + '"') + '>' +
+    '<span class="topic-tile-icon">' + (st === 'locked' ? '🔒' : t.bieuTuong) + '</span><b>' + esc(t.ten) + '</b>' + starsHtml(ts.stars) + '</button>';
+}
+
+/* ============================== LỘ TRÌNH: CON ĐƯỜNG TRONG VƯỜN ============================== */
+const GARDEN_NAMES = { 1: 'Đảo Phượng Đỏ', 2: 'Đảo Thác Bạc', 3: 'Đảo Cối Gió', 4: 'Đảo Hải Đăng', 5: 'Đảo Lâu Đài' };
+function gardenName(g) { return GARDEN_NAMES[g || S.grade] || 'Vườn Chữ'; }
+const NODE_INFO = {
+  challenge: { icon: '⚡', name: 'Thử thách' },
+  gift: { icon: '🎁', name: 'Giỏ quà' },
+  boss: { icon: '🌳', name: 'Cây Chữ Thần' }
+};
+const DECO = ['🌳', '🌷', '🍄', '🌻', '🪴', '🌼', '🦋', '🐝', '🌲', '🍓', '🐞', '🌿'];
+/* Nút trên đường: bài học · ⚡ thử thách sau mỗi 2 bài · 🎁 giỏ quà sau mỗi 4 bài · 🌳 Cây Chữ Thần cuối vườn.
+   Bài học mở theo thứ tự như cũ; thử thách/giỏ quà/cây thần mở khi mọi bài phía trước đã xong (không chặn bài sau). */
+function pathNodes() {
+  const topics = myTopics(), g = S.grade, nodes = [];
+  let pending = [], ci = 0, gi = 0;
+  topics.forEach((t, i) => {
+    nodes.push({ type: 'lesson', id: t.id, topic: t });
+    pending.push(t);
+    const last = i === topics.length - 1;
+    if (pending.length === 2 || last) { nodes.push({ type: 'challenge', id: 'ch' + g + '-' + (++ci), topics: pending }); pending = []; }
+    if ((i + 1) % 4 === 0 && !last) nodes.push({ type: 'gift', id: 'gift' + g + '-' + (++gi) });
+  });
+  if (topics.length) nodes.push({ type: 'boss', id: 'boss' + g, topics });
+  return nodes;
+}
+function nodeDone(n) { return n.type === 'lesson' ? tstat(n.id).done : !!(S.nodes[n.id] && S.nodes[n.id].done); }
+function nodeStatus(n, idx, nodes) {
+  if (nodeDone(n)) return 'done';
+  if (n.type === 'lesson') return topicStatus(n.topic) === 'locked' ? 'locked' : 'open';
+  return nodes.slice(0, idx).every(x => x.type !== 'lesson' || tstat(x.id).done) ? 'open' : 'locked';
+}
+let mapNodes = [];
+function renderRoadmap() {
+  const nodes = mapNodes = pathNodes(), topics = myTopics(), done = topics.filter(t => tstat(t.id).done).length;
+  if (!nodes.length) return pageHeading('CON ĐƯỜNG TRONG VƯỜN', gardenName(), 'Chưa có bài học cho lớp này.');
+  const ROW = 122, TOP = 112, XS = [50, 76, 50, 24];
+  const pts = nodes.map((n, i) => ({ x: XS[i % 4], y: TOP + i * ROW }));
+  const H = TOP + (nodes.length - 1) * ROW + 120;
+  let d = 'M ' + pts[0].x + ' ' + (pts[0].y - 70) + ' L ' + pts[0].x + ' ' + pts[0].y;
+  for (let i = 1; i < pts.length; i++) { const a = pts[i - 1], b = pts[i], my = (a.y + b.y) / 2; d += ' C ' + a.x + ' ' + my + ' ' + b.x + ' ' + my + ' ' + b.x + ' ' + b.y; }
+  const statuses = nodes.map((n, i) => nodeStatus(n, i, nodes));
+  const cur = statuses.indexOf('open');
+  const deco = pts.map((p, i) => { const x = p.x === 50 ? (i % 8 < 4 ? 12 : 88) : p.x > 50 ? 16 : 84; return '<span class="gm-deco" style="left:' + x + '%;top:' + (p.y + 14) + 'px">' + DECO[i % DECO.length] + '</span>'; }).join('');
+  const bossDone = nodeDone(nodes[nodes.length - 1]), skipDone = !!(S.skip && S.skip[S.grade]);
+  let lessonNo = 0;
+  return '<div class="gm-head"><div><div class="eyebrow">CON ĐƯỜNG TRONG VƯỜN</div><h1>🌿 Lớp ' + esc(S.grade) + ' · ' + gardenName() + '</h1><p>' + done + ' / ' + topics.length + ' bài đã hoàn thành' + (bossDone ? ' · 🌳 Em đã đánh thức Cây Chữ Thần!' : '') + '</p></div>' +
+    '<div class="gm-head-right"><div class="progress-track wide"><span style="width:' + pct(done, topics.length) + '%"></span></div><small>Mỗi bài có 3 mức: Dễ ★ · Vừa ★★ · Khó ★★★</small></div></div>' +
+    '<div class="gm-grades" role="group" aria-label="Chọn lớp">' + [1, 2, 3, 4, 5].map(g => { const p = islandProgress(g);
+      return '<button class="gm-grade ' + (String(g) === S.grade ? 'on' : '') + '" data-island="' + g + '"><b>Lớp ' + g + '</b><small>' + p.done + '/' + p.total + ' bài</small><i style="width:' + pct(p.done, p.total) + '%"></i></button>'; }).join('') + '</div>' +
+    (done < topics.length ? '<div class="gm-skip"><div><b>🚀 Kiểm tra kiến thức Lớp ' + esc(S.grade) + '</b><small>' + (skipDone ? 'Em đã vượt cấp – mọi bài đã mở để em học tự do.' : 'Đã biết nhiều rồi? Đúng từ 80% để mở khoá tất cả các bài.') + '</small></div>' +
+      (skipDone ? '<span class="gm-skip-done">✓ Đã vượt cấp</span>' : '<button class="soft-btn" data-action="skip">Làm bài vượt cấp →</button>') + '</div>' : '') +
+    '<div class="garden-map" style="height:' + H + 'px">' + deco +
+    '<svg class="gm-path" viewBox="0 0 100 ' + H + '" preserveAspectRatio="none" aria-hidden="true"><path class="gm-road" d="' + d + '" vector-effect="non-scaling-stroke"/><path class="gm-dash" d="' + d + '" vector-effect="non-scaling-stroke"/></svg>' +
+    '<div class="gm-gate">🌈 Cổng ' + gardenName() + '</div>' +
+    nodes.map((n, i) => {
+      const st = statuses[i], p = pts[i], info = NODE_INFO[n.type];
+      const icon = st === 'locked' ? '🔒' : n.type === 'lesson' ? n.topic.bieuTuong : (n.type === 'gift' && st === 'done' ? '🧺' : info.icon);
+      const label = n.type === 'lesson' ? esc(n.topic.ten) : info.name;
+      return '<button class="gm-node ' + n.type + ' ' + st + (i === cur ? ' current' : '') + '" style="left:' + p.x + '%;top:' + p.y + 'px' + (n.topic ? ';--c:' + n.topic.mau : '') + '" data-node="' + i + '" aria-label="' + label + (st === 'locked' ? ' – đang khoá' : st === 'done' ? ' – đã xong' : '') + '">' +
+        (i === cur ? '<span class="gm-me" aria-hidden="true">' + S.avatar + '</span>' : '') +
+        '<span class="gm-disc">' + icon + '</span><span class="gm-label">' + (n.type === 'lesson' ? '<small class="gm-num">' + String(++lessonNo).padStart(2, '0') + ' · ' + esc(n.topic.nhom) + '</small>' : '') + '<b>' + label + '</b>' + (n.type === 'lesson' ? starsHtml(tstat(n.id).stars) : '') + '</span></button>';
+    }).join('') + '</div>' +
+    '<div class="gm-legend"><span>📘 Bài học</span><span>⚡ Thử thách: tính giờ, 3 💧</span><span>🎁 Giỏ quà</span><span>🌳 Cây Chữ Thần cuối vườn</span></div>';
+}
+function bindRoadmap() {
+  $$('[data-node]').forEach(b => b.onclick = () => openNode(Number(b.dataset.node)));
+  const cur = $('.gm-node.current');
+  if (cur) setTimeout(() => cur.scrollIntoView({ block: 'center', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' }), 60);
+}
+function openNode(i) {
+  const n = mapNodes[i]; if (!n) return;
+  const st = nodeStatus(n, i, mapNodes);
+  if (st === 'locked') { sfx('bad'); toast(n.type === 'lesson' ? 'Hoàn thành bài trước để mở bài này nhé! 🔒' : 'Học xong các bài phía trước trên ' + gardenName() + ' để mở ' + NODE_INFO[n.type].name.toLowerCase() + ' nhé! 🔒'); return; }
+  if (n.type === 'lesson') { startTopic(n.id); return; }
+  if (n.type === 'gift') { openGift(n, st); return; }
+  const boss = n.type === 'boss', names = n.topics.map(t => t.ten);
+  const count = boss ? 12 : 8, secs = boss ? 150 : 90;
+  const body = '<div class="node-intro ' + n.type + '"><div class="big-emoji">' + (boss ? '🌳' : '⚡') + '</div>' +
+    '<h3>' + (boss ? 'Cây Chữ Thần của ' + gardenName() : 'Thử thách tốc độ') + '</h3>' +
+    '<p>' + (boss ? 'Trả lời ' + count + ' câu trộn từ <b>mọi bài</b> của ' + gardenName() + ' để đánh thức Cây Chữ Thần!' : 'Ôn lại bài: <b>' + esc(names.join(', ')) + '</b>.') + '</p>' +
+    '<div class="score-pills"><span>📝 ' + count + ' câu</span><span>⏱ ' + secs + ' giây</span><span>💧 3 giọt nước</span></div>' +
+    '<p class="small-print">Mỗi câu sai mất 1 giọt nước. Hết nước hoặc hết giờ thì mình thử lại – không mất gì cả!</p>' +
+    (st === 'done' ? '<div class="unlock-note">✅ Em đã vượt qua rồi. Chơi lại để luyện thêm nhé!</div>' : '') +
+    '<div class="modal-actions center"><button class="primary-btn big" id="goNode">Bắt đầu ' + (boss ? '🌳' : '⚡') + '</button></div></div>';
+  openModal(boss ? '🌳 Cây Chữ Thần' : '⚡ Thử thách', gardenName() + ' · Lớp ' + esc(S.grade), body);
+  $('#goNode').onclick = () => startQuiz({ kind: n.type, nodeId: n.id, title: boss ? 'Cây Chữ Thần' : 'Thử thách: ' + names.join(' · '), icon: boss ? '🌳' : '⚡', items: mixedItems(n.topics, count), lives: 3, timeLimit: secs });
+  $('#goNode').focus();
+}
+function openGift(n, st) {
+  if (st === 'done') { toast('Em đã mở giỏ quà này rồi 🧺'); return; }
+  const tips = myTopics().flatMap(t => t.quyTac.map(r => ({ t, r })));
+  const tip = pick(tips);
+  openModal('🎁 Giỏ quà', gardenName() + ' · phần thưởng chăm học', '<div class="gift-open"><div class="gift-box">🎁</div><p>Em đã chăm chỉ học bài. Giỏ quà này là của em!</p><div class="modal-actions center"><button class="primary-btn big" id="openGift">Mở giỏ quà ✨</button></div></div>');
+  onModalClose = render;
+  $('#openGift').onclick = () => {
+    S.nodes[n.id] = { done: true, at: Date.now() }; S.flowers += 3; S.xp += 30; checkBadges(); save();
+    sfx('win'); confetti();
+    $('.gift-open').innerHTML = '<div class="gift-box opened">🧺</div><h3>Em nhận được</h3><div class="score-pills"><span>🌸 +3 bông hoa</span><span>⭐ +30 XP</span></div>' +
+      '<div class="tip-card"><b>📜 Bí kíp chính tả</b><p>' + tip.t.bieuTuong + ' ' + md(tip.r) + '</p></div><div class="modal-actions center"><button class="primary-btn big" data-close-modal>Cảm ơn! 💚</button></div>';
+  };
+}
+
+/* ============================== TRÒ CHƠI ============================== */
+const GAMES = [
+  { action: 'daily', icon: '🎯', title: 'Thử thách mỗi ngày', desc: '5 câu trộn từ các bài em đã mở, ưu tiên từ em hay nhầm.', meta: '+20 XP mỗi ngày' },
+  { action: 'speed', icon: '🚀', title: 'Nhanh tay', desc: 'Trong 60 giây, chọn đúng càng nhiều chữ càng tốt!', meta: 'Kỉ lục của em: ' },
+  { action: 'hunt', icon: '🔎', title: 'Thám tử săn lỗi', desc: 'Mỗi câu có một chữ viết sai. Chạm vào chữ đó để sửa!', meta: '6 câu · đọc kĩ từng chữ' },
+  { action: 'dictation', icon: '🎧', title: 'Nghe – viết đoạn văn', desc: 'Nghe máy đọc từng câu trong đoạn văn rồi gõ lại.', meta: 'Có nghe chậm, nghe lại' },
+  { action: 'review', icon: '🔁', title: 'Ôn từ hay nhầm', desc: 'Các câu em làm sai sẽ quay lại. Đúng 2 lần là thuộc!', meta: 'Ôn tập ngắt quãng' },
+  { action: 'quick', icon: '🎲', title: 'Luyện nhanh', desc: '10 câu ngẫu nhiên đủ kiểu: đúng/sai, ghép chữ, chọn chữ, tìm lỗi.', meta: 'Trộn từ các bài em đã mở' },
+  { action: 'arena', icon: '🏆', title: 'Đấu đội trên lớp', desc: 'Thầy cô trình chiếu lên bảng, cả lớp chia 2–4 đội thi trả lời nhanh.', meta: 'Dành cho thầy cô · cả lớp cùng chơi' }
+];
+function renderGames() {
+  return pageHeading('HỌC MÀ CHƠI', 'Chọn một trò chơi', 'Chơi vui một chút, nhớ chữ thật lâu!') +
+    '<div class="game-grid">' + GAMES.map(g => '<article class="game-card"><div class="game-icon">' + g.icon + '</div><div><h3>' + g.title + '</h3><p>' + g.desc + '</p><div class="game-meta">' + g.meta + (g.action === 'speed' ? S.bestSpeed + ' điểm' : '') + '</div><button class="primary-btn" data-action="' + g.action + '">Chơi ngay →</button></div></article>').join('') + '</div>';
+}
+
+/* ============================== ÔN LẠI ============================== */
+function renderReview() {
+  const keys = Object.keys(S.review);
+  const sets = WordShelf.dueSets(), total = keys.length + WordShelf.dueCount();
+  return pageHeading('GÓC GHI NHỚ', 'Ôn lại từ em hay nhầm', 'Luyện lại các thẻ từ còn sai. Với câu trong bài học, em cần trả lời đúng ở hai lượt khác nhau.', total ? '<button class="primary-btn" data-action="review">▶ Ôn ngay</button>' : '') +
+    '<div class="review-summary"><div class="review-summary-card"><b>' + total + '</b><small>Mục đang chờ ôn</small></div><div class="review-summary-card"><b>' + S.reviewed + '</b><small>Câu đã ôn trong bài học</small></div><div class="review-summary-card"><b>' + accuracy() + '%</b><small>Độ chính xác bài học</small></div></div>' +
+    WordShelf.reviewList(sets) +
+    (keys.length ? '<div class="review-list">' + keys.map(k => {
+      const it = itemOf(k); if (!it) return ''; const t = getTopic(it._t), box = S.review[k].box;
+      return '<div class="review-item"><span class="review-word">' + esc(itemWord(it)) + '</span><span class="review-note">' + esc(t.ten) + '</span><span class="lesson-tag">' + (box ? '✅ Đúng 1/2 lần' : '⏳ Cần ôn') + '</span><button class="mini-speak" data-say="' + esc(it.loai === 'chon' ? fullSentence(it) : it.loai === 'timLoi' ? it.cau.replace(it.tuSai, it.tuDung) : it.cau) + '" aria-label="Nghe">🔊</button></div>';
+    }).join('') + '</div>'
+      : sets.length ? '' : '<div class="review-empty"><div class="empty-icon">🌷</div><b>Chưa có từ nào cần ôn</b><p>Em hãy học một bài mới. Câu nào sai, mình sẽ lưu lại đây để luyện thêm.</p><button class="primary-btn" data-view="roadmap">Chọn bài học</button></div>');
+}
+
+/* ============================== HUY HIỆU ============================== */
+function renderBadges() {
+  return pageHeading('BỘ SƯU TẬP', 'Huy hiệu của em', 'Em đã có ' + S.badges.length + ' / ' + BADGES.length + ' huy hiệu. Cố gắng sưu tầm đủ nhé!') +
+    '<div class="badge-grid">' + BADGES.map(b => { const on = S.badges.includes(b.id); return '<div class="badge-card ' + (on ? 'on' : '') + '"><div class="badge-icon">' + (on ? b.icon : '🔒') + '</div><b>' + b.name + '</b><small>' + b.desc + '</small></div>'; }).join('') + '</div>' +
+    '<div class="note-callout big-note">🔥 Chuỗi ngày học hiện tại: <b>' + S.streak + ' ngày</b> · ⚡ Đúng liên tiếp nhiều nhất: <b>' + S.bestCombo + ' câu</b></div>';
+}
+function checkBadges() {
+  const topics = myTopics();
+  const cond = {
+    first: Object.values(S.topics).some(t => t.done),
+    perfect: Object.values(S.topics).some(t => t.best >= 100),
+    combo10: S.bestCombo >= 10, streak3: S.streak >= 3, streak7: S.streak >= 7,
+    xp100: S.xp >= 100, xp500: S.xp >= 500, listener: S.dictCorrect >= 5, hunter: S.hunted >= 10,
+    speed15: S.bestSpeed >= 15, reviewer: S.reviewed >= 5,
+    allDone: topics.length > 0 && topics.every(t => tstat(t.id).done),
+    boss: S.bossWins > 0, flowers20: S.flowers >= 20
+  };
+  const fresh = BADGES.filter(b => cond[b.id] && !S.badges.includes(b.id));
+  fresh.forEach(b => S.badges.push(b.id));
+  return fresh;
+}
+
+/* ============================== GÓC GIÁO VIÊN ============================== */
+function teacherGate() {
+  const a = 3 + Math.floor(Math.random() * 7), b = 3 + Math.floor(Math.random() * 7);
+  openModal('Dành cho thầy cô 👩‍🏫', 'Trả lời câu hỏi để vào góc giáo viên',
+    '<div class="gate"><p>Góc này dùng để xem tiến độ và cài đặt. Thầy cô hãy nhập kết quả phép tính:</p><div class="gate-q">' + a + ' × ' + b + ' = ?</div><input id="gateInput" class="dictation-input" inputmode="numeric" autocomplete="off" aria-label="Kết quả phép tính" /><div class="modal-actions"><button class="primary-btn" id="gateOk">Vào góc thầy cô</button></div></div>');
+  const ok = () => { if (Number($('#gateInput').value) === a * b) { teacherOK = true; closeModal(); go('teacher'); } else { sfx('bad'); toast('Chưa đúng, thầy cô thử lại nhé.'); } };
+  $('#gateOk').onclick = ok; $('#gateInput').onkeydown = e => { if (e.key === 'Enter') ok(); }; $('#gateInput').focus();
+}
+function renderTeacher() {
+  const profiles = Object.values(db.profiles);
+  const missed = Object.entries(S.wrongLog).sort((a, b) => b[1] - a[1]).slice(0, 12).map(([k, n]) => { const it = itemOf(k); return it ? { it, n } : null; }).filter(Boolean);
+  return pageHeading('GÓC DÀNH CHO GIÁO VIÊN', 'Theo dõi tiến độ học', 'Dữ liệu chỉ lưu trong trình duyệt của thiết bị này, không gửi lên mạng.', '<button class="soft-btn" id="printReport">🖨️ In báo cáo</button>') +
+    WordShelf.teacherPanel() + '<div class="teacher-layout">' +
+    '<section class="teacher-panel span-2"><h2>👧👦 Học sinh trên máy này (' + profiles.length + ')</h2><div class="table-wrap"><table class="t-table"><thead><tr><th>Học sinh</th><th>Lớp</th><th>XP</th><th>Bài xong</th><th>Đúng</th><th>Chuỗi ngày</th><th>Học gần nhất</th><th></th></tr></thead><tbody>' +
+    profiles.map(p => { const g = Number(p.grade), tl = ALL_TOPICS.filter(t => t.lop[0] <= g && g <= t.lop[1]); const d = tl.filter(t => p.topics[t.id] && p.topics[t.id].done).length;
+      return '<tr class="' + (p.id === S.id ? 'me' : '') + '"><td>' + p.avatar + ' ' + esc(p.name) + (p.id === S.id ? ' <small>(đang dùng)</small>' : '') + '</td><td>' + esc(p.grade) + '</td><td>' + p.xp + '</td><td>' + d + '/' + tl.length + '</td><td>' + pct(p.correct, p.attempts) + '%</td><td>' + p.streak + '</td><td>' + (p.lastDay || '—') + '</td><td>' + (p.id === S.id ? '' : '<button class="soft-btn sm" data-switch="' + p.id + '">Chọn</button>') + '</td></tr>'; }).join('') +
+    '</tbody></table></div></section>' +
+    '<section class="teacher-panel"><h2>📊 Chi tiết: ' + S.avatar + ' ' + esc(S.name) + ' · Lớp ' + esc(S.grade) + '</h2><div class="table-wrap"><table class="t-table"><thead><tr><th>Bài</th><th>Sao</th><th>Tốt nhất</th><th>Đúng</th></tr></thead><tbody>' +
+    myTopics().map(t => { const ts = tstat(t.id); return '<tr><td>' + t.bieuTuong + ' ' + esc(t.ten) + '</td><td>' + starsHtml(ts.stars) + '</td><td>' + (ts.attempts ? ts.best + '%' : '—') + '</td><td>' + (ts.attempts ? pct(ts.correct, ts.attempts) + '%' : '—') + '</td></tr>'; }).join('') +
+    '</tbody></table></div></section>' +
+    '<section class="teacher-panel"><h2>❗ Từ học sinh hay sai nhất</h2>' + (missed.length ? '<ul class="missed-list">' + missed.map(m => '<li><b>' + esc(itemWord(m.it)) + '</b> <span>(' + esc(getTopic(m.it._t).ten) + ')</span> <em>sai ' + m.n + ' lần</em></li>').join('') + '</ul>' : '<p>Chưa có dữ liệu. Khi học sinh làm sai, từ đó sẽ hiện ở đây để thầy cô dạy lại.</p>') + '</section>' +
+    '<section class="teacher-panel"><h2>⚙️ Cài đặt lớp học</h2>' +
+    '<label class="switch-row"><input type="checkbox" id="unlockAll" ' + (db.settings.unlockAll ? 'checked' : '') + ' /> Mở khoá tất cả bài (cho phép học sinh chọn bài bất kì)</label>' +
+    '<div class="btn-row"><button class="soft-btn" id="exportData">⬇️ Sao lưu dữ liệu</button><label class="soft-btn file-btn">⬆️ Khôi phục<input type="file" id="importData" accept=".json,application/json" hidden /></label></div>' +
+    '<div class="btn-row"><button class="soft-btn danger" id="resetCurrent">🗑️ Xoá tiến độ của ' + esc(S.name) + '</button>' + (profiles.length > 1 ? '<button class="soft-btn danger" id="deleteCurrent">❌ Xoá học sinh này</button>' : '') + '</div>' +
+    '<div id="confirmArea"></div></section>' +
+    '<section class="teacher-panel"><h2>🖨️ Phiếu bài tập in cho lớp</h2><p>Chọn chủ đề để in phiếu luyện tập: điền chữ, tìm lỗi sai, nghe – viết. Đáp án nằm ở trang sau, dùng cho giờ chính tả hoặc bài về nhà.</p>' +
+    '<div class="btn-row"><select id="wsTopic" class="t-select" aria-label="Chọn chủ đề phiếu">' + ALL_TOPICS.map(t => '<option value="' + t.id + '" ' + (myTopics()[0] === t ? 'selected' : '') + '>' + t.bieuTuong + ' ' + esc(t.ten) + ' (lớp ' + t.lop[0] + '–' + t.lop[1] + ')</option>').join('') + '</select><button class="primary-btn" id="wsOpen">👀 Xem &amp; in phiếu</button></div></section>' +
+    '<section class="teacher-panel"><h2>🔊 Giọng đọc</h2>' +
+    (viVoices.length ? '<div class="field-label">Giọng tiếng Việt trên máy này</div><select id="voiceSel" class="t-select" aria-label="Chọn giọng đọc">' + viVoices.map(v => '<option value="' + esc(v.name) + '" ' + (viVoice && v.name === viVoice.name ? 'selected' : '') + '>' + esc(v.name) + '</option>').join('') + '</select>'
+      : '<p class="warn-text">Máy này chưa có giọng đọc tiếng Việt, phần nghe – viết sẽ cần thầy cô đọc giúp. Gợi ý: trình duyệt <b>Microsoft Edge</b> thường có sẵn giọng tiếng Việt; trên Windows có thể thêm giọng ở Cài đặt → Thời gian &amp; ngôn ngữ → Giọng nói.</p>') +
+    '<div class="field-label">Tốc độ đọc</div><select id="rateSel" class="t-select" aria-label="Tốc độ đọc"><option value="0.8">🐢 Chậm (lớp 1–2)</option><option value="1">Vừa</option><option value="1.15">Nhanh hơn (lớp 4–5)</option></select>' +
+    '<div class="btn-row"><button class="soft-btn" id="voiceTest">▶ Nghe thử</button></div></section>' +
+    '<section class="teacher-panel"><h2>🧭 Gợi ý sử dụng trên lớp</h2><ul>' +
+    '<li>Mỗi học sinh tạo một hồ sơ (bấm vào avatar góc trên) để máy dùng chung vẫn lưu riêng tiến độ.</li>' +
+    '<li>Trình chiếu lên màn hình: cả lớp cùng chọn đáp án, thầy cô bấm 🔊 để đọc câu.</li>' +
+    '<li>Sau mỗi bài, cho học sinh đặt câu mới với từ vừa học để nhớ lâu.</li>' +
+    '<li>Phần nghe – viết dùng giọng đọc tiếng Việt của máy. Nếu máy không có giọng Việt, thầy cô bấm “👀 Xem câu” và tự đọc cho học sinh.</li>' +
+    '<li>Mẹo hỏi/ngã chỉ đúng với phần lớn từ láy, cần kết hợp ghi nhớ từ.</li></ul></section>' +
+    '</div>';
+}
+function bindTeacher() {
+  $('#printReport').onclick = () => window.print();
+  $('#wsOpen').onclick = () => showWorksheet(getTopic($('#wsTopic').value));
+  const vs = $('#voiceSel');
+  if (vs) vs.onchange = e => { db.settings.voice = e.target.value; findVoice(); save(); speak('Xin chào các em!'); };
+  $('#rateSel').value = String(db.settings.rate || 1);
+  $('#rateSel').onchange = e => { db.settings.rate = Number(e.target.value); save(); speak('Con kiến tha mồi về tổ.'); };
+  $('#voiceTest').onclick = () => { if (!db.settings.sound) { toast('Âm thanh đang tắt, bấm 🔇 ở góc trên để bật.'); return; } speak('Chào các em, hôm nay chúng ta cùng luyện chính tả nhé!'); };
+  $('#unlockAll').onchange = e => { db.settings.unlockAll = e.target.checked; save(); toast(e.target.checked ? 'Đã mở khoá tất cả bài' : 'Đã bật học theo thứ tự'); };
+  $('#exportData').onclick = () => {
+    const blob = new Blob([JSON.stringify(db, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'vuon-chu-' + dayKey() + '.json';
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  };
+  $('#importData').onchange = e => {
+    const f = e.target.files[0]; if (!f) return;
+    f.text().then(txt => {
+      const d = JSON.parse(txt);
+      if (!d.profiles || !d.profiles[d.current]) throw new Error('bad');
+      localStorage.setItem(STORE_KEY, JSON.stringify(d)); db = loadDB(); S = db.profiles[db.current]; render(); toast('Đã khôi phục dữ liệu!');
+    }).catch(() => toast('File không đúng định dạng sao lưu của Vườn Chữ.'));
+  };
+  const confirmBox = (text, fn) => {
+    $('#confirmArea').innerHTML = '<div class="confirm-box"><p>' + text + '</p><button class="soft-btn danger" id="yesDo">Đồng ý xoá</button> <button class="soft-btn" id="noDo">Huỷ</button></div>';
+    $('#yesDo').onclick = fn; $('#noDo').onclick = () => { $('#confirmArea').innerHTML = ''; };
+  };
+  $('#resetCurrent').onclick = () => confirmBox('Xoá toàn bộ XP, sao, huy hiệu của <b>' + esc(S.name) + '</b>? Không thể hoàn tác.', () => {
+    const fresh = newProfile(S.name, S.grade, S.avatar); fresh.id = S.id; db.profiles[S.id] = fresh; S = fresh; save(); render(); toast('Đã xoá tiến độ.');
+  });
+  const del = $('#deleteCurrent');
+  if (del) del.onclick = () => confirmBox('Xoá hẳn hồ sơ <b>' + esc(S.name) + '</b> khỏi máy này?', () => {
+    delete db.profiles[S.id]; db.current = Object.keys(db.profiles)[0]; S = db.profiles[db.current]; save(); render(); toast('Đã xoá học sinh.');
+  });
+  $$('[data-switch]').forEach(b => b.onclick = () => switchProfile(b.dataset.switch));
+}
+/* ============================== PHIẾU BÀI TẬP IN ============================== */
+function worksheetHtml(t) {
+  const chon = t.baiTap.filter(b => b.loai === 'chon'), loi = t.baiTap.filter(b => b.loai === 'timLoi'), nghe = t.baiTap.filter(b => b.loai === 'ngheViet');
+  const sorted = b => b.luaChon.slice().sort((x, y) => x.localeCompare(y, 'vi')); // không để đáp án luôn đứng đầu
+  const blank = '<span class="ws-blank"></span>';
+  const keyWord = b => { const w = itemWord(Object.assign({ loai: 'chon' }, b)); return esc(b.dapAn) + (b.de.includes('___') && w !== b.dapAn ? ' (' + esc(w) + ')' : ''); };
+  let h = '<div class="ws-head"><div><div class="ws-brand">Vườn Chữ · Phiếu luyện chính tả</div><h1>' + t.bieuTuong + ' ' + esc(t.ten) + '</h1></div><div class="ws-meta">Họ và tên: ……………………………………<br />Lớp: ………… Ngày: ……………………</div></div>';
+  h += '<div class="ws-rule"><b>💡 Mẹo nhớ</b><ul>' + t.quyTac.map(r => '<li>' + md(r) + '</li>').join('') + '</ul></div>';
+  h += '<h2>Bài 1. Chọn chữ đúng, điền vào chỗ trống</h2><ol class="ws-list">' + chon.map(b => b.de.includes('___')
+    ? '<li>' + esc(b.de).replace('___', blank) + ' <span class="ws-opt">(' + sorted(b).map(esc).join(' / ') + ')</span></li>'
+    : '<li>' + esc(b.de) + ' <span class="ws-opt">(đánh dấu ✓ vào câu đúng)</span><div class="ws-choices">' + sorted(b).map(o => '<div>☐ ' + esc(o) + '</div>').join('') + '</div></li>').join('') + '</ol>';
+  if (loi.length) h += '<h2>Bài 2. Gạch chân chữ viết sai trong mỗi câu, rồi viết lại cho đúng</h2><ol class="ws-list">' + loi.map(b => '<li>' + esc(b.cau) + '<div class="ws-line">Sửa lại: …………………………………</div></li>').join('') + '</ol>';
+  if (nghe.length) h += '<h2>Bài 3. Nghe thầy cô đọc rồi viết lại</h2>' + nghe.map((_, i) => '<div class="ws-write"><span>' + (i + 1) + '.</span></div>').join('');
+  h += '<div class="ws-done">Em tự đánh giá: ☐ Em làm được hết &nbsp; ☐ Em còn sai vài chữ &nbsp; ☐ Em cần cô giúp thêm</div>';
+  h += '<div class="ws-key"><h2>Đáp án (dành cho thầy cô)</h2><p><b>Bài 1:</b> ' + chon.map((b, i) => (i + 1) + '. ' + keyWord(b)).join('; ') + '</p>' +
+    (loi.length ? '<p><b>Bài 2:</b> ' + loi.map((b, i) => (i + 1) + '. ' + esc(b.tuSai) + ' → ' + esc(b.tuDung)).join('; ') + '</p>' : '') +
+    (nghe.length ? '<p><b>Bài 3 – câu đọc cho học sinh:</b></p><ol class="ws-list">' + nghe.map(b => '<li>' + esc(b.cau) + '</li>').join('') + '</ol>' : '') + '</div>';
+  return h;
+}
+function showWorksheet(t) {
+  if (!t) return;
+  openModal('🖨️ Phiếu bài tập', esc(t.ten) + ' · xem trước khi in', '<div class="ws-preview"><div class="worksheet">' + worksheetHtml(t) + '</div></div><div class="modal-actions"><button class="primary-btn big" id="wsPrint">🖨️ In phiếu</button></div>', 'wide');
+  $('#wsPrint').onclick = () => {
+    let el = $('#printSheet');
+    if (!el) { el = document.createElement('div'); el.id = 'printSheet'; document.body.appendChild(el); }
+    el.innerHTML = '<div class="worksheet">' + worksheetHtml(t) + '</div>';
+    document.body.classList.add('print-sheet');
+    const done = () => document.body.classList.remove('print-sheet');
+    window.addEventListener('afterprint', done, { once: true });
+    window.print();
+    setTimeout(done, 1500);
+  };
+}
+
+function switchProfile(id) { db.current = id; S = db.profiles[id]; save(); render(); toast('Xin chào ' + S.name + '! ' + S.avatar); }
+
+/* ============================== HỒ SƠ HỌC SINH ============================== */
+function showProfile() {
+  const others = Object.values(db.profiles).filter(p => p.id !== S.id);
+  const body = '<div class="profile-form">' +
+    (others.length ? '<div><div class="field-label">Đổi sang bạn khác</div><div class="profile-list">' + others.map(p => '<button class="profile-chip" data-switch-p="' + p.id + '">' + p.avatar + ' ' + esc(p.name) + ' <small>lớp ' + esc(p.grade) + '</small></button>').join('') + '</div></div>' : '') +
+    '<label>Tên của em<input id="nameInput" maxlength="18" value="' + esc(S.name) + '" /></label>' +
+    '<label>Em học lớp<select id="profileGrade">' + [1, 2, 3, 4, 5].map(g => '<option value="' + g + '" ' + (S.grade == g ? 'selected' : '') + '>Lớp ' + g + '</option>').join('') + '</select></label>' +
+    '<div><div class="field-label">Chọn bạn đồng hành</div><div class="profile-avatars">' + AVATARS.map(a => '<button type="button" class="' + (a === S.avatar ? 'selected' : '') + '" data-avatar="' + a + '" aria-label="Chọn ' + a + '">' + a + '</button>').join('') + '</div></div>' +
+    '<div class="modal-actions"><button class="soft-btn" id="addProfile">➕ Thêm bạn mới</button><button class="primary-btn" id="saveProfile">Lưu</button></div>' +
+    '<p class="small-print">Nhiều bạn dùng chung một máy? Mỗi bạn tạo một hồ sơ riêng nhé. Dữ liệu chỉ lưu trên máy này.</p></div>';
+  openModal('Hồ sơ của em', 'Đổi tên, lớp, bạn đồng hành', body);
+  let avatar = S.avatar;
+  $$('[data-avatar]').forEach(b => b.onclick = () => { avatar = b.dataset.avatar; sfx('tap'); $$('[data-avatar]').forEach(x => x.classList.toggle('selected', x.dataset.avatar === avatar)); });
+  $$('[data-switch-p]').forEach(b => b.onclick = () => { closeModal(); switchProfile(b.dataset.switchP); });
+  $('#saveProfile').onclick = () => {
+    S.name = $('#nameInput').value.trim() || 'Bạn nhỏ'; S.grade = $('#profileGrade').value; S.avatar = avatar;
+    save(); closeModal(); render(); toast('Đã lưu hồ sơ của em!');
+  };
+  $('#addProfile').onclick = () => {
+    const p = newProfile('Bạn mới', S.grade, pick(AVATARS)); db.profiles[p.id] = p; db.current = p.id; S = p; save(); render(); showProfile();
+    setTimeout(() => { const i = $('#nameInput'); if (i) { i.select(); i.focus(); } }, 50);
+  };
+}
+
+/* ============================== HỘP THOẠI ============================== */
+let onModalClose = null;
+function openModal(title, subtitle, body, cls) {
+  const root = $('#modalRoot');
+  root.className = 'modal-root';
+  root.innerHTML = '<div class="modal-card ' + (cls || '') + '" role="dialog" aria-modal="true" aria-labelledby="modalTitle"><div class="modal-head"><div><h2 id="modalTitle">' + title + '</h2><p>' + (subtitle || '') + '</p></div><button class="modal-close" data-close-modal aria-label="Đóng">×</button></div><div class="modal-body">' + body + '</div></div>';
+  root.hidden = false; document.body.classList.add('modal-open');
+  $('.app-shell').inert = true;
+  root.onclick = e => { if (e.target === root) closeModal(); };
+}
+function closeModal() {
+  const root = $('#modalRoot'); root.hidden = true; root.innerHTML = ''; root.className = 'modal-root';
+  clearInterval(qTimer);
+  $('.app-shell').inert = false;
+  document.body.classList.remove('modal-open'); stopSpeak();
+  if (onModalClose) { const f = onModalClose; onModalClose = null; f(); }
+  Q = null;
+}
+
+/* ============================== BÀI HỌC ============================== */
+function startTopic(id) {
+  const t = getTopic(id); if (!t) return;
+  if (topicStatus(t) === 'locked') { toast('Hoàn thành bài trước để mở bài này nhé! 🔒'); return; }
+  showIntro(t);
+}
+/* Hộp “thông tin bài học”: số chặng · trạng thái · 3 mức sao · 2 lối vào Lý thuyết / Bài tập */
+function showIntro(t, level) {
+  const ts = tstat(t.id), num = String(myTopics().indexOf(t) + 1).padStart(2, '0');
+  level = level && tierOpen(ts, level) ? level : suggestTier(ts);
+  const g = Number(S.grade), n = buildLesson(t, level).length, tier = TIERS[level];
+  const status = ts.attempts ? 'Đã đạt ' + ts.stars + '★ · tốt nhất ' + ts.best + '%' : 'Chưa làm bài';
+  const body = '<div class="lp-head" style="--c:' + t.mau + '"><span class="lp-num">' + num + '</span><div class="lp-title"><small>LỚP ' + esc(S.grade) + ' · ' + esc(t.nhom.toUpperCase()) + '</small><h3>' + t.bieuTuong + ' ' + esc(t.ten) + '</h3></div>' + starsHtml(ts.stars) + '</div>' +
+    '<div class="lp-status ' + (ts.attempts ? 'has' : '') + '"><b>' + status + '</b><span>' + (ts.theory ? '📖 Em đã đọc lý thuyết bài này.' : 'Đọc lý thuyết trước, rồi làm bài tập để nhận sao.') + '</span></div>' +
+    '<div class="field-label">Chọn mức</div><div class="lp-tiers" role="group" aria-label="Chọn mức">' + Object.keys(TIERS).map(k => {
+      const open = tierOpen(ts, k), got = ts.stars >= TIERS[k].stars;
+      return '<button class="lp-tier ' + (k === level ? 'is-chosen ' : '') + (open ? '' : 'locked ') + (got ? 'got' : '') + '" data-level="' + k + '" aria-pressed="' + (k === level) + '"' + (open ? '' : ' aria-disabled="true"') + '><b>' + TIERS[k].name + '</b><span class="lp-stars">' + '★'.repeat(TIERS[k].stars) + '☆'.repeat(3 - TIERS[k].stars) + '</span><small>' + (got ? '✓ Đã qua' : open ? 'Đang mở' : '🔒 Qua mức trước') + '</small></button>';
+    }).join('') + '</div>' +
+    '<p class="lp-desc"><b>Mức ' + tier.name + ':</b> ' + tier.desc + '</p>' +
+    '<div class="lp-enter"><button class="lp-btn theory" id="openTheory"><span aria-hidden="true">📖</span><b>Lý thuyết</b><small>Mẹo, ví dụ, lỗi thường gặp</small></button>' +
+    '<button class="lp-btn practice" id="beginQuiz"><span aria-hidden="true">✏️</span><b>Bài tập</b><small>' + n + ' câu · mức ' + tier.name + (g >= 2 ? '' : ' · có nghe rồi chọn') + '</small></button></div>';
+  openModal('Bài ' + num + ' · ' + esc(t.ten), gardenName() + ' · Lớp ' + esc(S.grade), body);
+  $$('[data-level]').forEach(b => b.onclick = () => {
+    const k = b.dataset.level;
+    if (!tierOpen(ts, k)) { sfx('bad'); toast('Qua mức ' + (k === 'kho' ? 'Vừa' : 'Dễ') + ' trước để mở mức ' + TIERS[k].name + ' nhé! 🔒'); return; }
+    sfx('tap'); showIntro(t, k);
+  });
+  $('#openTheory').onclick = () => { if (typeof openTheory === 'function') openTheory(t.id, level); };
+  $('#beginQuiz').onclick = () => startQuiz({ kind: 'lesson', title: t.ten, icon: t.bieuTuong, topicId: t.id, level, hints: tier.hints, items: buildLesson(t, level) });
+  $('#beginQuiz').focus();
+}
+function startSkipTest() {
+  const topics = myTopics();
+  openModal('🚀 Làm bài vượt cấp', gardenName() + ' · 12 câu', '<div class="speed-intro"><div class="big-emoji">🚀</div><h3>Kiểm tra kiến thức Lớp ' + esc(S.grade) + '</h3>' +
+    '<p>12 câu trộn từ <b>' + topics.length + ' bài</b> của ' + gardenName() + ', không có gợi ý. Đúng từ <b>80%</b> thì <b>mở khoá tất cả các bài</b> để em chọn học tự do (sao của từng bài vẫn phải tự giành nhé!).</p>' +
+    '<button class="primary-btn big" id="goSkip">Bắt đầu 🚀</button></div>');
+  $('#goSkip').onclick = () => startQuiz({ kind: 'skip', title: 'Vượt cấp ' + gardenName(), icon: '🚀', items: mixedItems(topics, 12) });
+  $('#goSkip').focus();
+}
+/* ---- Dạng câu sinh tự động từ ngân hàng (không cần soạn thêm) ---- */
+function blankToken(it) { // phần chữ quanh chỗ trống: "___iến" → { pre: '', post: 'iến' }
+  const tok = it.de.split(' ').find(w => w.includes('___')) || '___';
+  const parts = tok.replace(/[.,!?:;"“”]/g, '').split('___');
+  return { pre: parts[0] || '', post: parts[1] || '' };
+}
+function wrongWords(it) { const b = blankToken(it); return it.luaChon.filter(o => o !== it.dapAn).map(o => b.pre + o + b.post); }
+function canGhep(it) { if (it.loai !== 'chon' || !it.de.includes('___')) return false; const w = itemWord(it); return !/\s/.test(w) && [...w].length >= 2 && [...w].length <= 8; }
+function canNgheChon(it) { return it.loai === 'chon' && it.de.includes('___') && !/\s/.test(itemWord(it)); }
+function makeDungSai(it) {
+  const truth = Math.random() < 0.5, wrongs = it.luaChon.filter(o => o !== it.dapAn), opt = truth ? it.dapAn : pick(wrongs);
+  return { loai: 'dungSai', _t: it._t, _i: it._i, cau: it.de.includes('___') ? it.de.replace('___', opt) : opt, dung: truth, dapAnCau: fullSentence(it) };
+}
+function makeGhep(it) {
+  const word = itemWord(it), b = blankToken(it);
+  let units, extra;
+  if (word !== it.dapAn && it.dapAn.length <= 4 && b.pre + it.dapAn + b.post === word) { // giữ cụm “gh”, “ngh”, “uông”… thành một thẻ
+    units = [...b.pre].concat([it.dapAn], [...b.post]);
+    extra = it.luaChon.filter(o => o !== it.dapAn);
+  } else {
+    units = [...word];
+    const low = [...word.toLowerCase()];
+    extra = [...new Set(it.luaChon.filter(o => o !== it.dapAn).flatMap(o => [...o.toLowerCase()]).filter(ch => ch.trim() && !low.includes(ch)))].slice(0, 2);
+  }
+  const tiles = shuffle(units.concat(extra).map((u, k) => ({ id: k, u })));
+  return { loai: 'ghepChu', _t: it._t, _i: it._i, word, units, tiles, goiY: fullSentence(it).replace(word, '…'), say: fullSentence(it) };
+}
+function makeNgheChon(it) {
+  const word = itemWord(it);
+  return { loai: 'ngheChon', _t: it._t, _i: it._i, word, opts: shuffle([word].concat(wrongWords(it))), goiY: it.de, say: fullSentence(it) };
+}
+function vary(it) { // trộn dạng câu cho phong phú
+  if (it.loai !== 'chon') return it;
+  const r = Math.random();
+  if (r < 0.2) return makeDungSai(it);
+  if (r < 0.4 && canGhep(it)) return makeGhep(it);
+  if (r < 0.5 && Number(S.grade) < 2 && canNgheChon(it)) return makeNgheChon(it);
+  return it;
+}
+function mixedItems(topics, n) {
+  const pool = [];
+  topics.forEach(t => t.baiTap.forEach((b, i) => { if (b.loai !== 'ngheViet') pool.push(Object.assign({}, b, { _t: t.id, _i: i })); }));
+  return shuffle(pool).slice(0, n).map(vary);
+}
+function buildLesson(t, level) {
+  const items = t.baiTap.map((b, i) => Object.assign({}, b, { _t: t.id, _i: i }));
+  const chon = shuffle(items.filter(b => b.loai === 'chon')), loi = shuffle(items.filter(b => b.loai === 'timLoi')), nghe = shuffle(items.filter(b => b.loai === 'ngheViet'));
+  const g = Number(S.grade), ghepSrc = chon.filter(canGhep), ncSrc = chon.filter(canNgheChon);
+  const ds = n => chon.slice(-n).map(makeDungSai);
+  const gh = n => ghepSrc.slice(0, n).map(makeGhep);
+  const listen = n => g >= 2 ? nghe.slice(0, n) : ncSrc.slice(-n).map(makeNgheChon);
+  let list;
+  if (level === 'de') list = [].concat(ds(1), chon.slice(0, 3), gh(1), loi.slice(0, 1), g < 2 ? listen(1) : []);
+  else if (level === 'kho') list = [].concat(ds(2), chon, gh(2), loi, listen(g >= 2 ? nghe.length : 2));
+  else list = [].concat(ds(1), chon.slice(0, 4), gh(1), loi.slice(0, 2), listen(1));
+  return list.filter(Boolean);
+}
+
+/* ============================== NHIỆM VỤ HÔM NAY ============================== */
+const MISSIONS = [
+  { k: 'lessons', n: 1, icon: '📘', text: 'Hoàn thành 1 bài học' },
+  { k: 'correct', n: 10, icon: '✅', text: 'Trả lời đúng 10 câu' },
+  { k: 'games', n: 1, icon: '🎮', text: 'Chơi 1 trò chơi hoặc thử thách' }
+];
+function mission() {
+  if (!S.mission || S.mission.day !== dayKey()) S.mission = { day: dayKey(), lessons: 0, correct: 0, games: 0, claimed: false };
+  return S.mission;
+}
+function missionCard() {
+  const m = mission(), all = MISSIONS.every(x => m[x.k] >= x.n);
+  return '<div class="mission-card">' + MISSIONS.map(x => { const v = Math.min(m[x.k], x.n), ok = v >= x.n;
+    return '<div class="mission-row ' + (ok ? 'done' : '') + '"><span class="mission-icon">' + (ok ? '✅' : x.icon) + '</span><div class="mission-main"><b>' + x.text + '</b><div class="mission-bar"><span style="width:' + pct(v, x.n) + '%"></span></div></div><small>' + v + '/' + x.n + '</small></div>'; }).join('') +
+    (m.claimed ? '<div class="unlock-note">🧺 Em đã nhận quà hôm nay. Mai mình gặp lại nhé!</div>'
+      : '<button class="primary-btn gift-btn" data-action="claimMission" ' + (all ? '' : 'disabled') + '>' + (all ? '🎁 Nhận giỏ quà hôm nay' : '🎁 Xong 3 nhiệm vụ để nhận quà') + '</button>') + '</div>';
+}
+
+/* ============================== MÀN LÀM BÀI (TOÀN MÀN HÌNH) ============================== */
+const KIND_LABEL = { skip: 'LÀM BÀI VƯỢT CẤP', placement: 'KIỂM TRA TRÌNH ĐỘ', lesson: 'BÀI HỌC', challenge: 'THỬ THÁCH', boss: 'CÂY CHỮ THẦN', daily: 'THỬ THÁCH NGÀY', review: 'ÔN TỪ HAY NHẦM', hunt: 'THÁM TỬ SĂN LỖI', dictation: 'NGHE – VIẾT', speed: 'NHANH TAY', quick: 'LUYỆN NHANH' };
+const TYPE_TAG = { chon: 'CHỌN CHỮ ĐÚNG', timLoi: 'TÌM CHỮ VIẾT SAI', ngheViet: 'NGHE – VIẾT', dungSai: 'ĐÚNG HAY SAI?', ghepChu: 'GHÉP CHỮ', ngheChon: 'NGHE RỒI CHỌN' };
+let Q = null, qTimer = null;
+function startQuiz(opts) {
+  if (!opts.items.length) { toast('Chưa có câu nào ở đây, em học bài mới nhé!'); return; }
+  clearInterval(qTimer);
+  Q = Object.assign({ i: 0, correct: 0, answered: false, startedAt: Date.now(), lives: null, log: [],
+    hints: ['speed', 'placement', 'challenge', 'boss', 'skip'].includes(opts.kind) ? 0 : 2 }, opts);
+  Q.items = Q.items.map(it => Object.assign({}, it));
+  if (Q.lives != null) Q.maxLives = Q.lives;
+  if (Q.timeLimit) { Q.endAt = Date.now() + Q.timeLimit * 1000; startTimer(); }
+  renderItem();
+}
+function startTimer() {
+  qTimer = setInterval(() => {
+    if (!Q || !Q.endAt) { clearInterval(qTimer); return; }
+    const left = Math.max(0, Math.ceil((Q.endAt - Date.now()) / 1000));
+    const el = $('#plTime'); if (el) { el.textContent = '⏱ ' + left + 's'; el.classList.toggle('low', left <= 10); }
+    if (left <= 0) {
+      clearInterval(qTimer); Q.timeUp = true;
+      if (Q.kind === 'speed') Q.items = Q.items.slice(0, Q.i + (Q.answered ? 1 : 0));
+      finishQuiz();
+    }
+  }, 250);
+}
+function comboText() { return S.combo >= 3 ? '🔥 ' + S.combo + ' câu đúng liền!' : ''; }
+function livesHtml() {
+  if (Q.lives == null) return '<div class="pl-score" aria-label="Số câu đúng">⭐ ' + Q.correct + '</div>';
+  let s = ''; for (let k = 0; k < Q.maxLives; k++) s += '<span class="' + (k < Q.lives ? 'on' : '') + '">💧</span>';
+  return '<div class="pl-lives" id="plLives" aria-label="Còn ' + Q.lives + ' giọt nước">' + s + '</div>';
+}
+function playerShell(inner, it) {
+  const total = Q.items.length, t = getTopic(it._t), speed = Q.kind === 'speed';
+  return '<div class="player" style="--c:' + (t ? t.mau : '#64b281') + '">' +
+    '<div class="pl-top"><button class="pl-x" data-close-modal aria-label="Thoát bài">✕</button>' +
+    '<div class="pl-bar" role="progressbar" aria-label="Tiến độ" aria-valuemin="0" aria-valuemax="' + total + '" aria-valuenow="' + Q.i + '"><span style="width:' + (speed ? 100 : pct(Q.i, total)) + '%"></span><b>' + (speed ? Q.correct + ' điểm' : (Q.i + 1) + ' / ' + total) + '</b></div>' +
+    (Q.endAt ? '<div class="pl-time" id="plTime">⏱ ' + Math.max(0, Math.ceil((Q.endAt - Date.now()) / 1000)) + 's</div>' : '') + livesHtml() + '</div>' +
+    '<div class="pl-banner"><span class="pl-banner-icon">' + (Q.icon || (t ? t.bieuTuong : '📘')) + '</span><div class="pl-banner-text"><small>' + (KIND_LABEL[Q.kind] || 'LUYỆN TẬP') + '</small><b>' + esc(Q.title) + '</b></div><span class="combo" id="combo">' + comboText() + '</span></div>' +
+    '<div class="pl-card" id="plCard"><div class="pl-tag-row"><span class="pl-tag">' + TYPE_TAG[it.loai] + '</span>' + (t && Q.kind !== 'lesson' ? '<span class="pl-topic">' + t.bieuTuong + ' ' + esc(t.ten) + '</span>' : '') +
+    (canHint(it) ? '<button class="pl-hint-btn" id="plHint" aria-label="Dùng gợi ý, còn ' + Q.hints + ' lần">💡 Gợi ý <b>' + Q.hints + '</b></button>' : '') + '</div>' + inner + '</div>' +
+    '<div class="pl-foot" id="plFoot"><button class="pl-check" id="plCheck" disabled>Kiểm tra</button></div>' +
+    '<div class="pl-sheet" id="plSheet" hidden role="status" aria-live="polite"></div></div>';
+}
+function openPlayer(html) {
+  const root = $('#modalRoot');
+  root.className = 'modal-root player-mode'; root.innerHTML = html; root.hidden = false; root.onclick = null; root.scrollTop = 0;
+  document.body.classList.add('modal-open'); $('.app-shell').inert = true;
+}
+function renderItem() {
+  if (!Q) return;
+  if (Q.i >= Q.items.length) { finishQuiz(); return; }
+  Q.answered = false; Q.evaluate = null;
+  const it = Q.items[Q.i];
+  ({ chon: renderChon, timLoi: renderLoi, ngheViet: renderNghe, dungSai: renderDungSai, ghepChu: renderGhep, ngheChon: renderNgheChon }[it.loai] || renderChon)(it);
+  $('#plCheck').onclick = doCheck;
+  const hb = $('#plHint'); if (hb) hb.onclick = () => useHint(it);
+}
+function setReady(fn) { if (!Q || Q.answered) return; Q.evaluate = fn; const b = $('#plCheck'); if (b) b.disabled = !fn; }
+/* Gợi ý: loại 1 đáp án sai nếu còn ≥ 2 đáp án sai; nếu không thì gợi ý bằng lời (chữ đầu, vị trí chữ sai, mẹo). */
+function canHint(it) { return Q.hints > 0 && ['chon', 'ngheChon', 'dungSai', 'ghepChu', 'timLoi', 'ngheViet'].includes(it.loai); }
+function useHint(it) {
+  if (!Q || Q.answered || Q.hints <= 0) return;
+  Q.hints--; sfx('tap');
+  const key = it.loai === 'chon' ? it.dapAn : it.loai === 'ngheChon' ? it.word : null;
+  const wrong = key == null ? [] : $$('[data-answer]').filter(b => b.dataset.answer !== key && !b.disabled);
+  let msg = '';
+  if (wrong.length >= 2) {
+    const b = pick(wrong);
+    if (b.classList.contains('is-sel')) { setReady(null); const bl = $('#blank'); if (bl) bl.textContent = '?'; }
+    b.disabled = true; b.classList.remove('is-sel'); b.classList.add('removed');
+    msg = 'Đã bỏ bớt một đáp án sai. Em chọn trong các đáp án còn lại nhé!';
+  } else if (it.loai === 'ghepChu') {
+    msg = 'Thẻ đầu tiên là “<b>' + esc(it.units[0]) + '</b>”.';
+  } else if (it.loai === 'timLoi') {
+    const words = it.cau.split(' '), k = words.findIndex(w => cleanWord(w) === it.tuSai);
+    msg = 'Chữ viết sai nằm ở <b>' + (k < words.length / 2 ? 'nửa đầu' : 'nửa sau') + '</b> câu.';
+  } else if (it.loai === 'ngheViet') {
+    msg = 'Câu có <b>' + it.cau.split(' ').length + '</b> chữ. Nghe chậm 🐢 từng chữ rồi gõ nhé.';
+  }
+  const t = getTopic(it._t);
+  const box = $('#plHintBox') || (() => { const d = document.createElement('div'); d.id = 'plHintBox'; d.className = 'pl-hint-box'; $('.pl-tag-row').after(d); return d; })();
+  box.innerHTML = '💡 ' + (msg || (t ? md(t.quyTac[0]) : 'Đọc chậm cả câu nhé!'));
+  const hb = $('#plHint');
+  if (hb) { if (Q.hints > 0) hb.innerHTML = '💡 Gợi ý <b>' + Q.hints + '</b>'; else hb.remove(); }
+}
+function doCheck() {
+  if (!Q || Q.answered || !Q.evaluate) return;
+  const it = Q.items[Q.i];
+  Q.answered = true;
+  const res = Q.evaluate();
+  Q.log.push({ lv: it._lv, right: res.right });
+  record(it, res.right);
+  if (Q.lives != null && !res.right) {
+    Q.lives = Math.max(0, Q.lives - 1);
+    const l = $('#plLives'); if (l) l.outerHTML = livesHtml();
+  }
+  const sc = $('.pl-score'); if (sc) sc.textContent = '⭐ ' + Q.correct;
+  if (!res.right) { const c = $('#plCard'); if (c) c.classList.add('shake'); }
+  if (Q.kind === 'speed') { speedAfter(res.right); return; }
+  showSheet(res);
+}
+function showSheet(res) {
+  const sh = $('#plSheet'), last = Q.i + 1 >= Q.items.length || (Q.lives != null && Q.lives <= 0);
+  sh.className = 'pl-sheet ' + (res.right ? 'good' : 'bad');
+  sh.innerHTML = '<div class="pl-sheet-in"><div class="pl-sheet-head"><span class="pl-sheet-icon">' + (res.right ? '✓' : '✕') + '</span><b>' + (res.right ? pick(PRAISE) : pick(ENCOURAGE)) + '</b><span class="fb-mascot" aria-hidden="true">' + (res.right ? '🥳' : '🤗') + '</span></div>' +
+    (res.html ? '<div class="pl-sheet-body">' + res.html + '</div>' : '') +
+    '<button class="pl-cont" id="plCont">' + (Q.lives != null && Q.lives <= 0 ? 'Xem kết quả' : last ? 'Xem kết quả 🎉' : 'Tiếp tục') + '</button></div>';
+  sh.hidden = false; $('#plFoot').hidden = true;
+  $('#plCont').onclick = nextItem; $('#plCont').focus();
+  if (res.say) speak(res.say);
+}
+function nextItem() { if (!Q) return; if (Q.lives != null && Q.lives <= 0) { finishQuiz(); return; } Q.i++; renderItem(); }
+function ruleHint(it) { const t = getTopic(it._t); return t ? '<div class="pl-hint">💡 ' + md(it.giaiThich || t.quyTac[0]) + '</div>' : ''; }
+function subtitle() { return Q.kind === 'lesson' ? LEVELS[Q.level] : (Q.subtitle || 'Luyện tập'); }
+function optionsHtml(opts, attr) {
+  return '<div class="answer-options ' + (opts.every(o => o.length <= 6) ? 'short' : '') + '">' + opts.map((o, k) => '<button class="answer-option" ' + attr + '="' + esc(o) + '"><span class="option-letter">' + (k + 1) + '</span><span class="opt-text">' + esc(o) + '</span></button>').join('') + '</div>';
+}
+function bindOptions(onPick) {
+  $$('[data-answer]').forEach(b => b.onclick = () => {
+    if (!Q || Q.answered) return;
+    if (Q.kind === 'speed') { setReady(() => onPick(b.dataset.answer)); doCheck(); return; }
+    sfx('tap'); $$('[data-answer]').forEach(x => x.classList.toggle('is-sel', x === b));
+    const bl = $('#blank'); if (bl) bl.textContent = b.dataset.answer;
+    setReady(() => onPick(b.dataset.answer));
+  });
+}
+function markOptions(correct, chosen) {
+  $$('[data-answer]').forEach(b => { b.disabled = true; b.classList.remove('is-sel'); if (b.dataset.answer === correct) b.classList.add('correct'); else if (b.dataset.answer === chosen) b.classList.add('incorrect'); });
+}
+
+/* ---- Chọn chữ đúng ---- */
+function renderChon(it) {
+  it._opts = it._opts || shuffle(it.luaChon);
+  const prompt = it.de.includes('___') ? esc(it.de).replace('___', '<span class="blank" id="blank">?</span>') : esc(it.de);
+  openPlayer(playerShell('<div class="q-line"><div class="question-prompt">' + prompt + '</div><button class="speak-btn" id="sayQ" aria-label="Nghe câu">🔊</button></div>' + optionsHtml(it._opts, 'data-answer'), it));
+  $('#sayQ').onclick = () => speak(fullSentence(it));
+  bindOptions(ans => {
+    markOptions(it.dapAn, ans);
+    const bl = $('#blank'); if (bl) { bl.textContent = it.dapAn; bl.classList.add('filled'); }
+    const right = ans === it.dapAn;
+    return { right, html: (right ? '' : 'Đáp án đúng: <b>' + esc(it.dapAn) + '</b>') + ruleHint(it), say: fullSentence(it) };
+  });
+}
+
+/* ---- Đúng hay sai? ---- */
+function renderDungSai(it) {
+  openPlayer(playerShell('<div class="q-line"><div class="question-prompt">“' + esc(it.cau) + '”</div></div><p class="pl-ask">Câu trên viết <b>đúng chính tả</b> không?</p>' +
+    '<div class="tf-options"><button class="tf-btn yes" data-tf="1"><span>✓</span>Đúng</button><button class="tf-btn no" data-tf="0"><span>✕</span>Sai</button></div>', it));
+  $$('[data-tf]').forEach(b => b.onclick = () => {
+    if (Q.answered) return; sfx('tap');
+    $$('[data-tf]').forEach(x => x.classList.toggle('is-sel', x === b));
+    setReady(() => {
+      const said = b.dataset.tf === '1', right = said === it.dung;
+      $$('[data-tf]').forEach(x => { x.disabled = true; x.classList.remove('is-sel'); if ((x.dataset.tf === '1') === it.dung) x.classList.add('correct'); else if (x === b) x.classList.add('incorrect'); });
+      return { right, html: (it.dung ? 'Câu này viết đúng chính tả.' : 'Câu này viết <b>sai</b>. Viết đúng là: <b>' + esc(it.dapAnCau) + '</b>') + ruleHint(it), say: it.dapAnCau };
+    });
+  });
+}
+
+/* ---- Ghép chữ ---- */
+function renderGhep(it) {
+  const placed = [];
+  openPlayer(playerShell('<p class="pl-ask">Chạm vào các thẻ chữ theo đúng thứ tự để ghép thành từ:</p>' +
+    '<div class="q-line"><div class="question-prompt small">' + esc(it.goiY) + '</div><button class="speak-btn" id="sayQ" aria-label="Nghe câu">🔊</button></div>' +
+    '<div class="ghep-slots" id="slots">' + it.units.map((_, k) => '<button class="slot" data-slot="' + k + '" aria-label="Ô chữ ' + (k + 1) + '"></button>').join('') + '</div>' +
+    '<div class="ghep-tiles">' + it.tiles.map(t => '<button class="tile" data-tile="' + t.id + '">' + esc(t.u) + '</button>').join('') + '</div>' +
+    '<div class="ghep-tools"><button class="text-link" id="ghepClear">↺ Xếp lại</button></div>', it));
+  const byId = {}; it.tiles.forEach(t => { byId[t.id] = t; });
+  const draw = () => {
+    $$('[data-slot]').forEach((s, k) => { const id = placed[k]; s.textContent = id == null ? '' : byId[id].u; s.classList.toggle('filled', id != null); });
+    $$('[data-tile]').forEach(b => b.classList.toggle('used', placed.includes(Number(b.dataset.tile))));
+    setReady(placed.length === it.units.length ? evaluate : null);
+  };
+  const evaluate = () => {
+    const built = placed.map(id => byId[id].u).join(''), right = built === it.word;
+    $('#slots').classList.add(right ? 'good' : 'bad');
+    $$('[data-tile], [data-slot], #ghepClear').forEach(b => { b.disabled = true; });
+    return { right, html: (right ? 'Em ghép đúng: <b>' + esc(it.word) + '</b>' : 'Em ghép “' + esc(built) + '”. Từ đúng là: <b>' + esc(it.word) + '</b>') + ruleHint(it), say: it.say };
+  };
+  $$('[data-tile]').forEach(b => b.onclick = () => { if (Q.answered) return; const id = Number(b.dataset.tile); if (placed.includes(id) || placed.length >= it.units.length) return; sfx('tap'); placed.push(id); draw(); });
+  $$('[data-slot]').forEach(s => s.onclick = () => { if (Q.answered) return; const k = Number(s.dataset.slot); if (placed[k] == null) return; placed.splice(k, 1); draw(); });
+  $('#ghepClear').onclick = () => { if (Q.answered) return; placed.length = 0; draw(); };
+  $('#sayQ').onclick = () => speak(it.say);
+}
+
+/* ---- Nghe rồi chọn (lớp 1 chưa cần gõ phím) ---- */
+function renderNgheChon(it) {
+  openPlayer(playerShell('<div class="listen-row"><button class="sound-button" id="play" aria-label="Nghe">🔊</button><button class="sound-button slow" id="slow" aria-label="Nghe chậm">🐢</button></div>' +
+    '<p class="pl-ask center">Nghe rồi chọn từ <b>viết đúng</b>:</p>' +
+    (viVoice ? '' : '<div class="note-callout">Máy chưa có giọng đọc tiếng Việt. Gợi ý: ' + esc(it.goiY).replace('___', '…') + '</div>') +
+    optionsHtml(it.opts, 'data-answer'), it));
+  const say = r => speak(it.word + '. ' + it.say, r);
+  $('#play').onclick = () => say(0.8); $('#slow').onclick = () => say(0.55);
+  bindOptions(ans => { markOptions(it.word, ans); const right = ans === it.word; return { right, html: (right ? '' : 'Từ đúng là: <b>' + esc(it.word) + '</b>') + ruleHint(it), say: it.say }; });
+  setTimeout(() => { if (Q && Q.items[Q.i] === it && !Q.answered) say(0.8); }, 400);
+}
+
+/* ---- Tìm chữ viết sai ---- */
+function cleanWord(w) { return w.replace(/[.,!?;:"“”()…]/g, ''); }
+function renderLoi(it) {
+  const words = it.cau.split(' ');
+  openPlayer(playerShell('<p class="pl-ask">🔎 Chạm vào <b>chữ viết sai</b> trong câu, rồi bấm Kiểm tra:</p><div class="word-sentence">' +
+    words.map((w, k) => '<button class="word-token" data-tok="' + k + '">' + esc(w) + '</button>').join('') + '</div>', it));
+  $$('[data-tok]').forEach(b => b.onclick = () => {
+    if (Q.answered) return; sfx('tap');
+    $$('[data-tok]').forEach(x => x.classList.toggle('is-sel', x === b));
+    const k = Number(b.dataset.tok);
+    setReady(() => {
+      const right = cleanWord(words[k]) === it.tuSai;
+      $$('[data-tok]').forEach(x => { x.disabled = true; x.classList.remove('is-sel'); });
+      const target = $$('[data-tok]').find(x => cleanWord(words[Number(x.dataset.tok)]) === it.tuSai);
+      if (target) { const w = words[Number(target.dataset.tok)]; target.innerHTML = '<s>' + esc(it.tuSai) + '</s> ' + esc(w.replace(it.tuSai, it.tuDung)); target.classList.add('found'); }
+      if (!right) b.classList.add('incorrect');
+      if (right) S.hunted++;
+      return { right, html: 'Chữ <b>' + esc(it.tuSai) + '</b> phải viết là <b>' + esc(it.tuDung) + '</b>.' + ruleHint(it), say: it.cau.replace(it.tuSai, it.tuDung) };
+    });
+  });
+}
+
+/* ---- Nghe – viết ---- */
+function normWords(s, keepCase) {
+  s = s.normalize('NFC').replace(/[.,!?;:"“”()…–-]/g, ' ').replace(/\s+/g, ' ').trim();
+  if (!keepCase) s = s.toLocaleLowerCase('vi');
+  return s ? s.split(' ') : [];
+}
+function matchWords(target, typed) { // LCS: đánh dấu chữ nào trong câu mẫu đã viết đúng
+  const n = target.length, m = typed.length, dp = [];
+  for (let i = 0; i <= n; i++) dp.push(new Array(m + 1).fill(0));
+  for (let i = n - 1; i >= 0; i--) for (let j = m - 1; j >= 0; j--) dp[i][j] = target[i] === typed[j] ? dp[i + 1][j + 1] + 1 : Math.max(dp[i + 1][j], dp[i][j + 1]);
+  const ok = new Array(n).fill(false); let i = 0, j = 0;
+  while (i < n && j < m) { if (target[i] === typed[j]) { ok[i] = true; i++; j++; } else if (dp[i + 1][j] >= dp[i][j + 1]) i++; else j++; }
+  return ok;
+}
+function renderNghe(it) {
+  openPlayer(playerShell('<div class="dictation-card"><div class="listen-row"><button class="sound-button" id="play" aria-label="Nghe câu">🔊</button><button class="sound-button slow" id="slow" aria-label="Nghe chậm">🐢</button></div>' +
+    '<div class="dictation-hint">Bấm 🔊 để nghe, 🐢 để nghe chậm. Nghe bao nhiêu lần cũng được!</div>' +
+    (viVoice ? '' : '<div class="note-callout">Máy này có thể chưa có giọng đọc tiếng Việt. Nhờ thầy cô hoặc bố mẹ bấm <b>👀 Xem câu</b> và đọc giúp em nhé.</div>') +
+    '<div class="reveal" id="reveal" hidden>' + esc(it.cau) + '</div>' +
+    '<textarea class="dictation-input" id="dictIn" rows="2" autocomplete="off" autocapitalize="sentences" spellcheck="false" placeholder="Em gõ lại câu vừa nghe vào đây…" aria-label="Gõ lại câu vừa nghe"></textarea>' +
+    '<div class="ghep-tools"><button class="text-link" id="peek">👀 Xem câu (dành cho người lớn)</button></div></div>', it));
+  $('#play').onclick = () => speak(it.cau, 0.8);
+  $('#slow').onclick = () => speak(it.cau, 0.55);
+  $('#peek').onclick = () => { const r = $('#reveal'); r.hidden = !r.hidden; };
+  $('#dictIn').oninput = e => setReady(e.target.value.trim() ? () => checkNghe(it) : null);
+  setTimeout(() => { if (Q && Q.items[Q.i] === it) speak(it.cau, 0.8); }, 350);
+}
+function checkNghe(it) {
+  const typed = $('#dictIn').value, keepCase = it._t === 'viet-hoa';
+  const tokens = it.cau.split(' ').map(w => ({ w, n: normWords(w, keepCase)[0] })).filter(x => x.n);
+  const ok = matchWords(tokens.map(x => x.n), normWords(typed, keepCase));
+  const right = ok.every(Boolean) && normWords(typed, keepCase).length === tokens.length;
+  const wrongN = ok.filter(x => !x).length;
+  $('#dictIn').disabled = true; $('#peek').hidden = true;
+  if (right) S.dictCorrect++;
+  return { right, html: (right ? 'Em viết đúng cả câu!' : (wrongN ? 'Có <b>' + wrongN + '</b> chữ cần sửa (tô đỏ):' : 'Em viết thừa chữ, so lại nhé:')) +
+    '<div class="diff-line">' + tokens.map((x, k) => '<span class="' + (ok[k] ? 'w-ok' : 'w-bad') + '">' + esc(x.w) + '</span>').join(' ') + '</div>' };
+}
+
+/* ============================== GHI NHẬN KẾT QUẢ ============================== */
+function record(it, right) {
+  S.attempts++;
+  if (right) { Q.correct++; S.correct++; S.combo++; S.bestCombo = Math.max(S.bestCombo, S.combo); mission().correct++; sfx('good'); }
+  else { S.combo = 0; sfx('bad'); }
+  const c = $('#combo'); if (c) c.textContent = comboText();
+  const t = Q.kind === 'placement' ? null : getTopic(it._t); // kiểm tra trình độ không ghi sổ ôn
+  if (t) {
+    const ts = tstat(it._t); ts.attempts++; if (right) ts.correct++;
+    const key = it._t + ':' + it._i;
+    if (!right) { S.wrongLog[key] = (S.wrongLog[key] || 0) + 1; S.review[key] = { box: 0, at: Date.now() }; }
+    else if (S.review[key] && S.review[key].at < Q.startedAt) { // chỉ tính khi ôn ở lượt sau
+      S.review[key].box++; S.review[key].at = Date.now();
+      if (S.review[key].box >= 2) { delete S.review[key]; S.reviewed++; toast('🎉 Em đã thuộc từ “' + itemWord(itemOf(key)) + '”!'); }
+    }
+  }
+  save();
+}
+function bumpDay() {
+  const today = dayKey();
+  if (S.lastDay === today) return;
+  const y = new Date(); y.setDate(y.getDate() - 1);
+  S.streak = S.lastDay === dayKey(y) ? S.streak + 1 : 1; S.lastDay = today;
+}
+function finishQuiz() {
+  clearInterval(qTimer);
+  const q = Q; if (!q) return;
+  if (q.kind === 'placement') { finishPlacement(q); return; }
+  const total = q.items.length, acc = pct(q.correct, total);
+  const failed = (q.lives != null && q.lives <= 0) || (q.timeUp && q.kind !== 'speed');
+  const beforeStage = gardenStage(S.xp);
+  let xp = q.correct * 10, starsNow = 0, flowers = 0, passed = false, upTier = null;
+  const extra = [], tier = TIERS[q.level] || TIERS.vua;
+  if (q.kind === 'lesson') {
+    const ts = tstat(q.topicId), before = ts.stars;
+    passed = acc >= tier.pass;
+    starsNow = passed ? tier.stars : 0;
+    if (passed && !ts.done) { xp += 20; extra.push('🔓 Em đã mở bài tiếp theo trên con đường!'); }
+    if (passed) { ts.done = true; mission().lessons++; }
+    const gained = Math.max(0, starsNow - before); xp += gained * 10; flowers += gained;
+    ts.stars = Math.max(before, starsNow); ts.best = Math.max(ts.best, acc);
+    if (passed && tier.stars < 3) { upTier = tier.stars === 1 ? 'vua' : 'kho'; if (gained) extra.push('⭐ Đã mở <b>mức ' + TIERS[upTier].name + '</b> của bài này!'); }
+  } else if (total) mission().games++;
+  if (q.kind === 'skip') {
+    passed = acc >= 80;
+    if (passed) { S.skip = S.skip || {}; if (!S.skip[S.grade]) { xp += 30; extra.push('🚀 Vượt cấp thành công! Mọi bài của ' + gardenName() + ' đã mở.'); } S.skip[S.grade] = true; }
+  }
+  if ((q.kind === 'challenge' || q.kind === 'boss') && !failed) {
+    const prev = S.nodes[q.nodeId] || {};
+    if (!prev.done) { flowers += q.kind === 'boss' ? 5 : 2; xp += q.kind === 'boss' ? 60 : 30; extra.push(q.kind === 'boss' ? '🌳 Cây Chữ Thần đã thức dậy! Em là người giữ ' + gardenName() + '!' : '⚡ Em vượt thử thách lần đầu!'); }
+    S.nodes[q.nodeId] = { done: true, best: Math.max(acc, prev.best || 0) };
+    if (q.kind === 'boss') S.bossWins++;
+  }
+  if (q.kind === 'daily' && !(S.daily.day === dayKey() && S.daily.done)) { xp += 20; S.daily = { day: dayKey(), done: true }; extra.push('🎯 Hoàn thành thử thách hôm nay: +20 XP'); }
+  if (q.kind === 'speed') { xp = q.correct * 5; if (q.correct > S.bestSpeed) { S.bestSpeed = q.correct; extra.push('🏆 Kỉ lục mới: ' + q.correct + ' điểm!'); } }
+  if (failed) xp = Math.round(xp / 2);
+  S.xp += xp; S.flowers += flowers; bumpDay();
+  if (flowers) extra.push('🌸 +' + flowers + ' bông hoa cho khu vườn');
+  S.history.unshift({ d: dayKey(), kind: q.kind, topic: q.topicId || q.nodeId || '', acc }); S.history = S.history.slice(0, 60);
+  const fresh = checkBadges(); save();
+  const afterStage = gardenStage(S.xp);
+  const gated = q.kind === 'lesson' || q.kind === 'skip';
+  const good = !failed && (q.kind === 'speed' ? q.correct >= 5 : gated ? passed : acc >= 60);
+  if (good) { sfx('win'); confetti(); }
+  const next = q.kind === 'lesson' && passed ? nextTopic() : null;
+  const head = q.kind === 'speed' ? (q.correct + ' điểm') : (q.correct + ' / ' + total + ' câu đúng');
+  const title = failed ? (q.timeUp ? '⏰ Hết giờ rồi!' : '💧 Cây khát nước rồi!') : q.kind === 'speed' ? (good ? 'Nhanh quá!' : 'Lần sau sẽ nhanh hơn!')
+    : q.kind === 'lesson' ? (passed ? (acc === 100 ? 'Tuyệt vời! Qua mức ' + tier.name + ' không sai câu nào!' : 'Qua màn mức ' + tier.name + '! 🎉') : 'Mình luyện thêm chút nữa nhé!')
+    : q.kind === 'skip' ? (passed ? '🚀 Em đã vượt cấp!' : 'Chưa đủ để vượt cấp')
+    : acc === 100 ? 'Tuyệt vời! Không sai câu nào!' : acc >= 60 ? 'Bài làm tốt lắm!' : 'Mình luyện thêm chút nữa nhé!';
+  const msg = failed ? 'Không sao cả! Em ôn lại một chút rồi thử lại nhé, giọt nước sẽ đầy lại.'
+    : q.kind === 'lesson' && !passed ? 'Mức ' + tier.name + ' cần đúng từ ' + tier.pass + '%. Em đọc lại 📖 lý thuyết rồi thử lần nữa nhé!'
+    : q.kind === 'skip' && !passed ? 'Cần đúng từ 80%. Không sao – em học lần lượt từng bài trên con đường nhé!'
+    : 'Mỗi lần luyện là một lần em giỏi hơn.';
+  const medal = q.kind === 'lesson' ? starsHtml(starsNow) : failed ? '🥀' : q.kind === 'boss' ? '🏆' : q.kind === 'skip' ? (passed ? '🚀' : '🌱') : good ? '🏅' : '🌱';
+  const body = '<div class="lesson-complete"><div class="result-mascot" aria-hidden="true">' + S.avatar + '</div><div class="complete-medal">' + medal + '</div>' +
+    '<h3>' + title + '</h3><p>' + msg + '</p>' +
+    '<div class="score-pills"><span>✅ ' + head + '</span><span>⭐ +' + xp + ' XP</span>' + (q.kind !== 'speed' ? '<span>🎯 ' + acc + '%</span>' : '') + '</div>' +
+    extra.map(x => '<div class="unlock-note">' + x + '</div>').join('') +
+    (afterStage !== beforeStage ? '<div class="unlock-note">' + afterStage.icon + ' Khu vườn của em đã lớn thành <b>' + afterStage.name + '</b>!</div>' : '') +
+    fresh.map(b => '<div class="unlock-note badge-new">' + b.icon + ' Huy hiệu mới: <b>' + b.name + '</b></div>').join('') +
+    '<div class="modal-actions center">' + (next ? '<button class="primary-btn big" id="goNext">Bài tiếp: ' + next.bieuTuong + ' ' + esc(next.ten) + ' →</button>' : '') +
+    (upTier ? '<button class="soft-btn big" id="upTier">Lên mức ' + TIERS[upTier].name + ' ' + '★'.repeat(TIERS[upTier].stars) + '</button>' : '') +
+    '<button class="soft-btn" id="again">↻ ' + (failed ? 'Thử lại' : 'Làm lại') + '</button><button class="soft-btn" id="toMap">🗺️ Con đường</button><button class="' + (next ? 'soft-btn' : 'primary-btn big') + '" id="home">Về trang học</button></div></div>';
+  openModal('Kết quả của em', head, body, 'result');
+  Q = null;
+  $('#again').onclick = () => {
+    if (q.kind === 'lesson') { showIntro(getTopic(q.topicId), q.level); return; }
+    if (q.kind === 'challenge' || q.kind === 'boss') { closeModal(); go('roadmap'); openNode(mapNodes.findIndex(n => n.id === q.nodeId)); return; }
+    doAction(q.kind);
+  };
+  $('#home').onclick = () => { closeModal(); go('home'); };
+  $('#toMap').onclick = () => { closeModal(); go('roadmap'); };
+  if (next) $('#goNext').onclick = () => showIntro(next);
+  if (upTier) $('#upTier').onclick = () => showIntro(getTopic(q.topicId), upTier);
+  onModalClose = render;
+}
+
+/* ============================== CÁC TRÒ CHƠI ============================== */
+function poolItems(filter) {
+  const out = [];
+  openTopics().forEach(t => t.baiTap.forEach((b, i) => { if (!filter || filter(b)) out.push(Object.assign({}, b, { _t: t.id, _i: i })); }));
+  return out;
+}
+function doAction(action) {
+  if (action === 'daily') {
+    const due = shuffle(Object.keys(S.review)).slice(0, 2).map(itemOf).filter(Boolean).filter(it => it.loai !== 'ngheViet');
+    const dueKeys = due.map(d => d._t + ':' + d._i);
+    const rest = shuffle(poolItems(b => b.loai !== 'ngheViet').filter(x => !dueKeys.includes(x._t + ':' + x._i))).slice(0, 5 - due.length).map(vary);
+    startQuiz({ kind: 'daily', title: 'Thử thách mỗi ngày', icon: '🎯', subtitle: '5 câu trộn', items: shuffle(due.concat(rest)) });
+  } else if (action === 'review') {
+    if (WordShelf.dueCount() && (currentView !== 'review' || !Object.keys(S.review).length)) {
+      if (currentView === 'review') $('[data-retry-set]')?.click();
+      else go('review');
+      return;
+    }
+    const items = shuffle(Object.keys(S.review)).slice(0, 10).map(itemOf).filter(Boolean)
+      .map(it => it.loai === 'ngheViet' && Number(S.grade) < 2 ? null : it).filter(Boolean);
+    if (!items.length) { toast('Chưa có từ nào cần ôn. Em học bài mới nhé! 🌷'); return; }
+    startQuiz({ kind: 'review', title: 'Ôn từ hay nhầm', icon: '🔁', subtitle: 'Đúng 2 lần là thuộc', items });
+  } else if (action === 'hunt') {
+    startQuiz({ kind: 'hunt', title: 'Thám tử săn lỗi', icon: '🔎', subtitle: 'Tìm chữ viết sai', items: shuffle(poolItems(b => b.loai === 'timLoi')).slice(0, 6) });
+  } else if (action === 'dictation') {
+    const passages = DATA.doanNgheViet[S.grade] || DATA.doanNgheViet[2] || [];
+    const p = pick(passages) || '';
+    const sentences = p.split(/(?<=[.!?])\s+/).filter(Boolean).map(s => ({ loai: 'ngheViet', cau: s, _t: 'doan', _i: 0 }));
+    startQuiz({ kind: 'dictation', title: 'Nghe – viết đoạn văn', icon: '🎧', subtitle: 'Đoạn văn lớp ' + S.grade, items: sentences });
+  } else if (action === 'speed') {
+    startSpeed();
+  } else if (action === 'quick') {
+    startQuiz({ kind: 'quick', title: 'Luyện nhanh 10 câu', icon: '🎲', subtitle: 'Câu ngẫu nhiên', items: mixedItems(openTopics(), 10) });
+  } else if (action === 'continue') {
+    go('roadmap');
+    const i = mapNodes.findIndex((n, k) => nodeStatus(n, k, mapNodes) === 'open');
+    if (i >= 0) openNode(i); else toast('Em đã đi hết con đường rồi! 🎉');
+  } else if (action === 'placement') {
+    startPlacement();
+  } else if (action === 'skip') {
+    startSkipTest();
+  } else if (action === 'arena') {
+    if (typeof startArena === 'function') startArena(); else toast('Chưa tải được chế độ Đấu đội.');
+  } else if (action === 'claimMission') {
+    const m = mission();
+    if (m.claimed || !MISSIONS.every(x => m[x.k] >= x.n)) return;
+    m.claimed = true; S.flowers += 2; S.xp += 30; checkBadges(); save();
+    sfx('win'); confetti(); toast('🧺 Giỏ quà hôm nay: 🌸 +2 bông hoa, ⭐ +30 XP!'); render();
+  }
+}
+function startSpeed() {
+  const items = shuffle(poolItems(b => b.loai === 'chon'));
+  const body = '<div class="speed-intro"><div class="big-emoji">🚀</div><h3>Nhanh tay chọn đúng!</h3><p>Em có <b>60 giây</b>. Chạm đúng mỗi câu được 1 điểm. Kỉ lục của em: <b>' + S.bestSpeed + '</b> điểm.</p><button class="primary-btn big" id="goSpeed">Bắt đầu! ⏱️</button></div>';
+  openModal('🚀 Nhanh tay', 'Trò chơi 60 giây', body);
+  $('#goSpeed').onclick = () => startQuiz({ kind: 'speed', title: 'Nhanh tay', icon: '🚀', subtitle: '⏱️ 60 giây', items: items.concat(shuffle(items), shuffle(items)), timeLimit: 60 });
+}
+function speedAfter(right) {
+  const c = $('#plCard'); if (c) c.classList.add(right ? 'flash-good' : 'flash-bad');
+  const bar = $('.pl-bar b'); if (bar) bar.textContent = Q.correct + ' điểm';
+  const q = Q;
+  setTimeout(() => { if (Q === q && Date.now() < q.endAt) { q.i++; renderItem(); } }, right ? 380 : 1000);
+}
+
+/* ============================== SỰ KIỆN ============================== */
+function closeSidebar() { $('#sidebar').classList.remove('mobile-open'); $('#sidebarScrim').hidden = true; }
+document.addEventListener('click', e => {
+  const t = e.target;
+  const island = t.closest('[data-island]');
+  if (island) { S.grade = island.dataset.island; save(); go('roadmap'); return; }
+  if (t.closest('[data-close-modal]')) { closeModal(); return; }
+  const say = t.closest('[data-say]'); if (say) { speak(say.dataset.say); return; }
+  const isl = t.closest('[data-island]'); if (isl) { chooseIsland(isl.dataset.island); return; }
+  const v = t.closest('[data-view]'); if (v) { e.preventDefault(); if ($('#modalRoot').hidden === false) closeModal(); go(v.dataset.view); return; }
+  const s = t.closest('[data-start]'); if (s) { startTopic(s.dataset.start); return; }
+  if (t.closest('[data-locked]')) { toast('Hoàn thành bài trước để mở bài này nhé! 🔒'); return; }
+  const a = t.closest('[data-action]'); if (a) { doAction(a.dataset.action); return; }
+});
+document.addEventListener('keydown', e => {
+  if ($('#modalRoot').hidden) return;
+  if (e.key === 'Escape') { closeModal(); return; }
+  if (e.key === 'Enter' && e.target.tagName !== 'BUTTON') { // Enter: Kiểm tra → Tiếp tục
+    const cont = $('#plCont'), chk = $('#plCheck');
+    if (cont && !$('#plSheet').hidden) { e.preventDefault(); cont.click(); return; }
+    if (chk && !chk.disabled && !$('#plFoot').hidden) { e.preventDefault(); chk.click(); return; }
+  }
+  if (e.target.matches('input, textarea, select')) return;
+  if (/^[1-4]$/.test(e.key)) { const b = $$('[data-answer], [data-tf]')[Number(e.key) - 1]; if (b && !b.disabled) b.click(); }
+});
+$('#gradeSelect').addEventListener('change', e => { S.grade = e.target.value; save(); render(); toast('Đã chuyển sang lộ trình lớp ' + S.grade); });
+$('#mobileMenu').onclick = () => { const open = $('#sidebar').classList.toggle('mobile-open'); $('#sidebarScrim').hidden = !open; };
+$('#sidebarScrim').onclick = closeSidebar;
+$('#profileButton').onclick = showProfile;
+$('#soundToggle').onclick = () => { db.settings.sound = !db.settings.sound; save(); if (db.settings.sound) sfx('good'); else stopSpeak(); toast(db.settings.sound ? 'Đã bật âm thanh 🔊' : 'Đã tắt âm thanh 🔇'); };
+
+if (!ALL_TOPICS.length) document.getElementById('viewRoot').innerHTML = '<p style="padding:30px">Không tải được ngân hàng câu hỏi (data/ngan-hang-chinh-ta.js).</p>';
+else render();

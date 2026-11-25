@@ -1,0 +1,40 @@
+/* Touch-friendly type and controls for young learners. */
+:root{font-family:"Trebuchet MS","Segoe UI",Arial,sans-serif;color:#243b33}
+body{font-size:15px}
+.nav-item,.teacher-link{font-size:13px;min-height:46px}
+.nav-label{font-size:10px}
+.hero-copy h2{font-size:26px}
+.hero-copy p,.home-welcome p,.page-heading p{font-size:13px}
+.primary-btn,.secondary-btn,.soft-btn{font-size:13px;min-height:44px;padding:11px 16px}
+.stat-value{font-size:19px}
+.stat-label,.path-title small,.activity-card small,.daily-card p{font-size:11px}
+.path-title b,.activity-card b{font-size:13px}
+.activity-card{min-height:124px}
+.activity-art{width:40px;height:40px;font-size:21px}
+.lesson-info b{font-size:13px}
+.lesson-info small,.chapter-meta,.lesson-tag{font-size:10px}
+.lesson-bubble{width:42px;height:42px}
+.lesson-action{width:40px;height:40px;font-size:16px}
+.page-heading h1{font-size:27px}
+.chapter-heading h2{font-size:15px}
+.game-card h3,.teacher-panel h2{font-size:15px}
+.game-card p,.teacher-panel p,.teacher-panel li{font-size:12px}
+.question-prompt{font-size:20px}
+.answer-option{min-height:50px;font-size:14px;padding:13px 15px}
+.answer-feedback{font-size:12px}
+.quiz-footer small,.dictation-hint{font-size:11px}
+.dictation-input{font-size:15px;min-height:48px}
+.word-token{min-height:39px;font-size:13px;padding:7px 10px}
+.small-print{font-size:10px;color:#748579}
+.profile-form label{font-size:12px}
+.profile-form input,.profile-form select{font-size:14px;min-height:45px}
+.grade-picker{min-height:40px;font-size:12px}
+.streak-pill{min-height:40px}
+.mobile-menu{width:40px;height:40px;border-radius:10px}
+@media(max-width:760px){
+  .hero-copy h2{font-size:22px}
+  .page-heading h1{font-size:24px}
+  .activity-card{min-height:64px}
+  .answer-option{min-height:54px}
+  .nav-item,.teacher-link{min-height:48px}
+}

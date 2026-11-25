@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#dceffd" />
+    <meta name="description" content="Vườn Chữ — cùng học sinh tiểu học luyện chính tả vui, rõ ràng và đều đặn mỗi ngày." />
+    <title>Vườn Chữ — Mỗi ngày viết đúng hơn</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8C%B1%3C/text%3E%3C/svg%3E" />
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="comfort.css" />
+    <link rel="stylesheet" href="kid.css" />
+    <link rel="stylesheet" href="word-shelf.css" />
+    <link rel="stylesheet" href="voyage.css" />
+    <link rel="preload" href="assets/Nunito.ttf" as="font" type="font/ttf" crossorigin />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar" id="sidebar" aria-label="Điều hướng chính">
+        <a class="brand" href="#" data-view="home" aria-label="Vườn Chữ, trang chủ">
+          <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 48 48"><path d="M24 40c0-11 1-18 1-27"/><path d="M24 27C14 28 9 23 8 14c9-1 15 2 17 10M25 21c1-9 7-14 16-14 1 9-4 16-15 18"/><path d="M12 38h25"/></svg></span>
+          <span><b>Vườn Chữ</b><small>Mỗi ngày viết đúng hơn</small></span>
+        </a>
+
+        <div class="nav-label">GÓC HỌC TẬP</div>
+        <nav class="main-nav">
+          <button class="nav-item active" data-view="home"><span class="nav-icon">🏠</span><span>Trang học</span></button>
+          <button class="nav-item" data-view="roadmap"><span class="nav-icon">🗺️</span><span>Lộ trình của em</span></button>
+          <button class="nav-item" data-view="shelf"><span class="nav-icon" aria-hidden="true">📚</span><span>Tủ thẻ từ</span></button>
+          <button class="nav-item" data-view="games"><span class="nav-icon">🎮</span><span>Trò chơi</span></button>
+          <button class="nav-item" data-view="review"><span class="nav-icon">🔁</span><span>Ôn lại từ sai</span><span class="nav-count" id="reviewNavCount">0</span></button>
+          <button class="nav-item" data-view="badges"><span class="nav-icon">🏅</span><span>Huy hiệu</span></button>
+          <button class="nav-item" data-view="profile"><span class="nav-icon">🧒</span><span>Hồ sơ</span></button>
+          <button class="nav-item" data-view="settings"><span class="nav-icon">⚙️</span><span>Cài đặt</span></button>
+        </nav>
+
+        <div class="sidebar-garden" aria-label="Khu vườn của em">
+          <div class="garden-sun" aria-hidden="true">☀️</div>
+          <div class="garden-big" id="gardenIcon" aria-hidden="true">🌱</div>
+          <b id="gardenName">Mầm nhỏ</b>
+          <p id="gardenHint">Học thêm một bài,<br />vườn lại thêm xanh!</p>
+          <div class="garden-bar"><span id="gardenBar"></span></div>
+          <div class="garden-xp"><span>⭐</span><span id="sidebarXP">0 XP</span></div>
+        </div>
+
+        <button class="teacher-link" data-view="teacher"><span class="teacher-icon">👩‍🏫</span><span>Dành cho thầy cô</span><span>→</span></button>
+        <div class="sidebar-foot"><span class="offline-dot"></span> Tiến độ lưu trên thiết bị này</div>
+      </aside>
+      <div class="sidebar-scrim" id="sidebarScrim" hidden></div>
+
+      <main class="main-area">
+        <header class="topbar">
+          <button class="mobile-menu" id="mobileMenu" aria-label="Mở menu">☰</button>
+          <button class="mast-brand" data-view="home"><span class="compass-logo" aria-hidden="true">✥</span><b>Vườn Chữ</b></button><b id="crumbCurrent">Trang học</b>
+          <div class="topbar-actions">
+            <label class="grade-picker"><span>Lớp</span><select id="gradeSelect" aria-label="Chọn lớp"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option></select></label>
+            <button class="streak-pill" id="soundToggle" title="Bật/tắt âm thanh" aria-label="Bật hoặc tắt âm thanh"><span id="soundIcon">🔊</span></button>
+            <button class="streak-pill" title="Số ngày luyện tập liên tiếp" data-view="badges"><span>🔥</span><b id="streakCount">0</b><small>ngày</small></button>
+            <button class="streak-pill flower-pill" title="Bông hoa em sưu tầm" data-view="badges"><span>🌸</span><b id="flowerCount">0</b></button>
+            <button class="streak-pill star-pill" title="Tổng số sao" data-view="roadmap"><span>⭐</span><b id="starCount">0</b></button>
+            <button class="profile-button" id="profileButton" aria-label="Đổi học sinh hoặc tên"><span class="avatar">🐰</span><span class="profile-name" id="profileName">Bạn nhỏ</span><span class="profile-chevron">⌄</span></button>
+          </div>
+        </header>
+        <div id="viewRoot" class="view-root" tabindex="-1"></div>
+        <footer class="page-footer"><span>© 2026 Vườn Chữ</span><span>Học vui · Viết đúng · Tự tin mỗi ngày 🌼</span></footer>
+        <nav class="voyage-dock" aria-label="Điều hướng nhanh">
+          <button data-tab="home" data-view="home"><span aria-hidden="true">⚑</span>Bản đồ</button>
+          <button data-tab="games" data-view="games"><span aria-hidden="true">◎</span>Ôn luyện</button>
+          <button data-tab="shelf" data-view="shelf"><span aria-hidden="true">▤</span>Thẻ từ</button>
+          <button data-tab="profile" data-view="profile"><span aria-hidden="true">☺</span>Hồ sơ</button>
+          <button data-tab="settings" data-view="settings"><span aria-hidden="true">⚙</span>Cài đặt</button>
+        </nav>
+      </main>
+    </div>
+
+    <div id="modalRoot" class="modal-root" hidden></div>
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <div id="confetti" class="confetti-layer" aria-hidden="true"></div>
+    <script src="data/ngan-hang-chinh-ta.js"></script>
+    <script src="word-shelf.js"></script>
+    <script src="app.js"></script>
+    <script src="settings.js"></script>
+    <script src="profile.js"></script>
+    <script src="arena.js"></script>
+    <script src="theory.js"></script>
+  </body>
+</html>

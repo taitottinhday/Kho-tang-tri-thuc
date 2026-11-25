@@ -1,0 +1,8 @@
+# Ảnh/báo cáo sinh ra khi chạy kiểm thử
+qa-results/
+# Bản sao lưu cũ của Codex (không cần cho web)
+_sao-luu-codex-v1/
+node_modules/
+.DS_Store
+Thumbs.db
+desktop.ini
