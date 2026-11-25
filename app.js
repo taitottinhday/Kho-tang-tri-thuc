@@ -89,7 +89,11 @@ function dayKey(d) { d = d || new Date(); return d.getFullYear() + '-' + (d.getM
 function pct(a, b) { return b ? Math.round(a / b * 100) : 0; }
 function getTopic(id) { return ALL_TOPICS.find(t => t.id === id); }
 function tstat(id) { return S.topics[id] || (S.topics[id] = { stars: 0, done: false, attempts: 0, correct: 0, best: 0 }); }
-function itemOf(key) { const [tid, i] = key.split(':'); const t = getTopic(tid); const b = t && t.baiTap[Number(i)]; return b ? Object.assign({}, b, { _t: tid, _i: Number(i) }) : null; }
+function itemOf(key) { // “mã:5” = câu trong ngân hàng; “mã:g12” = câu sinh tự động (data/sinh-cau.js, tên bạn nhỏ đổi mỗi lần)
+  const [tid, i = ''] = key.split(':'); const t = getTopic(tid); if (!t) return null;
+  const gen = i[0] === 'g', b = gen ? (t.sinh || [])[Number(i.slice(1))] : t.baiTap[Number(i)];
+  return b ? Object.assign({}, b, { _t: tid, _i: gen ? i : Number(i) }) : null;
+}
 function fullSentence(item) { return item.de.includes('___') ? item.de.replace('___', item.dapAn) : item.dapAn; }
 function itemWord(item) { // từ đúng để hiển thị trong danh sách ôn
   if (item.loai === 'timLoi') return item.tuDung;
@@ -556,6 +560,7 @@ function openGift(n, st) {
 const GAMES = [
   { action: 'daily', icon: '🎯', title: 'Thử thách mỗi ngày', desc: '5 câu trộn từ các bài em đã mở, ưu tiên từ em hay nhầm.', meta: '+20 XP mỗi ngày' },
   { action: 'speed', icon: '🚀', title: 'Nhanh tay', desc: 'Trong 60 giây, chọn đúng càng nhiều chữ càng tốt!', meta: 'Kỉ lục của em: ' },
+  { action: 'snowcatch', icon: '❄️', title: 'Hứng tuyết chữ', desc: 'Bông tuyết mang chữ rơi xuống – chạm vào bông tuyết viết đúng để điền vào câu!', meta: 'Kỉ lục của em: ' },
   { action: 'hunt', icon: '🔎', title: 'Thám tử săn lỗi', desc: 'Mỗi câu có một chữ viết sai. Chạm vào chữ đó để sửa!', meta: '6 câu · đọc kĩ từng chữ' },
   { action: 'dictation', icon: '🎧', title: 'Nghe – viết đoạn văn', desc: 'Nghe máy đọc từng câu trong đoạn văn rồi gõ lại.', meta: 'Có nghe chậm, nghe lại' },
   { action: 'review', icon: '🔁', title: 'Ôn từ hay nhầm', desc: 'Các câu em làm sai sẽ quay lại. Đúng 2 lần là thuộc!', meta: 'Ôn tập ngắt quãng' },
@@ -564,7 +569,7 @@ const GAMES = [
 ];
 function renderGames() {
   return pageHeading('HỌC MÀ CHƠI', 'Chọn một trò chơi', 'Chơi vui một chút, nhớ chữ thật lâu!') +
-    '<div class="game-grid">' + GAMES.map(g => '<article class="game-card"><div class="game-icon">' + g.icon + '</div><div><h3>' + g.title + '</h3><p>' + g.desc + '</p><div class="game-meta">' + g.meta + (g.action === 'speed' ? S.bestSpeed + ' điểm' : '') + '</div><button class="primary-btn" data-action="' + g.action + '">Chơi ngay →</button></div></article>').join('') + '</div>';
+    '<div class="game-grid">' + GAMES.map(g => '<article class="game-card"><div class="game-icon">' + g.icon + '</div><div><h3>' + g.title + '</h3><p>' + g.desc + '</p><div class="game-meta">' + g.meta + (g.action === 'speed' ? S.bestSpeed + ' điểm' : g.action === 'snowcatch' ? (S.bestSnow || 0) + ' điểm' : '') + '</div><button class="primary-btn" data-action="' + g.action + '">Chơi ngay →</button></div></article>').join('') + '</div>';
 }
 
 /* ============================== ÔN LẠI ============================== */
@@ -851,14 +856,18 @@ function vary(it) { // trộn dạng câu cho phong phú
   if (r < 0.5 && Number(S.grade) < 2 && canNgheChon(it)) return makeNgheChon(it);
   return it;
 }
+/* Câu sinh tự động (data/sinh-cau.js): mỗi lần lấy ra là một bản mới – tên bạn nhỏ, người thân, số đếm đổi ngẫu nhiên */
+function genItems(t, filter) { return (t.sinh || []).map((b, k) => Object.assign({}, b, { _t: t.id, _i: 'g' + k })).filter(b => !filter || filter(b)); }
+// Giữ nguyên số câu của bài nhưng thay khoảng một nửa bằng câu sinh → mỗi lần học lại gặp câu mới
+function mixGen(base, gen) { const k = Math.min(Math.floor(base.length / 2), gen.length); return shuffle(shuffle(base).slice(0, base.length - k).concat(shuffle(gen).slice(0, k))); }
 function mixedItems(topics, n) {
   const pool = [];
-  topics.forEach(t => t.baiTap.forEach((b, i) => { if (b.loai !== 'ngheViet') pool.push(Object.assign({}, b, { _t: t.id, _i: i })); }));
+  topics.forEach(t => { t.baiTap.forEach((b, i) => { if (b.loai !== 'ngheViet') pool.push(Object.assign({}, b, { _t: t.id, _i: i })); }); pool.push(...genItems(t)); });
   return shuffle(pool).slice(0, n).map(vary);
 }
 function buildLesson(t, level) {
   const items = t.baiTap.map((b, i) => Object.assign({}, b, { _t: t.id, _i: i }));
-  const chon = shuffle(items.filter(b => b.loai === 'chon')), loi = shuffle(items.filter(b => b.loai === 'timLoi')), nghe = shuffle(items.filter(b => b.loai === 'ngheViet'));
+  const chon = mixGen(items.filter(b => b.loai === 'chon'), genItems(t, b => b.loai === 'chon')), loi = mixGen(items.filter(b => b.loai === 'timLoi'), genItems(t, b => b.loai === 'timLoi')), nghe = shuffle(items.filter(b => b.loai === 'ngheViet'));
   const g = Number(S.grade), ghepSrc = chon.filter(canGhep), ncSrc = chon.filter(canNgheChon);
   const ds = n => chon.slice(-n).map(makeDungSai);
   const gh = n => ghepSrc.slice(0, n).map(makeGhep);
@@ -1250,7 +1259,7 @@ function finishQuiz() {
 /* ============================== CÁC TRÒ CHƠI ============================== */
 function poolItems(filter) {
   const out = [];
-  openTopics().forEach(t => t.baiTap.forEach((b, i) => { if (!filter || filter(b)) out.push(Object.assign({}, b, { _t: t.id, _i: i })); }));
+  openTopics().forEach(t => { t.baiTap.forEach((b, i) => { if (!filter || filter(b)) out.push(Object.assign({}, b, { _t: t.id, _i: i })); }); out.push(...genItems(t, filter)); });
   return out;
 }
 function doAction(action) {
@@ -1290,6 +1299,8 @@ function doAction(action) {
     startSkipTest();
   } else if (action === 'arena') {
     if (typeof startArena === 'function') startArena(); else toast('Chưa tải được chế độ Đấu đội.');
+  } else if (action === 'snowcatch') {
+    if (typeof startSnowCatch === 'function') startSnowCatch(); else toast('Chưa tải được trò Hứng tuyết chữ.');
   } else if (action === 'claimMission') {
     const m = mission();
     if (m.claimed || !MISSIONS.every(x => m[x.k] >= x.n)) return;

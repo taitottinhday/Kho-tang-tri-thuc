@@ -24,28 +24,77 @@
   const today = () => window.NOEL_TODAY ? new Date(window.NOEL_TODAY) : new Date();
   const calm = () => document.body.classList.contains('calm') || (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
 
-  /* ---------- Tuyết rơi (canvas, nhẹ: ~30 hình/giây, dừng khi ẩn tab) ---------- */
-  let cv = null, ctx = null, flakes = [], raf = 0, last = 0, W = 0, H = 0;
+  /* ---------- Tuyết rơi (canvas, đợt 12): 3 lớp xa – vừa – gần, bông tuyết tinh thể xoay, gió lượn,
+     chạm màn hình thì tung bông tuyết lấp lánh. Vẽ bằng ảnh dựng sẵn (không dùng shadowBlur) nên nhẹ;
+     ~40 hình/giây, dừng khi ẩn tab; Giảm chuyển động → tuyết đứng yên. ---------- */
+  let cv = null, ctx = null, flakes = [], puffs = [], raf = 0, last = 0, W = 0, H = 0, wind = 0, gust = 0, gustT = 0;
+  const SPRITES = {};
+  function sprite(kind) { // vẽ sẵn một lần: chấm tuyết mềm hoặc bông tuyết 6 cánh
+    if (SPRITES[kind]) return SPRITES[kind];
+    const c = document.createElement('canvas'), S0 = kind === 'dot' ? 32 : 64; c.width = c.height = S0;
+    const g = c.getContext('2d'), m = S0 / 2;
+    if (kind === 'dot') {
+      const rg = g.createRadialGradient(m, m, 0, m, m, m);
+      rg.addColorStop(0, 'rgba(255,255,255,1)'); rg.addColorStop(0.45, 'rgba(255,255,255,.95)'); rg.addColorStop(0.7, 'rgba(255,255,255,.35)'); rg.addColorStop(1, 'rgba(255,255,255,0)');
+      g.fillStyle = rg; g.fillRect(0, 0, S0, S0);
+    } else {
+      g.translate(m, m); g.strokeStyle = '#fff'; g.lineCap = 'round';
+      g.shadowColor = 'rgba(140,190,255,.8)'; g.shadowBlur = 4;
+      for (let i = 0; i < 6; i++) {
+        g.rotate(Math.PI / 3); g.lineWidth = 4; g.beginPath(); g.moveTo(0, 0); g.lineTo(0, -m + 6); g.stroke();
+        g.lineWidth = 3; g.beginPath(); g.moveTo(0, -m * 0.48); g.lineTo(-9, -m * 0.66); g.moveTo(0, -m * 0.48); g.lineTo(9, -m * 0.66); g.stroke();
+      }
+      g.fillStyle = '#fff'; g.beginPath(); g.arc(0, 0, 5, 0, 6.3); g.fill();
+    }
+    return (SPRITES[kind] = c);
+  }
   function sizeCanvas() {
     if (!cv) return;
     const d = Math.min(window.devicePixelRatio || 1, 2); W = innerWidth; H = innerHeight;
     cv.width = W * d; cv.height = H * d; cv.style.width = W + 'px'; cv.style.height = H + 'px';
     ctx = cv.getContext('2d'); ctx.setTransform(d, 0, 0, d, 0, 0);
   }
-  function flake(anyY) { return { x: Math.random() * W, y: anyY ? Math.random() * H : -8, r: 1.4 + Math.random() * 2.6, s: 0.35 + Math.random() * 0.75, w: Math.random() * 6.3, a: 0.6 + Math.random() * 0.4 }; }
+  // lớp 0 = xa (nhỏ, mờ, chậm) · 1 = vừa · 2 = gần (bông tuyết 6 cánh, xoay)
+  function flake(anyY, layer) {
+    const L = layer == null ? (Math.random() < 0.5 ? 0 : Math.random() < 0.75 ? 1 : 2) : layer;
+    const r = L === 0 ? 1.2 + Math.random() * 1.4 : L === 1 ? 2.4 + Math.random() * 2 : 6 + Math.random() * 5;
+    return { L, x: Math.random() * W, y: anyY ? Math.random() * H : -14, r, s: (L === 0 ? 0.28 : L === 1 ? 0.55 : 0.8) + Math.random() * 0.45,
+      w: Math.random() * 6.3, ws: 0.012 + Math.random() * 0.02, a: L === 0 ? 0.45 + Math.random() * 0.25 : L === 1 ? 0.75 + Math.random() * 0.25 : 0.85 + Math.random() * 0.15,
+      rot: Math.random() * 6.3, vr: (Math.random() - 0.5) * 0.03 };
+  }
   function draw() {
     ctx.clearRect(0, 0, W, H);
-    ctx.fillStyle = '#fff'; ctx.shadowColor = 'rgba(60,110,170,.45)'; ctx.shadowBlur = 3;
-    for (const f of flakes) { ctx.globalAlpha = f.a; ctx.beginPath(); ctx.arc(f.x, f.y, f.r, 0, 6.3); ctx.fill(); }
+    const dot = sprite('dot'), star = sprite('star');
+    for (const f of flakes) {
+      ctx.globalAlpha = f.a;
+      if (f.L === 2) { ctx.save(); ctx.translate(f.x, f.y); ctx.rotate(f.rot); ctx.drawImage(star, -f.r, -f.r, f.r * 2, f.r * 2); ctx.restore(); }
+      else ctx.drawImage(dot, f.x - f.r * 1.6, f.y - f.r * 1.6, f.r * 3.2, f.r * 3.2);
+    }
+    for (const p of puffs) {
+      ctx.globalAlpha = Math.max(0, p.life);
+      if (p.star) { ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot); ctx.drawImage(star, -p.r, -p.r, p.r * 2, p.r * 2); ctx.restore(); }
+      else ctx.drawImage(dot, p.x - p.r * 1.6, p.y - p.r * 1.6, p.r * 3.2, p.r * 3.2);
+    }
+    ctx.globalAlpha = 1;
   }
   function tick(t) {
     raf = requestAnimationFrame(tick);
-    if (document.hidden || t - last < 33) return;
+    if (document.hidden || t - last < 25) return;
     const k = last ? Math.min(3, (t - last) / 16.7) : 1; last = t;
+    // gió: lượn nhẹ theo thời gian + thỉnh thoảng một cơn gió nhỏ
+    if (t > gustT) { gust = (Math.random() - 0.5) * 1.6; gustT = t + 4000 + Math.random() * 6000; }
+    wind += ((Math.sin(t / 5200) * 0.35 + gust) - wind) * 0.01 * k;
     for (const f of flakes) {
-      f.y += f.s * k; f.w += 0.018 * k; f.x += Math.sin(f.w) * 0.35 * k;
-      if (f.y > H + 6) Object.assign(f, flake(false));
-      if (f.x < -6) f.x = W + 4; else if (f.x > W + 6) f.x = -4;
+      const depth = f.L === 0 ? 0.5 : f.L === 1 ? 0.8 : 1.1;
+      f.y += f.s * k; f.w += f.ws * k; f.rot += f.vr * k;
+      f.x += (Math.sin(f.w) * 0.4 + wind * depth) * k;
+      if (f.y > H + 14) Object.assign(f, flake(false, f.L));
+      if (f.x < -14) f.x = W + 10; else if (f.x > W + 14) f.x = -10;
+    }
+    for (let i = puffs.length - 1; i >= 0; i--) {
+      const p = puffs[i];
+      p.vy += 0.05 * k; p.vx *= 0.97; p.x += p.vx * k; p.y += p.vy * k; p.rot += 0.05 * k; p.life -= 0.016 * k;
+      if (p.life <= 0) puffs.splice(i, 1);
     }
     draw();
   }
@@ -53,13 +102,58 @@
     if (!cv) {
       cv = document.createElement('canvas'); cv.className = 'noel-snow'; cv.setAttribute('aria-hidden', 'true');
       document.body.appendChild(cv); sizeCanvas();
-      flakes = Array.from({ length: innerWidth < 600 ? 30 : 56 }, () => flake(true));
+      const n = Math.round(Math.min(120, Math.max(46, W * H / 11000)));
+      flakes = Array.from({ length: n }, () => flake(true));
     }
     cancelAnimationFrame(raf); raf = 0;
     if (calm()) draw(); else { last = 0; raf = requestAnimationFrame(tick); }
   }
-  function stopSnow() { cancelAnimationFrame(raf); raf = 0; if (cv) { cv.remove(); cv = null; } }
-  addEventListener('resize', () => { if (!cv) return; sizeCanvas(); flakes.forEach(f => { if (f.x > W) f.x = Math.random() * W; }); if (!raf) draw(); });
+  function stopSnow() { cancelAnimationFrame(raf); raf = 0; puffs = []; if (cv) { cv.remove(); cv = null; } }
+  addEventListener('resize', () => { if (!cv) return; sizeCanvas(); flakes.forEach(f => { if (f.x > W) f.x = Math.random() * W; if (f.y > H) f.y = Math.random() * H; }); if (!raf) draw(); });
+  // Chạm màn hình: tung vài bông tuyết lấp lánh tại chỗ chạm (không áp dụng trong ô nhập chữ)
+  addEventListener('pointerdown', e => {
+    if (!cv || !raf || calm() || (e.target && e.target.closest && e.target.closest('input,textarea,select,.sc-field'))) return;
+    for (let i = 0; i < 7; i++) {
+      const a = Math.random() * 6.3, sp = 1.2 + Math.random() * 2.2;
+      puffs.push({ x: e.clientX, y: e.clientY, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 1.2, r: i < 2 ? 6 + Math.random() * 3 : 2 + Math.random() * 2, star: i < 2, rot: Math.random() * 6.3, life: 1 });
+    }
+    if (puffs.length > 80) puffs.splice(0, puffs.length - 80);
+  }, { passive: true });
+
+  /* ---------- Ông già Noel cưỡi xe tuần lộc bay ngang trời (sau nội dung, 40–80 giây một lần) ---------- */
+  let sleighTimer = 0, sleighAnim = null;
+  function flySleigh() {
+    if (!noelOn()) { sleighTimer = 0; return; }
+    if (calm() || document.hidden || document.querySelector('.xm-sleigh')) return scheduleSleigh();
+    const el = document.createElement('div'); el.className = 'xm-sleigh'; el.setAttribute('aria-hidden', 'true');
+    el.innerHTML = '<img class="rein" src="assets/emoji/1f98c.webp" alt=""><img class="rein" src="assets/emoji/1f98c.webp" alt="">' +
+      '<span style="position:relative;display:inline-block"><img class="santa" src="assets/emoji/1f385.webp" alt="" style="position:absolute;left:18%;bottom:46%;width:62%"><img src="assets/emoji/1f6f7.webp" alt="" style="position:relative"></span><span class="trail"></span>';
+    el.style.top = (6 + Math.random() * 14) + 'vh';
+    document.body.appendChild(el);
+    const w = el.offsetWidth || 200;
+    const anim = sleighAnim = el.animate([
+      { transform: 'translate(' + (innerWidth + 20) + 'px, 0)' },
+      { transform: 'translate(' + (innerWidth * 0.5 - w / 2) + 'px, -3vh)' },
+      { transform: 'translate(' + (-w - 160) + 'px, 2vh)' }
+    ], { duration: 12000, easing: 'linear' });
+    anim.onfinish = () => { el.remove(); sleighAnim = null; scheduleSleigh(); };
+  }
+  function scheduleSleigh(first) { clearTimeout(sleighTimer); sleighTimer = setTimeout(flySleigh, first ? 9000 : 40000 + Math.random() * 40000); }
+  function stopSleigh() {
+    clearTimeout(sleighTimer); sleighTimer = 0;
+    if (sleighAnim) { sleighAnim.cancel(); sleighAnim = null; } // cancel() không gọi onfinish → không tự hẹn giờ lại
+    const s = document.querySelector('.xm-sleigh'); if (s) s.remove();
+  }
+
+  /* ---------- Lời khen mùa Noel (trộn vào lời khen sẵn có) ---------- */
+  const NOEL_PRAISE = ['Giỏi quá! Ông già Noel thưởng em một ngôi sao! ⭐', 'Đúng rồi! Chuông Noel reo vang mừng em! 🔔', 'Tuyệt vời! Em sáng như cây thông Noel! 🎄'];
+  const NOEL_CHEER = ['Không sao, người tuyết vẫn tin em làm được! ⛄', 'Thử lại nhé, tuần lộc đang cổ vũ em đấy! 🦌'];
+  function noelWords(on) {
+    if (typeof PRAISE === 'undefined' || typeof ENCOURAGE === 'undefined') return;
+    const has = PRAISE.includes(NOEL_PRAISE[0]);
+    if (on && !has) { PRAISE.push(...NOEL_PRAISE); ENCOURAGE.push(...NOEL_CHEER); }
+    else if (!on && has) { NOEL_PRAISE.forEach(x => PRAISE.splice(PRAISE.indexOf(x), 1)); NOEL_CHEER.forEach(x => ENCOURAGE.splice(ENCOURAGE.indexOf(x), 1)); }
+  }
 
   /* ---------- Rặng thông phủ tuyết ở chân trang ---------- */
   function tree(x, y, s, c) {
@@ -145,8 +239,10 @@
     document.documentElement.classList.toggle('noel', on);
     const logo = document.getElementById('brandLogo');
     if (logo && logo.dataset.mode !== String(on)) { logo.dataset.mode = String(on); logo.textContent = on ? '🎄' : '🌱'; }
-    if (!on) { stopSnow(); const sc = document.querySelector('.noel-scene'); if (sc) sc.remove(); const li = document.querySelector('.noel-lights'); if (li) li.remove(); return; }
+    noelWords(on); syncMeta();
+    if (!on) { stopSnow(); stopSleigh(); const sc = document.querySelector('.noel-scene'); if (sc) sc.remove(); const li = document.querySelector('.noel-lights'); if (li) li.remove(); return; }
     ensureScene(); ensureLights(); startSnow();
+    if (!sleighTimer && !calm()) scheduleSleigh(true);
     if ((view || currentView) === 'home') {
       const anchor = document.querySelector('.voyage-actions');
       if (anchor && !document.querySelector('.advent')) {
@@ -155,6 +251,23 @@
       }
     }
   }
+  // Thanh trạng thái của điện thoại cùng màu bầu trời → mở web không thấy “viền” khác màu
+  function syncMeta() {
+    const meta = document.querySelector('meta[name="theme-color"]'); if (!meta) return;
+    if (!meta.dataset.base) meta.dataset.base = meta.content;
+    meta.content = document.documentElement.classList.contains('noel') ? (document.documentElement.dataset.theme === 'night' ? '#3b0c1a' : '#b31c35') : meta.dataset.base;
+  }
+  // Công tắc “Giảm chuyển động” / “Ngày – Đêm” trong Cài đặt đổi class ngay mà không vẽ lại trang → tuyết, xe tuần lộc
+  // và màu thanh trạng thái phải theo kịp ngay lập tức
+  let wasCalm = null;
+  new MutationObserver(() => {
+    syncMeta();
+    const c = calm(); if (c === wasCalm) return; wasCalm = c;
+    if (!noelOn()) return;
+    if (cv) startSnow();
+    if (c) stopSleigh(); else if (!sleighTimer) scheduleSleigh();
+  }).observe(document.body, { attributes: true, attributeFilter: ['class'] });
+  new MutationObserver(syncMeta).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
   AFTER_RENDER.push(applyNoel);
   window.applyNoel = applyNoel;
   applyNoel(currentView);

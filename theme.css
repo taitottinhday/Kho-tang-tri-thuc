@@ -1,0 +1,237 @@
+/* Đợt 12 – Claude Code: giao diện Giáng sinh ĐỎ thống nhất cho mọi trang + trò “Hứng tuyết chữ”.
+   Nạp SAU layout.css. Chỉ đổi màu, nền, bóng – KHÔNG đổi cỡ/đệm/khoảng cách của thanh trên, thanh dưới, lối tắt
+   (layout.css + kid.css đã canh để chữ không bị bóp ở 320–2560px).
+
+   Nguyên tắc nền: MỘT bầu trời đỏ duy nhất (--xm-sky) vẽ cố định sau toàn trang (body::before). Trang học, các trang
+   con, màn chào, màn làm bài, Đấu đội và Hứng tuyết chữ đều trong suốt để lộ cùng bầu trời đó → chuyển trang không
+   bao giờ “nháy” sang màu khác. Tuyết (noel.js) rơi giữa bầu trời và nội dung ở các màn toàn màn hình. */
+
+html.noel{
+  --xm-red:#d63447; --xm-red-d:#a91e33; --xm-red-dd:#7d1426;
+  --xm-rose:#f27a86; --xm-blush:#ffe4e1; --xm-cream:#fff8f1;
+  --xm-green:#1f8a55; --xm-green-d:#156a40; --xm-gold:#ffc94d; --xm-gold-d:#e09d17;
+  --xm-ink:#4a1621; --xm-on-sky:#fff;
+  --xm-card-edge:rgba(120,14,36,.30); --xm-card-shadow:rgba(70,6,20,.22);
+  --xm-sky:
+    radial-gradient(130% 55% at 50% -8%, rgba(255,214,150,.34) 0%, rgba(255,214,150,0) 60%),
+    radial-gradient(rgba(255,255,255,.075) 1.7px, transparent 2.2px) 0 0/34px 34px,
+    radial-gradient(rgba(255,255,255,.05) 1.2px, transparent 1.7px) 17px 17px/34px 34px,
+    linear-gradient(180deg, #b31c35 0%, #c92a42 30%, #d8435a 62%, #e5616f 100%);
+  background:#b31c35;
+}
+html[data-theme=night].noel{
+  --xm-sky:
+    radial-gradient(120% 50% at 50% -8%, rgba(255,200,140,.16) 0%, rgba(255,200,140,0) 60%),
+    radial-gradient(rgba(255,255,255,.06) 1.7px, transparent 2.2px) 0 0/34px 34px,
+    linear-gradient(180deg, #3b0c1a 0%, #4f1426 45%, #2b0a15 100%);
+  --xm-card-edge:rgba(0,0,0,.35); --xm-card-shadow:rgba(0,0,0,.3);
+  background:#3b0c1a;
+}
+
+/* Đêm + Noel: thẻ tông mận sẫm cho hợp bầu trời rượu vang (cùng danh sách thẻ với kid.css, chữ sáng giữ nguyên) */
+html[data-theme=night].noel :is(.stat-card,.daily-card,.mission-card,.topic-tile,.game-card,.badge-card,.teacher-panel,.review-list,.review-summary-card,.review-empty,.gm-head,.pl-card,.pl-banner,.modal-card,.modal-head,.voyage-choice,.set-card,.pf-card,.pf-head,.pf-stat,.chapter-card,.activity-card,.deck-card,.grade-picker,.profile-button,.streak-pill,.pl-x,.pl-score,.pl-time,.gm-label,.gm-gate,.hero-card.next-voyage,.roadmap-intro,.advent,.back-btn,#soundToggle,.sc-ask,.sc-chip,.vol-panel){background:#2c1422;border-color:#4d2336;color:#f6e9ee}
+html[data-theme=night].noel :is(.answer-option,.tf-btn,.tile,.slot,.word-token,.example-chip,.soft-btn,.level-btn,.dictation-input,.t-select,.seg,.profile-form input,.profile-form select,.hero-tip,.lesson-note,.q-card,.vol-x){background:#3a1b2c;border-color:#5c2c42;color:#f8edf1;box-shadow:0 4px 0 #1f0b15}
+html[data-theme=night].noel :is(.theory,.th-card,.th-step,.th-ex,.th-col,.th-fix,.th-check label,.th-table,.lp-tier,.lp-btn.theory,.lp-status,.lp-desc,.gm-grade,.lp-num){background:#2c1422;border-color:#4d2336}
+html[data-theme=night].noel .seg button.on{background:#5c2c42}
+html[data-theme=night].noel :is(p,small,.stat-label,.pl-ask,.pl-topic,.small-print,.dictation-hint,.voyage-choice small,.set-row small,.skill-foot small){color:#d9bfca}
+html[data-theme=night].noel :is(.back-btn,#crumbCurrent,.sc-sentence,.sc-chip){color:#ffd7de}
+html[data-theme=night].noel .sc-say{background:#3a1b2c;box-shadow:0 3px 0 #1f0b15}
+html[data-theme=night].noel .sc-blank{background:#3a1b2c;color:#ffb3c0}
+
+/* ---------- Bầu trời chung ---------- */
+html.noel body{background:transparent!important}
+html.noel body::before{content:'';position:fixed;inset:0;z-index:-1;background:var(--xm-sky);pointer-events:none}
+html.noel .app-shell,html.noel .app-shell:has(.voyage-home),html.noel .app-shell:not(:has(.voyage-home)),
+html[data-theme=night].noel .app-shell,html[data-theme=night].noel .app-shell:not(:has(.voyage-home)){background:transparent!important}
+/* Màn chào, màn làm bài, Đấu đội, Hứng tuyết chữ: trong suốt, giấu trang phía sau để chỉ còn bầu trời + tuyết + rặng thông */
+html.noel .welcome,html.noel .modal-root.player-mode,html.noel .modal-root.arena-mode,html.noel .modal-root.snow-mode{background:transparent!important}
+html.noel body.welcome-open .app-shell>:not(.noel-scene),
+html.noel body:has(#modalRoot:is(.player-mode,.arena-mode,.snow-mode):not([hidden])) .app-shell>:not(.noel-scene){visibility:hidden}
+/* Hộp thoại thường: lớp phủ đỏ rượu vang thay cho xanh rêu */
+html.noel .modal-root:not(.player-mode):not(.arena-mode):not(.snow-mode):not(:has(.memory-dialog)){background:rgba(74,10,26,.5)}
+/* Luyện thẻ: nền phải ĐỤC để bé không nhìn trộm chữ trên bìa thẻ phía sau → dùng chính bầu trời */
+html.noel .modal-root:has(.memory-dialog){background:var(--xm-sky);backdrop-filter:none}
+/* In phiếu / giấy khen / báo cáo: không in bầu trời, tuyết, xe tuần lộc */
+@media print{
+  html.noel,html.noel body{background:#fff!important}
+  html.noel body::before,.xm-sleigh{display:none!important}
+}
+
+/* ---------- Thanh trên: kem tuyết, viền vàng chuông (không đổi kích thước) ---------- */
+html.noel .topbar{background:linear-gradient(#fffdfb,#fff2ec);border-bottom-color:var(--xm-gold)}
+html[data-theme=night].noel .topbar{background:#2a0d17;border-bottom-color:#c99a32}
+html.noel .noel-lights::before{background:#14532f;opacity:.85}
+html.noel .noel-lights i{background:#fff3c4;box-shadow:0 0 9px #ffe58a}
+html.noel .noel-lights i:nth-child(4n+2){background:#ffd166;box-shadow:0 0 9px #ffd166}
+html.noel .noel-lights i:nth-child(4n+3){background:#5fe39a;box-shadow:0 0 9px #5fe39a}
+html.noel .noel-lights i:nth-child(4n){background:#8fd0ff;box-shadow:0 0 9px #8fd0ff}
+html.noel:not([data-theme=night]) :is(.streak-pill,.grade-picker,.profile-button,.back-btn){border-color:#f3cfc9;box-shadow:0 2px 0 #f0c6be}
+html.noel:not([data-theme=night]) .back-btn{color:var(--xm-red-d)}
+html.noel:not([data-theme=night]) .back-btn:hover{background:#fff4f1}
+html.noel:not([data-theme=night]) #crumbCurrent{color:var(--xm-red-d)}
+html.noel .compass-logo{background:linear-gradient(#fff,#ffe9e4)!important;box-shadow:0 2px 0 #f0c6be}
+
+/* ---------- Thanh dưới: xanh thông, viền vàng; nút đang chọn đỏ ---------- */
+html.noel .voyage-dock{background:linear-gradient(#1f8a55,#156a40);border-color:#ffd98a;box-shadow:0 8px 22px rgba(60,6,18,.35)}
+html.noel .voyage-dock button.active{background:linear-gradient(#e2475c,#c22d44);box-shadow:inset 0 -3px 0 #8f1a2e}
+
+/* ---------- Chữ nằm trực tiếp trên bầu trời đỏ: trắng / vàng, có bóng nhẹ để luôn đọc rõ ---------- */
+html.noel .page-heading .eyebrow,html.noel .section-title-row .eyebrow{color:#ffdc8a}
+html.noel .page-heading h1,html.noel .section-title-row h2,html.noel .gd-main>.gd-h{color:#fff;text-shadow:0 2px 0 rgba(110,10,30,.28)}
+html.noel .page-heading p,html.noel .gd-main>.gd-empty{color:rgba(255,255,255,.92)}
+/* Chữ trắng khi cuộn qua rặng đồi tuyết trắng ở chân màn hình vẫn đọc được nhờ quầng đỏ sẫm mờ */
+html.noel:not([data-theme=night]) :is(.page-heading h1,.page-heading p,.page-heading .eyebrow,.section-title-row h2,.gd-main>.gd-h,.gd-main>.gd-empty,.gm-legend>span,.shelf-tools>label,.voyage-intro h1,.voyage-intro p,.voyage-kicker,.th-top h1,.theory>h2,.theory>.th-sub,.page-footer){text-shadow:0 2px 0 rgba(110,10,30,.28),0 0 6px rgba(120,12,34,.55),0 0 2px rgba(120,12,34,.6)}
+html.noel .page-heading p b,html.noel .page-heading p strong{color:#fff}
+html.noel .section-title-row .text-link{color:#fff;text-decoration-color:rgba(255,255,255,.6)}
+html.noel .gm-legend>span{color:#fff}
+html.noel .shelf-tools>.shelf-search,html.noel .shelf-tools>label{color:#fff}
+html.noel .voyage-intro h1,html.noel .voyage-intro p{text-shadow:0 2px 0 rgba(110,10,30,.3)}
+html.noel .voyage-intro p b{color:#ffe08f}
+html.noel .voyage-kicker{color:#ffe7b0}
+html.noel .page-footer{color:rgba(255,255,255,.85);border-top-color:rgba(255,255,255,.25);flex-wrap:wrap;justify-content:center;gap:2px 14px;text-align:center}
+html.noel .page-heading{border-bottom-color:rgba(255,255,255,.22)}
+html.noel .shelf-tools{border-color:rgba(255,255,255,.22)}
+
+/* Trang Lý thuyết (nền trong suốt): tiêu đề nằm thẳng trên bầu trời */
+html.noel:not([data-theme=night]) .th-top h1,html.noel:not([data-theme=night]) .theory>h2,html.noel:not([data-theme=night]) .theory section>h2{color:#fff;text-shadow:0 2px 0 rgba(110,10,30,.28)}
+html.noel:not([data-theme=night]) .theory>.th-sub,html.noel:not([data-theme=night]) .theory section>.th-sub{color:rgba(255,255,255,.92)}
+html.noel .th-top{border-bottom-color:rgba(255,255,255,.25)}
+html.noel .sea-chart header i{color:#17703f}
+
+/* Đêm + Noel: các chỗ chữ sáng nằm trên nền sáng hoặc ngược lại (bộ dò tương phản tìm ra) */
+html[data-theme=night].noel .sea-chart{background:#2c1422;border-color:#4d2336;border-bottom-color:#1f0b15}
+html[data-theme=night].noel .sea-chart header{color:#ffd7de}
+html[data-theme=night].noel .sea-chart header i{color:#9fe3b4}
+html[data-theme=night].noel .adv-teaser b small,html[data-theme=night].noel .lp-btn:not(.theory) small{color:#fff}
+
+/* ---------- Thẻ trên bầu trời: bóng ấm thay cho bóng xanh lạnh ---------- */
+html.noel :is(.voyage-choice,.hero-card,.stat-card,.mission-card,.daily-card,.gm-head,.gm-grade,.game-card,.deck-card,.review-summary-card,.review-empty,.badge-card,.gd-wallet,.gd-shop,.gd-hint,.pf-head,.pf-stat,.pf-card,.set-card,.teacher-panel,.shelf-tabs,.big-note){box-shadow:0 4px 0 var(--xm-card-edge),0 12px 24px var(--xm-card-shadow)}
+html.noel .topic-tile:not(.locked){box-shadow:inset 0 5px 0 var(--c,#9ccc65),0 4px 0 var(--xm-card-edge),0 10px 20px var(--xm-card-shadow)}
+html.noel .topic-tile.locked{background:linear-gradient(#fffaf8,#fdeeea)!important;border-color:#f1c4bc!important}
+html.noel .sea-chart{border-color:#fff;border-bottom-color:#f6d3cd;box-shadow:0 6px 0 var(--xm-card-edge),0 15px 32px var(--xm-card-shadow);background:linear-gradient(110deg,#fff3f0,#fffaf7 45%,#fff3f0)}
+html.noel .advent{box-shadow:0 5px 0 var(--xm-card-edge),0 12px 26px var(--xm-card-shadow)}
+html.noel .garden-map,html.noel .gd-scene{box-shadow:inset 0 0 0 6px rgba(255,255,255,.6),0 6px 0 var(--xm-card-edge),0 14px 30px var(--xm-card-shadow)}
+
+/* ---------- Nút: đỏ chính, xanh thông cho “đi tiếp”, vàng cho quà ---------- */
+html.noel .primary-btn:not(:disabled){background:linear-gradient(#ea4c62,#c92f46);box-shadow:0 4px 0 #8f1a2e}
+html.noel .primary-btn:not(:disabled):hover{background:linear-gradient(#ef5a6f,#d23a51)}
+html.noel .next-voyage .primary-btn:not(:disabled),html.noel .pl-check:not(:disabled),html.noel .pl-cont{background:linear-gradient(#27a065,#1a7a4b);box-shadow:0 5px 0 #11552f}
+html.noel .gift-btn:not(:disabled){background:linear-gradient(#ffd46b,#f2b632);color:#5a3200;box-shadow:0 4px 0 #c48a12}
+html.noel .eyebrow{color:#c8283f}
+
+/* ---------- Màn làm bài trên bầu trời đỏ ---------- */
+html.noel .player-mode .pl-x,html.noel .snow-mode .pl-x,html.noel .arena-mode .pl-x{background:#fff;color:var(--xm-red-d);box-shadow:0 3px 0 var(--xm-card-edge)}
+html.noel .player-mode .pl-bar{background:rgba(255,255,255,.88);box-shadow:inset 0 2px 0 rgba(0,0,0,.06)}
+html.noel .player-mode .pl-bar span{background:linear-gradient(90deg,#ffd46b,#27a065)}
+html.noel .player-mode .pl-banner,html.noel .player-mode .pl-card{box-shadow:0 4px 0 var(--xm-card-edge),0 14px 28px var(--xm-card-shadow)}
+html.noel .player-mode .pl-check:disabled{background:#f7dcd8;color:#8c3a4b;box-shadow:0 4px 0 #e2b3ac;opacity:1}
+html.noel .player-mode .pl-score,html.noel .player-mode .pl-lives,html.noel .player-mode .pl-time{box-shadow:0 3px 0 var(--xm-card-edge)}
+
+/* ---------- Màn chào ---------- */
+html.noel .welcome .wl-card,html.noel .welcome .wl-panel{box-shadow:0 6px 0 var(--xm-card-edge),0 18px 36px var(--xm-card-shadow)}
+
+/* ---------- Menu bên (điện thoại): kem tuyết, mục đang chọn đỏ ---------- */
+html.noel .sidebar{background:linear-gradient(#fffaf7,#fff1ec);border-right-color:#f3cfc9}
+html.noel .nav-item.active{background:linear-gradient(#ea4c62,#c92f46);color:#fff}
+html[data-theme=night].noel .sidebar{background:#2a0d17;border-right-color:#4a1a28}
+
+/* ---------- Chữ dễ đọc hơn (áp dụng cả khi tắt Noel) – bộ dò tương phản chữ/nền tìm ra:
+   chữ xám nhạt trên thẻ trắng < 3:1 và vài chỗ chế độ đêm chữ sáng trên nền sáng. Chỉ đổi màu. ---------- */
+:is(.game-card p,.daily-card p,.review-empty p){color:#56675d}
+:is(.game-meta,.review-summary-card small,td small,.gm-grade small,.lp-tier small){color:#5f7065}
+.garden-card p b{color:#3f5a48}
+.streak-pill small{color:#7a5d33}
+.lp-stars{text-shadow:0 1px 0 rgba(120,70,0,.25)}
+html[data-theme=night] .pl-ask b,html[data-theme=night] .hero-tip b{color:#ffe08f}
+html[data-theme=night] .deck-cover span{color:#24452e}
+html[data-theme=night] .deck-info .shelf-label{color:#cfe3d6}
+html[data-theme=night] :is(.switch-row,.field-label,.teacher-panel th){color:#d6dfe7}
+html[data-theme=night] :is(tr.me,tr.me td){background:rgba(255,255,255,.08)!important;color:#fff}
+html[data-theme=night] tr.me small{color:#e6eef5}
+html[data-theme=night] :is(.th-hero-note,.th-hero-note span){color:#e8d9a8}
+.lp-stars{color:#c4860a}
+.th-step>span:first-child{background:#e0603a}
+html.noel .adv-teaser b{background:linear-gradient(#e2475c,#c22d44);box-shadow:0 4px 0 #8f1a2e}
+html[data-theme=night] :is(.game-card p,.daily-card p,.review-empty p,.game-meta,.review-summary-card small,td small,.gm-grade small,.lp-tier small,.garden-card p b){color:#c9d6e2}
+html[data-theme=night].noel :is(.game-card p,.daily-card p,.review-empty p,.game-meta,.review-summary-card small,td small,.gm-grade small,.lp-tier small,.garden-card p b){color:#e2cbd4}
+html[data-theme=night] .streak-pill small{color:#e6d2b0}
+
+/* ---------- Ông già Noel bay ngang trời (noel.js) ---------- */
+.xm-sleigh{position:fixed;left:0;top:12vh;z-index:0;pointer-events:none;display:flex;align-items:flex-end;gap:2px;will-change:transform;filter:drop-shadow(0 4px 6px rgba(60,0,15,.35))}
+.xm-sleigh img{width:clamp(34px,5vw,56px);height:auto}
+.xm-sleigh img.santa{width:clamp(44px,6.4vw,72px)}
+.xm-sleigh .rein{animation:xmHop .5s ease-in-out infinite alternate}
+.xm-sleigh .rein:nth-child(2){animation-delay:.25s}
+.xm-sleigh .trail{position:absolute;left:100%;bottom:30%;width:120px;height:3px;border-radius:3px;background:linear-gradient(90deg,rgba(255,236,170,.9),transparent);opacity:.8}
+@keyframes xmHop{to{transform:translateY(-5px)}}
+/* Đang làm bài / chơi: không cho xe tuần lộc bay qua để bé tập trung */
+body:has(#modalRoot:is(.player-mode,.snow-mode,.arena-mode):not([hidden])) .xm-sleigh{display:none}
+
+/* ===================== Trò “Hứng tuyết chữ” ===================== */
+.modal-root.snow-mode{display:block;padding:0;overflow:hidden;backdrop-filter:none;background:linear-gradient(180deg,#2c6fc0 0%,#4b9ee8 45%,#b7e3fb 100%)}
+.sc-game{position:relative;display:flex;flex-direction:column;height:100vh;height:100dvh;max-width:820px;margin:0 auto;padding:calc(12px + env(safe-area-inset-top,0px)) 14px calc(10px + env(safe-area-inset-bottom,0px));box-sizing:border-box}
+.sc-top{display:flex;align-items:center;gap:8px}
+.sc-top .pl-x{flex:none}
+.sc-chip{display:inline-flex;align-items:center;gap:5px;height:40px;padding:0 12px;border-radius:14px;background:#fff;color:#7d1426;font:900 16px Nunito,sans-serif;box-shadow:0 3px 0 rgba(120,14,36,.3);white-space:nowrap}
+.sc-chip .emo{width:22px;height:22px}
+.sc-time{margin-left:auto}
+.sc-time.low{background:#ffe08a;animation:scPulse .8s ease-in-out infinite}
+.sc-lives{letter-spacing:-2px;padding:0 9px}
+.sc-lives .emo{width:22px;height:22px}
+.sc-lives.hurt{animation:scShake .45s}
+.sc-lost .emo{opacity:.45}
+.sc-ask{position:relative;display:flex;align-items:center;gap:10px;margin:12px 0 8px;background:#fff;border-radius:20px;padding:12px 14px;box-shadow:0 4px 0 rgba(120,14,36,.3),0 12px 26px rgba(70,6,20,.25)}
+.sc-ask::before{content:'';position:absolute;left:14px;right:14px;top:-7px;height:13px;pointer-events:none;background:radial-gradient(circle at 9px 9px,#fff 8px,transparent 8.5px) 0 0/19px 13px repeat-x,linear-gradient(#fff,#fff) 0 6px/100% 6px no-repeat;border-radius:8px}
+.sc-sentence{flex:1;min-width:0;font:800 clamp(18px,4.6vw,26px)/1.45 Nunito,sans-serif;color:#3a1520}
+.sc-blank{display:inline-block;min-width:2.6em;padding:0 .35em;margin:0 .1em;border-radius:12px;border:2.5px dashed #e5616f;color:#c22d44;text-align:center;background:#fff4f2}
+.sc-blank.ok{border-style:solid;border-color:#27a065;background:#e6f8ee;color:#156a40;animation:scPop .35s ease}
+.sc-say{flex:none;width:48px;height:48px;border-radius:16px;border:0;background:#ffe9e4;font-size:22px;cursor:pointer;box-shadow:0 3px 0 #f0c6be}
+.sc-say .emo{width:26px;height:26px}
+.sc-field{position:relative;flex:1;min-height:240px;overflow:hidden;border-radius:22px;touch-action:none;user-select:none;-webkit-user-select:none}
+.sc-field.slow{box-shadow:inset 0 0 0 3px rgba(190,230,255,.7),inset 0 0 40px rgba(190,230,255,.35)}
+html.noel .sc-ground{display:none} /* mùa Noel đã có rặng thông phủ tuyết ở chân màn hình */
+.sc-ground{position:absolute;left:0;right:0;bottom:0;height:46px;background:radial-gradient(60% 120% at 20% 100%,#fff 60%,transparent 61%),radial-gradient(60% 120% at 75% 100%,#fff 60%,transparent 61%),linear-gradient(transparent 55%,#fff 56%);opacity:.95;pointer-events:none}
+.sc-flake{position:absolute;left:0;top:0;min-width:92px;height:92px;padding:0 16px;border-radius:999px;border:0;cursor:pointer;display:grid;place-items:center;will-change:transform;
+  background:radial-gradient(circle at 32% 28%,#fff 0 38%,#f2f8ff 62%,#dcecff 100%);color:#7d1426;font:900 clamp(19px,4.6vw,24px)/1 Nunito,sans-serif;
+  box-shadow:0 5px 0 rgba(160,190,225,.85),0 10px 18px rgba(60,6,18,.28),inset 0 -4px 0 rgba(170,200,235,.45)}
+.sc-flake::before{content:'❄';position:absolute;top:-4px;left:-2px;font-size:24px;color:#9fd0ff;text-shadow:0 1px 0 #fff;transform:rotate(-12deg)}
+.sc-flake::after{content:'';position:absolute;inset:7px;border-radius:inherit;border:2px dashed rgba(150,190,235,.55);pointer-events:none}
+.sc-flake.long{height:76px;padding:0 18px;font-size:clamp(16px,4vw,20px)}
+.sc-flake-in{position:relative;z-index:1;white-space:nowrap}
+.sc-flake:active{filter:brightness(.97)}
+.sc-flake:focus-visible{outline:4px solid #ffd166;outline-offset:3px}
+.sc-flake.star{min-width:78px;width:78px;height:78px;padding:0;background:radial-gradient(circle at 35% 30%,#fff8d6,#ffd46b 60%,#f2b632);box-shadow:0 0 0 6px rgba(255,220,120,.35),0 8px 18px rgba(120,60,0,.3);animation:scGlow 1s ease-in-out infinite alternate}
+.sc-flake.star::before,.sc-flake.star::after{display:none}
+.sc-flake.star .emo{width:46px;height:46px}
+.sc-flake.pop{animation:scBurst .45s ease forwards;pointer-events:none}
+.sc-flake.wrong{animation:scWrong .6s ease forwards;pointer-events:none;background:radial-gradient(circle at 32% 28%,#fff,#ffe1e1);color:#b3263b}
+.sc-flake.fade,.sc-flake.melt{transition:opacity .4s;opacity:0;pointer-events:none}
+.sc-spark{position:absolute;width:10px;height:10px;margin:-5px 0 0 -5px;border-radius:50%;background:#fff;box-shadow:0 0 8px #fff8c4;pointer-events:none;animation:scSpark .6s ease-out forwards}
+.sc-spark.bad{background:#ffb3b3;box-shadow:none}
+.sc-combo{position:absolute;left:50%;top:10px;z-index:3;transform:translateX(-50%);padding:6px 14px;border-radius:99px;background:rgba(255,255,255,.95);color:#7d1426;font:900 15px Nunito,sans-serif;white-space:nowrap;opacity:0;pointer-events:none;box-shadow:0 3px 0 rgba(120,14,36,.25)}
+.sc-combo.show{animation:scToast 1.6s ease forwards}
+.sc-intro-art{display:flex;justify-content:center;gap:14px;margin:4px 0 10px}
+.sc-demo{display:grid;place-items:center;min-width:84px;height:84px;padding:0 12px;border-radius:999px;background:radial-gradient(circle at 32% 28%,#fff 0 38%,#eef5ff 70%,#dcecff);font:900 22px Nunito,sans-serif;color:#7d1426;box-shadow:0 5px 0 #c6d9ef;position:relative;animation:emoHop 2.4s ease-in-out infinite}
+.sc-demo.good::after{content:'✓';position:absolute;right:-4px;top:-4px;width:26px;height:26px;border-radius:50%;background:#27a065;color:#fff;font-size:16px;display:grid;place-items:center}
+.sc-demo:not(.good){opacity:.75;animation-delay:.5s}
+.sc-rules{list-style:none;margin:8px auto 14px;padding:0;max-width:420px;text-align:left;display:grid;gap:6px}
+.sc-rules li{background:#fff6f4;border-radius:12px;padding:8px 12px;font-size:15px;color:#4a1621}
+.sc-missed{margin:10px 0;text-align:left;background:#fff6f4;border-radius:14px;padding:10px 14px;font-size:15px;color:#4a1621}
+.sc-missed ul{margin:6px 0 0;padding-left:18px}
+@keyframes scPulse{50%{transform:scale(1.06)}}
+@keyframes scShake{20%{transform:translateX(-5px)}40%{transform:translateX(5px)}60%{transform:translateX(-3px)}80%{transform:translateX(3px)}}
+@keyframes scPop{50%{transform:scale(1.15)}}
+@keyframes scBurst{to{opacity:0;scale:1.5}}
+@keyframes scWrong{20%{translate:-6px 0}40%{translate:6px 0}60%{translate:-4px 0;opacity:1}to{opacity:0;scale:.6}}
+@keyframes scSpark{to{transform:translate(var(--dx),var(--dy)) scale(.3);opacity:0}}
+@keyframes scToast{12%{opacity:1;transform:translate(-50%,0)}80%{opacity:1}to{opacity:0;transform:translate(-50%,-8px)}}
+@keyframes scGlow{to{box-shadow:0 0 0 10px rgba(255,220,120,.2),0 8px 18px rgba(120,60,0,.3)}}
+body.calm .sc-flake.star,body.calm .sc-demo,body.calm .sc-time.low{animation:none}
+@media (max-width:480px){
+  .sc-game{padding-left:10px;padding-right:10px}
+  .sc-chip{height:38px;padding:0 9px;font-size:15px}
+  .sc-flake{min-width:80px;height:80px;padding:0 12px}
+  .sc-flake.long{height:68px;padding:0 14px}
+  .sc-ask{padding:10px 12px}
+  .sc-say{width:44px;height:44px}
+}
