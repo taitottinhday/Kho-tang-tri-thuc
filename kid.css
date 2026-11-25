@@ -489,6 +489,28 @@ body.modal-open{overflow:hidden}
   .topbar-actions{gap:6px}
 }
 @media(max-width:700px){.star-pill{display:none}}
+/* ===== Thanh trên co giãn (đợt 12) – mọi chữ 1 hàng; app.js/fitTopbar() thêm tb-fit-N khi thiếu chỗ ===== */
+.topbar{flex-wrap:nowrap;min-width:0}
+.topbar>*,.topbar-actions>*{flex-shrink:0;white-space:nowrap}
+.topbar-actions{flex-shrink:0;flex-wrap:nowrap}
+.topbar #crumbCurrent{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.topbar .profile-name{max-width:150px;overflow:hidden;text-overflow:ellipsis}
+.topbar.tb-fit-1 #crumbCurrent{display:none}
+.topbar.tb-fit-2 .back-btn b{display:none}
+.topbar.tb-fit-2 .back-btn{width:40px;padding:0;justify-content:center}
+.topbar.tb-fit-3 .streak-pill small{display:none}
+.topbar.tb-fit-4 .profile-name,.topbar.tb-fit-4 .profile-chevron{display:none}
+.topbar.tb-fit-5 .mast-brand b{display:none}
+.topbar.tb-fit-6 .star-pill{display:none}
+.topbar.tb-fit-7 .grade-picker>span{display:none}
+.topbar.tb-fit-7,.topbar.tb-fit-7 .topbar-actions{gap:4px}
+.topbar.tb-fit-8 .flower-pill{display:none}
+.topbar.tb-fit-9 .mast-brand{display:none}
+/* Màn hình rộng: thanh trên rộng tới 1240px (trước đây bị giới hạn 920px nên chữ bị bóp dù màn hình còn trống) */
+.main-area>.topbar{padding-left:max(18px,calc((100% - 1240px)/2));padding-right:max(18px,calc((100% - 1240px)/2))}
+@media(max-width:760px){.main-area>.topbar{padding-left:8px;padding-right:8px}}
+/* Nút logo về Trang học: đủ lớn để chạm (≥ 40px) */
+.topbar .mast-brand{min-height:40px;min-width:40px;justify-content:center}
 @media(max-width:480px){
   /* thanh trên phải vừa 1 hàng ở 360–400px, nếu không trình duyệt di động sẽ thu nhỏ cả trang */
   .star-pill,#crumbCurrent,.mast-brand b,.streak-pill small{display:none}

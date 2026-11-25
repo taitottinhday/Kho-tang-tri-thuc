@@ -49,7 +49,7 @@ body{background:#fafaf5}
 .deck-card.apricot .deck-cover{--tint:#f9e6d8;--edge:#e4bba0}
 .deck-card.lilac .deck-cover{--tint:#e9e2f3;--edge:#cdc0df}
 .deck-card.sky .deck-cover{--tint:#deedf1;--edge:#b4d1da}
-.deck-cover span{background:#fffdf5;border:1px solid var(--edge);border-radius:7px;padding:10px 15px;min-width:50%;max-width:87%;text-align:center;font-size:20px;font-weight:750;box-shadow:3px 4px 0 var(--edge),6px 8px 0 #ffffffa8;transform:rotate(-3deg);overflow-wrap:anywhere}
+.deck-cover span{background:#fffdf5;border:1px solid var(--edge);border-radius:7px;padding:10px 15px;min-width:50%;max-width:87%;text-align:center;font-size:20px;font-weight:750;box-shadow:3px 4px 0 var(--edge),6px 8px 0 #ffffffa8;transform:rotate(-3deg);overflow-wrap:break-word;word-break:normal}
 .deck-info{padding:14px 16px 16px;overflow-wrap:anywhere}
 .deck-info h2{font-size:19px;line-height:1.4;margin:3px 0;color:#24452e}
 .deck-info p{font-size:14px;color:#556659;margin:3px 0 11px}
@@ -110,7 +110,8 @@ body{background:#fafaf5}
   .deck-info{padding:11px}.deck-info h2{font-size:16px}.deck-cover{min-height:90px}.deck-cover span{font-size:16px}
   .home-assignment,.shelf-manager{padding:14px}
 }
-@media(max-width:380px){.deck-grid{grid-template-columns:1fr}.deck-card{display:grid;grid-template-columns:32% 1fr}.deck-cover span{font-size:14px;padding:5px}}
+@media(max-width:760px){.deck-cover{padding:14px 8px}.deck-cover span{font-size:15px;padding:8px 10px;max-width:96%}}
+@media(max-width:380px){.deck-grid{grid-template-columns:1fr}.deck-card{display:grid;grid-template-columns:40% 1fr}.deck-cover{padding:10px 6px}.deck-cover span{font-size:14px;padding:6px 8px;max-width:100%}}
 @media print{
   .shelf-manager button,.shelf-manager summary{display:none!important}
   body:has(.worksheet-dialog) .app-shell{display:none!important}

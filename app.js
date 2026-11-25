@@ -253,6 +253,35 @@ function updateChrome() {
   $('#gardenName').textContent = st.name;
   $('#gardenHint').innerHTML = nx ? 'Còn <b>' + (nx.xp - S.xp) + ' XP</b> nữa<br />vườn sẽ thành ' + nx.icon : 'Khu vườn đã<br />rực rỡ nhất! 🎉';
   $('#gardenBar').style.width = nx ? pct(S.xp - st.xp, nx.xp - st.xp) + '%' : '100%';
+  fitTopbar();
+}
+/* Thanh trên luôn nằm gọn 1 hàng ở MỌI độ rộng (kể cả laptop phóng to 125–150%, tên dài, số lớn):
+   chữ không bao giờ xuống dòng; nếu thiếu chỗ thì ẩn dần từng mục ít quan trọng theo thứ tự
+   tb-fit-1 … tb-fit-9 (xem kid.css), đo lại sau mỗi bước. */
+const TOPBAR_LEVELS = 9;
+function topbarFits(bar) {
+  const br = bar.getBoundingClientRect(), cs = getComputedStyle(bar);
+  const left = br.left + parseFloat(cs.paddingLeft) - 0.5, right = br.right - parseFloat(cs.paddingRight) + 0.5;
+  const items = [...bar.children].filter(k => !k.classList.contains('noel-lights'));
+  const acts = bar.querySelector('.topbar-actions'); if (acts) items.push(...acts.children);
+  let prevRight = -Infinity;
+  for (const k of items) {
+    if (!k.getClientRects().length) continue;
+    const r = k.getBoundingClientRect();
+    if (r.width < 1) continue;
+    if (r.left < left || r.right > right || r.top < br.top - 1 || r.bottom > br.bottom + 1) return false;
+    if (k.parentElement === bar && r.left < prevRight - 0.5) return false;
+    if (k.parentElement === bar) prevRight = r.right;
+  }
+  for (const t of bar.querySelectorAll('#crumbCurrent, .mast-brand b, .profile-name')) {
+    if (t.getClientRects().length && t.scrollWidth > t.clientWidth + 1) return false; // chữ bị cắt bớt
+  }
+  return true;
+}
+function fitTopbar() {
+  const bar = document.querySelector('.topbar'); if (!bar) return;
+  for (let i = 1; i <= TOPBAR_LEVELS; i++) bar.classList.remove('tb-fit-' + i);
+  for (let i = 1; i <= TOPBAR_LEVELS && !topbarFits(bar); i++) bar.classList.add('tb-fit-' + i);
 }
 const VIEW_NAMES = { home: 'Trang học', roadmap: 'Lộ trình của em', shelf: 'Tủ thẻ từ', games: 'Trò chơi', review: 'Ôn lại từ sai', badges: 'Huy hiệu', teacher: 'Góc thầy cô' };
 /* Điểm nối cho module ngoài (settings.js, onboarding.js, …): nạp SAU app.js rồi gọi
@@ -268,6 +297,7 @@ function render() {
   $$('.nav-item, [data-tab]').forEach(n => n.classList.toggle('active', (n.dataset.view || n.dataset.tab) === currentView));
   $('#crumbCurrent').textContent = VIEW_NAMES[currentView] || 'Trang học';
   const bb = $('#backBtn'); if (bb) bb.hidden = currentView === 'home';
+  fitTopbar();
   if (currentView === 'teacher') bindTeacher();
   if (currentView === 'shelf') WordShelf.bind();
   if (currentView === 'roadmap' && typeof bindRoadmap === 'function') bindRoadmap();
@@ -335,7 +365,7 @@ function renderHome() {
     '<section class="sea-chart" aria-label="Bản đồ quần đảo"><header><h2>Quần đảo Vườn Chữ</h2><span>Đảo của em: <i>Lớp ' + esc(S.grade) + '</i></span></header>' +
     '<div class="chart-water"><img class="island-art" src="assets/quan-dao.webp" alt="Bản đồ năm hòn đảo: nhà cây phượng, rừng thác nước, đồi cối xay gió, ngọn hải đăng và lâu đài" width="1536" height="1024" />' +
     [1, 2, 3, 4, 5].map(g => { const p = islandProgress(g);
-      return '<button class="island-pin island-' + g + (String(g) === S.grade ? ' selected' : '') + '" data-island="' + g + '" aria-label="Lớp ' + g + ' – ' + gardenName(g) + ', ' + p.done + ' trên ' + p.total + ' bài đã xong"><b>Lớp ' + g + '</b><span>' + ISLAND_SHORT[g] + (p.done ? ' · ' + p.done + '/' + p.total : '') + '</span></button>'; }).join('') +
+      return '<button class="island-pin island-' + g + (String(g) === S.grade ? ' selected' : '') + '" data-island="' + g + '" aria-label="Lớp ' + g + ' – ' + gardenName(g) + ', ' + p.done + ' trên ' + p.total + ' bài đã xong"><b>Lớp ' + g + '</b><span>' + ISLAND_SHORT[g] + (p.done ? '<i class="pin-prog"> · ' + p.done + '/' + p.total + '</i>' : '') + '</span></button>'; }).join('') +
     '</div></section>' +
     '<section class="hero-card next-voyage"><div class="hero-copy"><div class="eyebrow">BÀI HỌC TIẾP THEO · ' + gardenName().toUpperCase() + '</div>' +
     (next ? '<h2><span class="hero-topic-icon">' + next.bieuTuong + '</span> ' + esc(next.ten) + '</h2><p class="hero-tip">💡 ' + md(tip) + '</p><div class="hero-actions"><button class="primary-btn big" data-start="' + next.id + '">▶ Học ngay</button><button class="soft-btn big" data-view="roadmap">🗺️ Xem con đường</button></div>'
@@ -451,7 +481,8 @@ let mapNodes = [];
 function renderRoadmap() {
   const nodes = mapNodes = pathNodes(), topics = myTopics(), done = topics.filter(t => tstat(t.id).done).length;
   if (!nodes.length) return pageHeading('CON ĐƯỜNG TRONG VƯỜN', gardenName(), 'Chưa có bài học cho lớp này.');
-  const ROW = 122, TOP = 112, XS = [50, 76, 50, 24];
+  // Màn hẹp: các mốc so le gần nhau theo chiều ngang nên giãn dòng hơn để nhãn 3–4 dòng không chạm mốc sau
+  const ROW = roadmapNarrow() ? 158 : 134, TOP = 176, XS = [50, 76, 50, 24];
   const pts = nodes.map((n, i) => ({ x: XS[i % 4], y: TOP + i * ROW }));
   const H = TOP + (nodes.length - 1) * ROW + 120;
   let d = 'M ' + pts[0].x + ' ' + (pts[0].y - 70) + ' L ' + pts[0].x + ' ' + pts[0].y;
@@ -480,7 +511,10 @@ function renderRoadmap() {
     }).join('') + '</div>' +
     '<div class="gm-legend"><span>📘 Bài học</span><span>⚡ Thử thách: tính giờ, 3 💧</span><span>🎁 Giỏ quà</span><span>🌳 Cây Chữ Thần cuối vườn</span></div>';
 }
+function roadmapNarrow() { return window.innerWidth < 720; }
+let roadmapWasNarrow = null;
 function bindRoadmap() {
+  roadmapWasNarrow = roadmapNarrow();
   $$('[data-node]').forEach(b => b.onclick = () => openNode(Number(b.dataset.node)));
   const cur = $('.gm-node.current');
   if (cur) setTimeout(() => cur.scrollIntoView({ block: 'center', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' }), 60);
@@ -1320,6 +1354,11 @@ $('#mobileMenu').onclick = () => { const open = $('#sidebar').classList.toggle('
 $('#sidebarScrim').onclick = closeSidebar;
 $('#profileButton').onclick = showProfile;
 $('#backBtn').onclick = goBack;
+{ let fitRaf = 0; addEventListener('resize', () => { cancelAnimationFrame(fitRaf); fitRaf = requestAnimationFrame(() => {
+  fitTopbar();
+  if (currentView === 'roadmap' && roadmapWasNarrow !== null && roadmapWasNarrow !== roadmapNarrow() && $('#modalRoot').hidden) render(); // xoay máy / đổi cỡ cửa sổ
+}); }); }
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitTopbar); // phông tải xong thì chữ rộng hơn → đo lại
 $('#soundToggle').onclick = () => { if (typeof toggleVolumePanel === 'function') { toggleVolumePanel(); return; } db.settings.sound = !db.settings.sound; save(); if (db.settings.sound) sfx('good'); else stopSpeak(); toast(db.settings.sound ? 'Đã bật âm thanh 🔊' : 'Đã tắt âm thanh 🔇'); };
 
 if (!ALL_TOPICS.length) document.getElementById('viewRoot').innerHTML = '<p style="padding:30px">Không tải được ngân hàng câu hỏi (data/ngan-hang-chinh-ta.js).</p>';
