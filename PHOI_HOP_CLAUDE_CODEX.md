@@ -138,3 +138,18 @@ Khảo sát forumflashstudy.com/roadmap/ngu-phap/a1 (Chrome thật): bậc A1→
 - **`theory.js`** – trang Lý thuyết dựng tự động cho cả 21 chủ đề: Trọng tâm · Công thức nhớ (`CONG_THUC`) · Ví dụ mở đầu · Mẹo 01-02-03 · Cách làm · Ví dụ và giảng giải · Đối chiếu (cột k/q/c… hoặc bảng Viết đúng/Không viết) · Lỗi thường gặp (Chưa đúng → Đã sửa) · Tự kiểm tra; lần đầu đọc +5 XP (`tstat(id).theory`).
 - **Làm bài vượt cấp** theo lớp (`kind: 'skip'`, 12 câu, ≥80% → `S.skip[grade]` mở mọi bài). Con đường có bảng chọn lớp `.gm-grade` (tiến độ x/y), băng rôn `.gm-skip`, nhãn `.gm-num` “01 · PHỤ ÂM ĐẦU”.
 - Kiểm thử: Claude 48/48 (1366, 360px); `tests/browser_qa.py` 181/181 (1366, 390px) – đã sửa kiểm thử “2 sao ở 80%” thành luật mới (qua Dễ = 1★ + có nút lên mức Vừa) và thêm kiểm thử hộp 3 mức + trang Lý thuyết.
+
+## Claude – sửa giọng đọc (đợt 8)
+- Máy thầy cô: Chrome mặc định; SAPI chỉ có giọng Anh, giọng Việt “Microsoft An” (OneCore) Chrome chỉ thấy sau khi tải xong danh sách; Edge có Hoài My / Nam Minh (online, tự nhiên).
+- `speak()` (app.js): không còn im lặng – âm thanh tắt → nhắc bật nút 🔇; chưa tải giọng → chờ 500ms thử lại; không có giọng Việt → bảng `.voice-help` (Windows + Chrome: nút “Mở bằng Edge” qua `microsoft-edge:`); chờ 60ms sau `cancel()`; ưu tiên giọng Natural/Online; `onerror` báo lỗi.
+- Cài đặt: dòng “Giọng đọc tiếng Việt” cho biết đang dùng giọng nào hoặc vì sao không có.
+- Đã thêm `server.js` + `package.json` + `.gitignore` để deploy Railway (`npm start`, cổng `PORT`).
+
+## ✅ Claude – ĐỢT 9 XONG (đã nhả tệp): nhạc nền + bảng âm lượng · Trang trí vườn (tiêu 🌸) · Giấy khen
+Tham khảo nước ngoài: ABCmouse (vé thưởng → mua đồ trang trí phòng/thú cưng), Reading Eggs (giấy khen cuối mỗi bản đồ, in dán lớp), Teach Your Monster to Read / Khan Academy Kids / Starfall (thanh trượt âm lượng nhạc nền, tắt nhạc để tập trung).
+**Claude nhận:** tệp mới `music.js` (nhạc nền WebAudio tự sinh + bảng âm lượng ở nút `#soundToggle`), `rewards.js` (view `garden`: cửa hàng + trang trí vườn; giấy khen in A4 ngang), `app.js` (âm lượng hiệu ứng/giọng đọc, nút giấy khen sau Cây Chữ Thần), `profile.js`, `settings.js`, `kid.css`, `index.html`.
+
+### Kết quả đợt 9 (Claude)
+- `music.js`: nhạc nền WebAudio tự sinh (I–vi–IV–V Đô trưởng, giai điệu ngũ cung kiểu hộp nhạc, vọng nhẹ, 66 BPM); bắt đầu sau lần chạm đầu; nhỏ còn 25% khi máy đọc; dừng khi ẩn tab. Bảng âm lượng mở từ `#soundToggle` (`#volPanel`, `#musicVol`, `#sfxVol`, `#musicOn`, `#sfxOn`, `#volAll`). Cài đặt mới: `db.settings.music`, `musicVol` (mặc định 0.3), `sfxVol` (0.8) – `tone()` và `speak()` nhân theo `sfxVol`.
+- `rewards.js`: view `garden` – 18 món (2–20 🌸), vườn 6×4 ô, túi đồ, chuyển chỗ/cất vào túi; mini vườn trong thẻ “Khu vườn của em” ở trang chủ. Giấy khen A4 ngang (`showCertificate`, cqw), mục “📜 Giấy khen của em” trong Hồ sơ, nút sau khi thắng Cây Chữ Thần. Đã xuất PDF thật: đúng 1 trang.
+- Kiểm thử: Claude 62/62 (1366, 390, 360px qua http); `tests/browser_qa.py` 180/180. Lưu ý QA: chạm giả lập vào `document` sẽ đóng bảng âm lượng (đóng khi chạm ra ngoài) – hãy phát `pointerdown` trên chính `#volPanel`.

@@ -28,11 +28,12 @@
           '<div class="skill-foot"><small>' + (ts && ts.attempts ? 'Đúng ' + ts.correct + '/' + ts.attempts + ' câu' : 'Chưa làm câu nào') + '</small>' +
           (lv.cls === 'weak' || lv.cls === 'mid' ? '<button class="text-link" data-start="' + t.id + '">Ôn ngay →</button>' : '') + '</div></div>';
       }).join('') + '</section>' +
+      (typeof certList === 'function' ? certList() : '') +
       '<section class="pf-card"><h2>Gần đây em đã làm</h2>' + (S.history.length ? '<ul class="pf-history">' + S.history.slice(0, 8).map(h => {
         const t = getTopic(h.topic);
         return '<li><span>' + esc(KIND_LABEL[h.kind] || 'Luyện tập') + (t ? ' · ' + t.bieuTuong + ' ' + esc(t.ten) : '') + '</span><b>' + h.acc + '%</b><small>' + esc(h.d) + '</small></li>';
       }).join('') + '</ul>' : '<p>Em chưa làm bài nào. Ra đảo học bài đầu tiên nhé!</p>') +
       '<div class="btn-row"><button class="soft-btn" data-view="badges">🏅 Xem huy hiệu (' + S.badges.length + ')</button><button class="soft-btn" data-view="settings">⚙️ Cài đặt</button></div></section>';
   }
-  registerView('profile', 'Hồ sơ', page, () => { $('#pfEdit').onclick = showProfile; });
+  registerView('profile', 'Hồ sơ', page, () => { $('#pfEdit').onclick = showProfile; if (typeof bindCerts === 'function') bindCerts(); });
 })();

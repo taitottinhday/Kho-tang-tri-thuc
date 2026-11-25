@@ -30,11 +30,12 @@
           <button class="nav-item" data-view="games"><span class="nav-icon">🎮</span><span>Trò chơi</span></button>
           <button class="nav-item" data-view="review"><span class="nav-icon">🔁</span><span>Ôn lại từ sai</span><span class="nav-count" id="reviewNavCount">0</span></button>
           <button class="nav-item" data-view="badges"><span class="nav-icon">🏅</span><span>Huy hiệu</span></button>
+          <button class="nav-item" data-view="garden"><span class="nav-icon">🏡</span><span>Trang trí vườn</span></button>
           <button class="nav-item" data-view="profile"><span class="nav-icon">🧒</span><span>Hồ sơ</span></button>
           <button class="nav-item" data-view="settings"><span class="nav-icon">⚙️</span><span>Cài đặt</span></button>
         </nav>
 
-        <div class="sidebar-garden" aria-label="Khu vườn của em">
+        <div class="sidebar-garden" aria-label="Khu vườn của em – bấm để trang trí" data-view="garden" role="button" tabindex="0">
           <div class="garden-sun" aria-hidden="true">☀️</div>
           <div class="garden-big" id="gardenIcon" aria-hidden="true">🌱</div>
           <b id="gardenName">Mầm nhỏ</b>
@@ -54,7 +55,7 @@
           <button class="mast-brand" data-view="home"><span class="compass-logo" aria-hidden="true">✥</span><b>Vườn Chữ</b></button><b id="crumbCurrent">Trang học</b>
           <div class="topbar-actions">
             <label class="grade-picker"><span>Lớp</span><select id="gradeSelect" aria-label="Chọn lớp"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option></select></label>
-            <button class="streak-pill" id="soundToggle" title="Bật/tắt âm thanh" aria-label="Bật hoặc tắt âm thanh"><span id="soundIcon">🔊</span></button>
+            <button class="streak-pill" id="soundToggle" title="Âm lượng: nhạc nền, hiệu ứng, giọng đọc" aria-label="Mở bảng âm lượng" aria-haspopup="dialog"><span id="soundIcon">🔊</span></button>
             <button class="streak-pill" title="Số ngày luyện tập liên tiếp" data-view="badges"><span>🔥</span><b id="streakCount">0</b><small>ngày</small></button>
             <button class="streak-pill flower-pill" title="Bông hoa em sưu tầm" data-view="badges"><span>🌸</span><b id="flowerCount">0</b></button>
             <button class="streak-pill star-pill" title="Tổng số sao" data-view="roadmap"><span>⭐</span><b id="starCount">0</b></button>
@@ -83,5 +84,7 @@
     <script src="profile.js"></script>
     <script src="arena.js"></script>
     <script src="theory.js"></script>
+    <script src="rewards.js"></script>
+    <script src="music.js"></script>
   </body>
 </html>

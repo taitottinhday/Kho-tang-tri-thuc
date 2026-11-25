@@ -62,12 +62,12 @@ function loadDB() {
     const db = JSON.parse(localStorage.getItem(STORE_KEY));
     if (db && db.profiles && db.profiles[db.current]) {
       for (const id in db.profiles) db.profiles[id] = Object.assign(newProfile(), db.profiles[id], { id });
-      db.settings = Object.assign({ sound: true, unlockAll: false, rate: 1, voice: '' }, db.settings);
+      db.settings = Object.assign({ sound: true, unlockAll: false, rate: 1, voice: '', music: true, musicVol: 0.3, sfxVol: 0.8 }, db.settings);
       return db;
     }
   } catch (e) { /* bỏ qua dữ liệu hỏng */ }
   const p = newProfile();
-  return { profiles: { [p.id]: p }, current: p.id, settings: { sound: true, unlockAll: false, rate: 1, voice: '' } };
+  return { profiles: { [p.id]: p }, current: p.id, settings: { sound: true, unlockAll: false, rate: 1, voice: '', music: true, musicVol: 0.3, sfxVol: 0.8 } };
 }
 let db = loadDB();
 let S = db.profiles[db.current];
@@ -124,7 +124,8 @@ function tone(freq, start, dur, type, vol) {
   const o = audioCtx.createOscillator(), g = audioCtx.createGain();
   o.type = type || 'sine'; o.frequency.value = freq;
   g.gain.setValueAtTime(0.0001, audioCtx.currentTime + start);
-  g.gain.exponentialRampToValueAtTime(vol || 0.18, audioCtx.currentTime + start + 0.02);
+  const level = (vol || 0.18) * (db.settings.sfxVol == null ? 0.8 : db.settings.sfxVol); // thanh trượt “Hiệu ứng & giọng đọc”
+  g.gain.exponentialRampToValueAtTime(Math.max(0.0002, level), audioCtx.currentTime + start + 0.02);
   g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + start + dur);
   o.connect(g); g.connect(audioCtx.destination);
   o.start(audioCtx.currentTime + start); o.stop(audioCtx.currentTime + start + dur + 0.05);
@@ -142,24 +143,59 @@ function sfx(kind) {
 }
 
 /* ============================== GIỌNG ĐỌC ============================== */
-let viVoice = null, viVoices = [];
+/* Chrome trên Windows chỉ thấy giọng SAPI (thường không có tiếng Việt) → im lặng.
+   Edge có giọng tự nhiên Hoài My / Nam Minh; Android và iPad thường có sẵn giọng Việt.
+   Không có giọng Việt thì báo rõ + gợi ý mở bằng Edge, KHÔNG im lặng. */
+let viVoice = null, viVoices = [], voicesReady = false, voiceWarned = false, mutedHintAt = 0;
 function findVoice() {
   if (!('speechSynthesis' in window)) return;
-  viVoices = speechSynthesis.getVoices().filter(v => /^vi/i.test(v.lang));
-  viVoice = viVoices.find(v => v.name === db.settings.voice) || viVoices[0] || null;
+  const all = speechSynthesis.getVoices();
+  if (all.length) voicesReady = true;
+  viVoices = all.filter(v => /^vi/i.test(v.lang) || /vietnam/i.test(v.name));
+  viVoice = viVoices.find(v => v.name === db.settings.voice) || viVoices.find(v => /natural|online/i.test(v.name)) || viVoices[0] || null;
+}
+function noVoiceHelp() {
+  if (voiceWarned) { toast('🔈 Trình duyệt này chưa có giọng đọc tiếng Việt.'); return; }
+  voiceWarned = true;
+  const ua = navigator.userAgent, isWin = /Windows/.test(ua), isEdge = /Edg\//.test(ua);
+  const url = /^https?:/.test(location.protocol) ? location.href : '';
+  const box = document.createElement('div');
+  box.className = 'voice-help'; box.setAttribute('role', 'alert');
+  box.innerHTML = '<div><b>🔈 Trình duyệt này chưa có giọng đọc tiếng Việt</b><p>' +
+    (isWin && !isEdge ? 'Trên máy tính Windows, hãy mở Vườn Chữ bằng <b>Microsoft Edge</b>: Edge có sẵn giọng đọc tiếng Việt (Hoài My, Nam Minh). Chrome trên Windows không có giọng tiếng Việt.'
+      : 'Hãy thử mở bằng Microsoft Edge, hoặc cài giọng tiếng Việt trong phần “Chuyển văn bản thành giọng nói” của máy.') +
+    ' Trong lúc đó, thầy cô hoặc bố mẹ có thể đọc giúp em.</p></div><div class="voice-help-actions">' +
+    (isWin && !isEdge && url ? '<a class="primary-btn" href="microsoft-edge:' + esc(url) + '">Mở bằng Edge</a>' : '') +
+    '<button class="soft-btn" data-vh-close>Đã hiểu</button></div>';
+  document.body.appendChild(box);
+  box.querySelector('[data-vh-close]').onclick = () => box.remove();
 }
 if ('speechSynthesis' in window) {
   findVoice();
-  speechSynthesis.onvoiceschanged = () => { findVoice(); if (currentView === 'teacher' && teacherOK) render(); };
+  speechSynthesis.onvoiceschanged = () => { findVoice(); if ((currentView === 'teacher' && teacherOK) || currentView === 'settings') render(); };
 }
-function speak(text, rate) {
-  if (!db.settings.sound) return;
-  if (!('speechSynthesis' in window)) { toast('Máy này chưa đọc được thành tiếng 😢'); return; }
-  speechSynthesis.cancel();
+function speak(text, rate, retried) {
+  if (!db.settings.sound) {
+    if (Date.now() - mutedHintAt > 8000) { mutedHintAt = Date.now(); toast('🔇 Âm thanh đang tắt – bấm nút 🔇 ở góc trên để bật lại.'); }
+    return;
+  }
+  if (!('speechSynthesis' in window)) { toast('Trình duyệt này không đọc được thành tiếng 😢'); return; }
+  if (!viVoice) findVoice();
+  if (!viVoice) {
+    // Danh sách giọng có thể chưa tải xong ở lần bấm đầu: chờ một nhịp rồi thử lại đúng 1 lần
+    if (!voicesReady && !retried) { setTimeout(() => speak(text, rate, true), 500); return; }
+    noVoiceHelp(); return;
+  }
+  const synth = speechSynthesis;
+  synth.cancel();
   const u = new SpeechSynthesisUtterance(plain(text));
-  u.lang = 'vi-VN'; u.rate = (rate || 0.85) * (db.settings.rate || 1);
-  if (viVoice) u.voice = viVoice;
-  speechSynthesis.speak(u);
+  u.voice = viVoice; u.lang = viVoice.lang || 'vi-VN';
+  u.volume = Math.min(1, Math.max(0.15, db.settings.sfxVol == null ? 1 : db.settings.sfxVol + 0.2)); // giọng đọc luôn đủ nghe
+  u.rate = (rate || 0.85) * (db.settings.rate || 1);
+  // 'not-allowed' = trình duyệt chặn đọc khi chưa có cú chạm của người dùng → em chỉ cần bấm 🔊, không cần báo lỗi
+  u.onerror = e => { if (!['interrupted', 'canceled', 'not-allowed'].includes(e.error)) toast('Chưa phát được giọng đọc (' + e.error + '). Em bấm 🔊 lại nhé.'); };
+  // Chrome đôi khi “nuốt” câu nói nếu speak() ngay sau cancel(): chờ một nhịp ngắn
+  setTimeout(() => { synth.resume(); synth.speak(u); }, 60);
 }
 function stopSpeak() { if ('speechSynthesis' in window) speechSynthesis.cancel(); }
 
@@ -194,7 +230,7 @@ function updateChrome() {
   $('#streakCount').textContent = S.streak;
   $('#sidebarXP').textContent = S.xp + ' XP';
   $('#reviewNavCount').textContent = Object.keys(S.review).length + WordShelf.dueCount();
-  $('#soundIcon').textContent = db.settings.sound ? '🔊' : '🔇';
+  $('#soundIcon').textContent = typeof volIcon === 'function' ? volIcon() : (db.settings.sound ? '🔊' : '🔇');
   const fc = $('#flowerCount'); if (fc) fc.textContent = S.flowers;
   const sc = $('#starCount'); if (sc) sc.textContent = Object.values(S.topics).reduce((a, t) => a + (t.stars || 0), 0);
   const st = gardenStage(S.xp), idx = GARDEN.indexOf(st), nx = GARDEN[idx + 1];
@@ -325,7 +361,8 @@ function gardenCard() {
   const st = gardenStage(S.xp), i = GARDEN.indexOf(st), nx = GARDEN[i + 1];
   return '<div class="daily-card garden-card"><div class="garden-row">' + GARDEN.map((g, k) => '<span class="' + (k <= i ? 'reached' : '') + '" title="' + g.name + ' – ' + g.xp + ' XP">' + g.icon + '</span>').join('') + '</div>' +
     '<h3>' + st.icon + ' ' + st.name + '</h3><p>' + (nx ? 'Thêm ' + (nx.xp - S.xp) + ' XP để vườn lớn thành <b>' + nx.name + '</b>.' : 'Vườn của em đã lớn nhất rồi!') + '</p>' +
-    '<div class="daily-progress"><span style="width:' + (nx ? pct(S.xp - st.xp, nx.xp - st.xp) : 100) + '%"></span></div></div>';
+    '<div class="daily-progress"><span style="width:' + (nx ? pct(S.xp - st.xp, nx.xp - st.xp) : 100) + '%"></span></div>' +
+    (typeof gardenMini === 'function' ? gardenMini() : '') + '</div>';
 }
 function topicTile(t) {
   const st = topicStatus(t), ts = tstat(t.id);
@@ -1097,6 +1134,7 @@ function finishQuiz() {
     fresh.map(b => '<div class="unlock-note badge-new">' + b.icon + ' Huy hiệu mới: <b>' + b.name + '</b></div>').join('') +
     '<div class="modal-actions center">' + (next ? '<button class="primary-btn big" id="goNext">Bài tiếp: ' + next.bieuTuong + ' ' + esc(next.ten) + ' →</button>' : '') +
     (upTier ? '<button class="soft-btn big" id="upTier">Lên mức ' + TIERS[upTier].name + ' ' + '★'.repeat(TIERS[upTier].stars) + '</button>' : '') +
+    (q.kind === 'boss' && !failed && typeof showCertificate === 'function' ? '<button class="primary-btn big" id="getCert">📜 Nhận giấy khen</button>' : '') +
     '<button class="soft-btn" id="again">↻ ' + (failed ? 'Thử lại' : 'Làm lại') + '</button><button class="soft-btn" id="toMap">🗺️ Con đường</button><button class="' + (next ? 'soft-btn' : 'primary-btn big') + '" id="home">Về trang học</button></div></div>';
   openModal('Kết quả của em', head, body, 'result');
   Q = null;
@@ -1109,6 +1147,7 @@ function finishQuiz() {
   $('#toMap').onclick = () => { closeModal(); go('roadmap'); };
   if (next) $('#goNext').onclick = () => showIntro(next);
   if (upTier) $('#upTier').onclick = () => showIntro(getTopic(q.topicId), upTier);
+  const gc = $('#getCert'); if (gc) gc.onclick = () => showCertificate({ kind: 'island', grade: S.grade });
   onModalClose = render;
 }
 
@@ -1204,7 +1243,7 @@ $('#gradeSelect').addEventListener('change', e => { S.grade = e.target.value; sa
 $('#mobileMenu').onclick = () => { const open = $('#sidebar').classList.toggle('mobile-open'); $('#sidebarScrim').hidden = !open; };
 $('#sidebarScrim').onclick = closeSidebar;
 $('#profileButton').onclick = showProfile;
-$('#soundToggle').onclick = () => { db.settings.sound = !db.settings.sound; save(); if (db.settings.sound) sfx('good'); else stopSpeak(); toast(db.settings.sound ? 'Đã bật âm thanh 🔊' : 'Đã tắt âm thanh 🔇'); };
+$('#soundToggle').onclick = () => { if (typeof toggleVolumePanel === 'function') { toggleVolumePanel(); return; } db.settings.sound = !db.settings.sound; save(); if (db.settings.sound) sfx('good'); else stopSpeak(); toast(db.settings.sound ? 'Đã bật âm thanh 🔊' : 'Đã tắt âm thanh 🔇'); };
 
 if (!ALL_TOPICS.length) document.getElementById('viewRoot').innerHTML = '<p style="padding:30px">Không tải được ngân hàng câu hỏi (data/ngan-hang-chinh-ta.js).</p>';
 else render();
