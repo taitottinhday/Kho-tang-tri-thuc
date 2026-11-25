@@ -1,0 +1,56 @@
+/* Lớp phông chữ thống nhất (Claude Code) – nạp SAU CÙNG.
+   Công thức của các trang học tập chuyên nghiệp (Khan Academy, Duolingo, ABCmouse):
+   một phông gọn, dễ đọc cho nội dung + một phông bo tròn, có cá tính cho tiêu đề và nút.
+   • Đọc:  Be Vietnam Pro – thiết kế riêng cho tiếng Việt, dấu thanh rõ, cân (tệp trong assets/fonts).
+   • Vui:  Nunito – bo tròn, thân thiện (assets/Nunito.ttf).
+   Trước đây chữ hướng dẫn khai báo Be Vietnam Pro nhưng chưa tải phông → trình duyệt vẽ lẫn
+   Arial + Arial Black + Times New Roman nên trông thô. */
+:root{
+  --font-read:'Be Vietnam Pro','Nunito',system-ui,'Segoe UI',Roboto,Arial,sans-serif;
+  --font-fun:'Nunito','Be Vietnam Pro',system-ui,'Segoe UI',Roboto,Arial,sans-serif;
+  font-family:var(--font-read);
+}
+body,input,select,textarea{font-family:var(--font-read);-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;text-rendering:optimizeLegibility;font-kerning:normal}
+
+/* ---- Tiêu đề, nút, nhãn: Nunito ---- */
+h1,h2,h3,.eyebrow,.brand b,.mast-brand,.nav-item,.teacher-link,.text-link,
+.primary-btn,.soft-btn,.secondary-btn,.pl-check,.pl-cont,.pl-x,.streak-pill,.grade-picker,.profile-button,
+.voyage-choice b,.island-pin,.voyage-dock button,.stat-value,.pl-bar b,.pl-score,.pl-time,
+.lp-tier,.lp-btn b,.gm-label,.gm-gate,.gm-grade b,.ar-team,.ar-chip,.ar-title,.seg button,.cert-title,.cert-name,.cert-brand{font-family:var(--font-fun)}
+
+/* ---- Nội dung các em đọc: Be Vietnam Pro, độ đậm vừa phải ---- */
+.pl-ask{font-family:var(--font-read);font-weight:500;font-size:16px;line-height:1.6;color:#33503f}
+.pl-ask b{font-weight:700;color:#1f3a2e}
+.q-line .question-prompt{font-family:var(--font-read);font-weight:700;letter-spacing:-.01em;line-height:1.6}
+.q-line .question-prompt.small{font-weight:600}
+.question-prompt,.blank{font-family:var(--font-read)}
+.word-token{font-family:var(--font-read);font-weight:600;font-size:18px;letter-spacing:-.005em;color:#24402f}
+.pl-card .answer-option{font-family:var(--font-read);font-weight:600}
+.pl-card .option-letter{font-family:var(--font-fun)}
+.tile,.slot{font-family:var(--font-read);font-weight:700}
+.pl-sheet-body,.pl-hint,.pl-hint-box,.answer-feedback{font-family:var(--font-read);font-weight:500}
+.pl-sheet-head b{font-family:var(--font-fun)}
+.diff-line,.reveal{font-family:var(--font-read);font-weight:600}
+.dictation-input{font-family:var(--font-read);font-weight:500}
+.pl-tag,.pl-topic,.pl-banner small{font-family:var(--font-fun)}
+.pl-banner b{font-family:var(--font-fun);font-weight:800}
+
+/* Hộp bài học, mẹo, lý thuyết */
+.rule-list,.lp-desc,.lp-status span,.hero-tip,.gd-hint,.note-callout,.unlock-note,.tip-card p,.small-print,.dictation-hint{font-family:var(--font-read)}
+.th-card p,.th-step p,.th-sub,.th-why,.th-check label,.th-table td,.th-hero-note span{font-family:var(--font-read)}
+.th-big,.th-ex p,.th-bad p,.th-good p{font-family:var(--font-read);font-weight:700;letter-spacing:-.01em}
+.th-word{font-family:var(--font-read);font-weight:600}
+.th-formula b{font-family:var(--font-fun)}
+
+/* Trang chủ, thẻ, danh sách */
+.home-welcome p,.page-heading p,.voyage-intro p,.voyage-choice small,.stat-label,.mission-row b,.mission-row small,
+.topic-tile b,.skill-top b,.skill-foot small,.pf-history li,.review-word,.review-note,.badge-card small,.game-card p,.set-row small{font-family:var(--font-read)}
+.topic-tile b,.mission-row b,.skill-top b,.review-word{font-weight:700}
+
+/* Đấu đội trên lớp (trình chiếu): chữ đọc to, rõ dấu */
+.ar-q,.ar-opt{font-family:var(--font-read);font-weight:800;letter-spacing:-.01em}
+.ar-rule,.ar-award small{font-family:var(--font-read)}
+
+/* Giấy khen + phiếu in: lời khen dùng phông đọc */
+.cert-lead,.cert-class,.cert-reason,.cert-stats span,.cert-sign,.worksheet{font-family:var(--font-read)}
+.worksheet h1,.worksheet h2{font-family:var(--font-fun)}

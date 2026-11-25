@@ -287,7 +287,7 @@ function renderHome() {
   const hour = new Date().getHours(), greet = hour < 11 ? 'Chào buổi sáng' : hour < 14 ? 'Chào buổi trưa' : hour < 18 ? 'Chào buổi chiều' : 'Chào buổi tối';
   const tip = next ? next.quyTac[0] : 'Em đã học hết các bài của ' + gardenName() + '. Hãy đánh thức Cây Chữ Thần hoặc sang đảo mới nhé!';
   return '<div class="voyage-home">' +
-    '<section class="voyage-intro"><div class="voyage-kicker">BẢN ĐỒ VƯỜN CHỮ</div><h1>' + greet + ', ' + esc(S.name) + '! <span aria-hidden="true">' + S.avatar + '</span></h1>' +
+    '<section class="voyage-intro"><div class="voyage-kicker">BẢN ĐỒ VƯỜN CHỮ KÌ DIỆU</div><h1>' + greet + ', ' + esc(S.name) + '! <span aria-hidden="true">' + S.avatar + '</span></h1>' +
     '<p>Chọn hòn đảo để học. Đảo của em: <b>Lớp ' + esc(S.grade) + ' – ' + gardenName() + '</b>.</p></section>' +
     WordShelf.home() +
     '<section class="hero-card voyage-actions" aria-label="Lối tắt">' +
@@ -604,7 +604,7 @@ function worksheetHtml(t) {
   const sorted = b => b.luaChon.slice().sort((x, y) => x.localeCompare(y, 'vi')); // không để đáp án luôn đứng đầu
   const blank = '<span class="ws-blank"></span>';
   const keyWord = b => { const w = itemWord(Object.assign({ loai: 'chon' }, b)); return esc(b.dapAn) + (b.de.includes('___') && w !== b.dapAn ? ' (' + esc(w) + ')' : ''); };
-  let h = '<div class="ws-head"><div><div class="ws-brand">Vườn Chữ · Phiếu luyện chính tả</div><h1>' + t.bieuTuong + ' ' + esc(t.ten) + '</h1></div><div class="ws-meta">Họ và tên: ……………………………………<br />Lớp: ………… Ngày: ……………………</div></div>';
+  let h = '<div class="ws-head"><div><div class="ws-brand">Vườn Chữ Kì Diệu · Phiếu luyện chính tả</div><h1>' + t.bieuTuong + ' ' + esc(t.ten) + '</h1></div><div class="ws-meta">Họ và tên: ……………………………………<br />Lớp: ………… Ngày: ……………………</div></div>';
   h += '<div class="ws-rule"><b>💡 Mẹo nhớ</b><ul>' + t.quyTac.map(r => '<li>' + md(r) + '</li>').join('') + '</ul></div>';
   h += '<h2>Bài 1. Chọn chữ đúng, điền vào chỗ trống</h2><ol class="ws-list">' + chon.map(b => b.de.includes('___')
     ? '<li>' + esc(b.de).replace('___', blank) + ' <span class="ws-opt">(' + sorted(b).map(esc).join(' / ') + ')</span></li>'

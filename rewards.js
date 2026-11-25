@@ -103,7 +103,7 @@ function certificateHtml(opts) {
   const c = certData(opts), d = new Date();
   return '<div class="cert"><div class="cert-in">' +
     '<span class="cert-corner tl" aria-hidden="true">🌸</span><span class="cert-corner tr" aria-hidden="true">🌼</span><span class="cert-corner bl" aria-hidden="true">🌿</span><span class="cert-corner br" aria-hidden="true">🌷</span>' +
-    '<div class="cert-brand">🌱 VƯỜN CHỮ · LUYỆN CHÍNH TẢ TIỂU HỌC</div>' +
+    '<div class="cert-brand">🌱 VƯỜN CHỮ KÌ DIỆU · LUYỆN CHÍNH TẢ TIỂU HỌC</div>' +
     '<h1 class="cert-title">GIẤY KHEN</h1><p class="cert-lead">Trân trọng khen ngợi em</p>' +
     '<div class="cert-name">' + esc(S.name) + '</div><p class="cert-class">Học sinh Lớp ' + esc(c.g) + '</p>' +
     '<p class="cert-reason">' + esc(c.reason) + '</p>' +

@@ -483,6 +483,12 @@ body.modal-open{overflow:hidden}
   .slot{min-width:46px;height:56px;font-size:22px}
   .tile{min-width:50px;height:56px;font-size:22px}
 }
+@media(max-width:900px){
+  /* tên app “Vườn Chữ Kì Diệu” dài hơn → ẩn chữ phụ để thanh trên vừa 1 hàng ở máy tính bảng */
+  #crumbCurrent,.profile-name,.profile-chevron,.streak-pill small{display:none}
+  .topbar-actions{gap:6px}
+}
+@media(max-width:700px){.star-pill{display:none}}
 @media(max-width:480px){
   /* thanh trên phải vừa 1 hàng ở 360–400px, nếu không trình duyệt di động sẽ thu nhỏ cả trang */
   .star-pill,#crumbCurrent,.mast-brand b,.streak-pill small{display:none}
