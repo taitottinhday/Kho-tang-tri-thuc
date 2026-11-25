@@ -15,6 +15,7 @@
     <link rel="stylesheet" href="word-shelf.css" />
     <link rel="stylesheet" href="voyage.css" />
     <link rel="stylesheet" href="typography.css" />
+    <link rel="stylesheet" href="noel.css" />
     <link rel="preload" href="assets/Nunito.ttf" as="font" type="font/ttf" crossorigin />
   </head>
   <body>
@@ -55,7 +56,8 @@
       <main class="main-area">
         <header class="topbar">
           <button class="mobile-menu" id="mobileMenu" aria-label="Mở menu">☰</button>
-          <button class="mast-brand" data-view="home"><span class="compass-logo" aria-hidden="true">✥</span><b>Vườn Chữ Kì Diệu</b></button><b id="crumbCurrent">Trang học</b>
+          <button class="back-btn" id="backBtn" aria-label="Quay lại trang trước" hidden><span aria-hidden="true">‹</span><b>Quay lại</b></button>
+          <button class="mast-brand" data-view="home"><span class="compass-logo" id="brandLogo" aria-hidden="true">🌱</span><b>Vườn Chữ Kì Diệu</b></button><b id="crumbCurrent">Trang học</b>
           <div class="topbar-actions">
             <label class="grade-picker"><span>Lớp</span><select id="gradeSelect" aria-label="Chọn lớp"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option></select></label>
             <button class="streak-pill" id="soundToggle" title="Âm lượng: nhạc nền, hiệu ứng, giọng đọc" aria-label="Mở bảng âm lượng" aria-haspopup="dialog"><span id="soundIcon">🔊</span></button>
@@ -68,11 +70,11 @@
         <div id="viewRoot" class="view-root" tabindex="-1"></div>
         <footer class="page-footer"><span>© 2026 Vườn Chữ Kì Diệu</span><span>Học vui · Viết đúng · Tự tin mỗi ngày 🌼</span></footer>
         <nav class="voyage-dock" aria-label="Điều hướng nhanh">
-          <button data-tab="home" data-view="home"><span aria-hidden="true">⚑</span>Bản đồ</button>
-          <button data-tab="games" data-view="games"><span aria-hidden="true">◎</span>Ôn luyện</button>
-          <button data-tab="shelf" data-view="shelf"><span aria-hidden="true">▤</span>Thẻ từ</button>
-          <button data-tab="profile" data-view="profile"><span aria-hidden="true">☺</span>Hồ sơ</button>
-          <button data-tab="settings" data-view="settings"><span aria-hidden="true">⚙</span>Cài đặt</button>
+          <button data-tab="home" data-view="home"><span aria-hidden="true">🗺️</span>Bản đồ</button>
+          <button data-tab="games" data-view="games"><span aria-hidden="true">🎮</span>Ôn luyện</button>
+          <button data-tab="shelf" data-view="shelf"><span aria-hidden="true">📇</span>Thẻ từ</button>
+          <button data-tab="profile" data-view="profile"><span aria-hidden="true">🧸</span>Hồ sơ</button>
+          <button data-tab="settings" data-view="settings"><span aria-hidden="true">⚙️</span>Cài đặt</button>
         </nav>
       </main>
     </div>
@@ -80,6 +82,7 @@
     <div id="modalRoot" class="modal-root" hidden></div>
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
     <div id="confetti" class="confetti-layer" aria-hidden="true"></div>
+    <script src="emoji.js"></script>
     <script src="data/ngan-hang-chinh-ta.js"></script>
     <script src="word-shelf.js"></script>
     <script src="app.js"></script>
@@ -89,5 +92,7 @@
     <script src="theory.js"></script>
     <script src="rewards.js"></script>
     <script src="music.js"></script>
+    <script src="onboarding.js"></script>
+    <script src="noel.js"></script>
   </body>
 </html>

@@ -39,6 +39,14 @@
     await loadApp();
     const browser = frame.contentWindow;
     browser.addEventListener('error', e => report.failed.push(e.message || 'Page error'));
+    // Lần đầu mở: màn chào → tạo hồ sơ (đợt 10)
+    check('First visit shows welcome', visible(el('#welcome')) && visible(el('#wlCreate')));
+    click('#wlCreate');
+    el('#nameInput').value = 'Bé Kiểm Thử';
+    click('[data-char="🦊"]');
+    click('#saveProfile');
+    check('Profile created, how-to shown', visible(el('#howToGo')) && el('#profileName').textContent === 'Bé Kiểm Thử');
+    click('#howToGo');
     check('Home rendered', visible(el('.hero-card')) && visible(el('h1')));
     check('Real viewport width', browser.innerWidth === width);
     check('Home fits', fits());
@@ -145,7 +153,7 @@
     nav('roadmap');
     check('Roadmap fits', fits());
     check('Garden path has lesson, challenge, gift and final tree', ['lesson', 'challenge', 'gift', 'boss'].every(t => el('.gm-node.' + t)));
-    check('Locked lessons show a lock', all('.gm-node.lesson.locked .gm-disc').every(d => d.textContent === '🔒'));
+    check('Locked lessons show the waiting art', all('.gm-node.lesson.locked .gm-disc').every(d => { const im = d.querySelector('img.emo'); const t = (im ? im.alt : d.textContent).replace('️', ''); return t === '☃' || t === '🥚'; }));
     // Thử thách: mở khi 2 bài đầu xong; 3 giọt nước + đồng hồ; sai 3 lần thì dừng
     frame.contentWindow.eval("tstat(myTopics()[1].id).done = true; save(); render();");
     frame.contentWindow.eval("openNode(mapNodes.findIndex(n => n.type === 'challenge'))");

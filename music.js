@@ -98,6 +98,9 @@ function toggleVolumePanel() {
     '<p class="vol-note">🎶 Nhạc tự nhỏ lại khi máy đang đọc câu hỏi.</p>' +
     '<button class="soft-btn vol-all" id="volAll">' + (s.sound || s.music ? '🔇 Tắt hết' : '🔊 Bật lại') + '</button>';
   document.body.appendChild(p);
+  // Canh theo nút loa nhưng luôn nằm gọn trong màn hình (điện thoại hẹp)
+  const pw = p.offsetWidth; p.style.right = 'auto';
+  p.style.left = Math.max(8, Math.min(Math.round(r.right - pw), window.innerWidth - pw - 8)) + 'px';
   const sync = () => { save(); $('#musicOn').checked = !!db.settings.music; $('#sfxOn').checked = !!db.settings.sound; $('#volAll').textContent = db.settings.sound || db.settings.music ? '🔇 Tắt hết' : '🔊 Bật lại'; };
   $('#musicVol').oninput = e => { db.settings.musicVol = e.target.value / 100; db.settings.music = e.target.value > 0; if (db.settings.music) Music.start(); else Music.stop(); Music.apply(); sync(); };
   $('#sfxVol').oninput = e => { db.settings.sfxVol = e.target.value / 100; db.settings.sound = e.target.value > 0; sync(); };

@@ -29,7 +29,7 @@ function gardenScene(mini) {
     cells.push(mini ? '<span class="gd-cell">' + (it ? it.icon : '') + '</span>'
       : '<button class="gd-cell ' + (it ? 'has' : 'empty') + (gdSel && gdSel.type === 'cell' && gdSel.cell === i ? ' sel' : '') + '" data-cell="' + i + '" aria-label="' + (it ? it.name : 'Ô đất trống') + '">' + (it ? '<span>' + it.icon + '</span>' : '') + '</button>');
   }
-  return '<div class="gd-scene' + (mini ? ' mini' : '') + (gdSel ? ' placing' : '') + '"><div class="gd-sky" aria-hidden="true"><span class="gd-sun">☀️</span><span class="gd-cloud c1">☁️</span><span class="gd-cloud c2">☁️</span></div>' +
+  return '<div class="gd-scene' + (mini ? ' mini' : '') + (gdSel ? ' placing' : '') + '"><div class="gd-sky" aria-hidden="true"><span class="gd-sun">' + (typeof noelOn === 'function' && noelOn() ? '❄️' : '☀️') + '</span><span class="gd-cloud c1">☁️</span><span class="gd-cloud c2">☁️</span></div>' +
     '<div class="gd-grid" style="--cols:' + GD_COLS + '">' + cells.join('') + '</div></div>';
 }
 function gardenMini() {
@@ -48,12 +48,12 @@ function gardenPage() {
     (gdSel ? '<button class="soft-btn" id="gdDone">Xong</button>' : '') + '</div>' +
     '<h2 class="gd-h">🎒 Túi đồ</h2>' + (bag.length ? '<div class="gd-bag">' + bag.map(x => '<button class="gd-item' + (gdSel && gdSel.type === 'bag' && gdSel.id === x.id ? ' sel' : '') + '" data-bag="' + x.id + '"><span>' + x.icon + '</span><small>' + x.name + ' ×' + freeCount(x.id) + '</small></button>').join('') + '</div>'
       : '<p class="gd-empty">Túi đang trống – đồ mới mua sẽ tự đặt vào vườn.</p>') +
-    '</section><aside class="gd-shop"><h2 class="gd-h">🛍️ Cửa hàng</h2><div class="gd-shop-grid">' + DECOR.map(x => {
+    '</section><aside class="gd-shop"><h2 class="gd-h">🛍️ Cửa hàng</h2><div class="gd-shop-grid">' + (typeof noelOn === 'function' && noelOn() ? DECOR.slice().sort((a, b) => (b.noel ? 1 : 0) - (a.noel ? 1 : 0)) : DECOR).map(x => {
       const can = S.flowers >= x.price, own = d.owned[x.id] || 0;
-      return '<div class="gd-card' + (can ? '' : ' poor') + '"><span class="gd-card-ico" aria-hidden="true">' + x.icon + '</span><b>' + x.name + '</b>' +
+      return '<div class="gd-card' + (can ? '' : ' poor') + (x.noel ? ' noel-item' : '') + '">' + (x.noel ? '<i class="gd-tag">Noel</i>' : '') + '<span class="gd-card-ico" aria-hidden="true">' + x.icon + '</span><b>' + x.name + '</b>' +
         '<button class="' + (can ? 'primary-btn' : 'soft-btn') + ' gd-buy" data-buy="' + x.id + '" aria-label="Mua ' + x.name + ' giá ' + x.price + ' bông hoa">' + x.price + ' 🌸</button>' + (own ? '<small>Đã có ' + own + '</small>' : '') + '</div>';
     }).join('') + '</div>' +
-    '<div class="gd-earn"><b>Cách nhận 🌸</b><ul><li>Mỗi ⭐ mới trong bài học: +1</li><li>Mở 🎁 giỏ quà trên con đường: +3</li><li>Vượt ⚡ thử thách: +2 · 🌳 Cây Chữ Thần: +5</li><li>Xong nhiệm vụ hôm nay: +2</li></ul></div></aside></div>';
+    '<div class="gd-earn"><b>Cách nhận 🌸</b><ul><li>Mỗi ⭐ mới trong bài học: +1</li><li>Mở 🎁 giỏ quà trên con đường: +3</li><li>Vượt ⚡ thử thách: +2 · 🌳 Cây Chữ Thần: +5</li><li>Xong nhiệm vụ hôm nay: +2</li>' + (typeof noelOn === 'function' && noelOn() ? '<li>🎄 Lịch Noel (1–24/12): mỗi ngày một món quà</li>' : '') + '</ul></div></aside></div>';
 }
 function gardenBind() {
   $$('[data-buy]').forEach(b => b.onclick = () => buyDecor(b.dataset.buy));

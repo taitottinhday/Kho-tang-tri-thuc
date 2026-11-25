@@ -897,6 +897,81 @@ html[data-theme=night] :is(.gd-hint,.gd-earn){background:#22394f;color:#d9e6f2}
   .cert-print .cert{min-width:0;width:100%;height:186mm;aspect-ratio:auto;overflow:hidden;break-inside:avoid;border-radius:0;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 }
 
+/* =====================================================================
+   ĐỢT 10 – màn chào, hồ sơ có bạn đồng hành + mã PIN, học thử, “Thoát bài?”
+   ===================================================================== */
+.av-bubble{width:52px;height:52px;flex:none;border-radius:50%;display:grid;place-items:center;font-size:30px;line-height:1;background:var(--bg,#eef2ee);box-shadow:inset 0 -4px 0 rgba(0,0,0,.06)}
+.av-bubble.lg{width:68px;height:68px;font-size:40px}
+.char-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
+.char-opt{border:0;background:none;padding:4px 2px;border-radius:16px;display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;font-family:var(--font-fun,Nunito),sans-serif}
+.char-opt .av-bubble{width:58px;height:58px;font-size:34px;transition:transform .15s,box-shadow .15s}
+.char-opt small{font-size:11.5px;font-weight:800;color:#4d6a5a;text-align:center;line-height:1.2}
+.char-opt:hover .av-bubble{transform:translateY(-2px)}
+.char-opt.selected .av-bubble{box-shadow:0 0 0 3px #fff,0 0 0 6px #3b82c4;transform:scale(1.06)}
+.char-opt.selected small{color:#1f4f86}
+.pin-err{min-height:1.2em;margin:0;color:#b4421f;font-weight:700;font-size:14px}
+.pin-form{display:grid;gap:8px;justify-items:center;text-align:center}
+.pin-who{display:flex;flex-direction:column;align-items:center;gap:6px;margin-bottom:4px}
+.pin-who b{font:900 20px var(--font-fun,Nunito),sans-serif}
+.pin-input{width:200px;max-width:100%;text-align:center;font:900 30px var(--font-fun,Nunito),sans-serif;letter-spacing:14px;padding:10px 12px;border:2px solid #cfdde9;border-radius:16px;background:#f6faff}
+.pin-input:focus{outline:3px solid #f0bd4a;outline-offset:2px}
+.pin-input.shake{animation:shake .38s;border-color:#ef8a62}
+/* Màn chào */
+body.welcome-open{overflow:hidden}
+.welcome{position:fixed;inset:0;z-index:45;overflow:auto;background:radial-gradient(circle at 12% 14%,rgba(255,255,255,.5) 0,transparent 28%),linear-gradient(170deg,#3d8fd8 0%,#62b4f0 40%,#b7e3fb 100%)}
+.wl-inner{min-height:100%;box-sizing:border-box;max-width:1100px;margin:0 auto;padding:calc(28px + env(safe-area-inset-top,0px)) 20px 28px;display:grid;grid-template-columns:1.15fr minmax(320px,420px);gap:28px;align-items:center}
+.wl-hero{text-align:center;color:#fff}
+.wl-art{width:100%;max-width:560px;border-radius:26px;border:5px solid rgba(255,255,255,.85);box-shadow:0 18px 40px rgba(16,60,110,.28);display:block;margin:0 auto 18px}
+.wl-title{margin:0;font:900 clamp(40px,6vw,66px)/1.05 var(--font-fun,Nunito),sans-serif;letter-spacing:-1px;text-shadow:0 4px 0 rgba(20,70,130,.35)}
+.wl-title span{display:block}
+.wl-title span+span{color:#ffd54f;text-shadow:0 4px 0 #c27c0e}
+.wl-tag{font-size:17px;font-weight:600;margin:12px auto 14px;max-width:460px;text-shadow:0 1px 2px rgba(0,0,0,.2)}
+.wl-chips{display:flex;flex-wrap:wrap;justify-content:center;gap:8px}
+.wl-chips span{background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.5);border-radius:99px;padding:6px 12px;font-size:13.5px;font-weight:700}
+.wl-card{background:#fff;border-radius:26px;padding:24px 22px;box-shadow:0 20px 50px rgba(16,60,110,.25);display:grid;gap:12px}
+.wl-card h2{margin:0;font:900 26px var(--font-fun,Nunito),sans-serif;color:#1d3557}
+.wl-sub{margin:0;color:#4c6280;font-size:15px}
+.wl-list{display:grid;gap:8px;max-height:46vh;overflow:auto;padding:2px}
+.wl-profile{display:flex;align-items:center;gap:12px;border:2px solid #dbe6f2;background:#f6faff;border-radius:18px;padding:10px 14px;cursor:pointer;text-align:left;box-shadow:0 4px 0 #dbe6f2;transition:transform .1s}
+.wl-profile:hover{border-color:#9cc3ea;transform:translateY(-1px)}
+.wl-profile:active{transform:translateY(3px);box-shadow:0 1px 0 #dbe6f2}
+.wl-who{flex:1;min-width:0;display:grid}
+.wl-who b{font:900 18px var(--font-fun,Nunito),sans-serif;color:#1d3557;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wl-who small{font-size:13px;color:#5b708c;font-weight:600}
+.wl-lock{font-size:20px}
+.wl-go{font-size:28px;color:#8aa6c4;font-weight:900}
+.wl-create{width:100%;background:linear-gradient(#ffd451,#f7b519);color:#4a3000;box-shadow:0 5px 0 #c98a00}
+.wl-create:hover{background:linear-gradient(#ffdb6b,#f9bd2e)}
+.wl-guest{width:100%}
+.wl-note{margin:0;text-align:center;font-size:12.5px;color:#5b708c}
+@media(max-width:860px){.wl-inner{grid-template-columns:1fr;gap:18px;padding-top:18px}.wl-art{max-width:420px;margin-bottom:10px}.wl-tag{font-size:15px}.wl-chips{display:none}}
+@media(max-width:480px){.char-grid{grid-template-columns:repeat(5,minmax(0,1fr));gap:4px}.char-opt .av-bubble{width:48px;height:48px;font-size:28px}.char-opt small{font-size:10px}.wl-card{padding:18px 16px}.wl-title{font-size:38px}}
+/* Cách chơi */
+.howto{display:grid;gap:10px}
+.howto-step{display:flex;gap:12px;align-items:flex-start;background:#f6faff;border:1px solid #dbe6f2;border-radius:16px;padding:12px 14px}
+.howto-ico{font-size:30px;line-height:1}
+.howto-step b{font:900 16px var(--font-fun,Nunito),sans-serif;color:#1d3557}
+.howto-step p{margin:3px 0 0;font-size:14px;color:#3f5470;line-height:1.55}
+/* Thoát bài? */
+.quit-ask{position:fixed;inset:0;z-index:10;background:rgba(20,40,60,.45);display:grid;place-items:center;padding:16px;animation:popIn .15s ease-out}
+.quit-card{background:#fff;border-radius:24px;padding:22px 22px 18px;width:min(380px,100%);text-align:center;box-shadow:0 20px 50px rgba(0,0,0,.25)}
+.quit-ico{font-size:52px;line-height:1.1}
+.quit-card b{display:block;font:900 22px var(--font-fun,Nunito),sans-serif;color:#1d3557;margin-top:4px}
+.quit-card p{margin:6px 0 16px;color:#4c6280}
+.quit-actions{display:grid;gap:10px}
+/* Học thử + Tài khoản + “+10 XP” */
+.guest-bar{background:#fff4d6;border:1px solid #f1d48f;border-radius:14px;padding:10px 14px;margin-bottom:14px;font-size:14px;color:#5b4507;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.guest-bar .soft-btn{margin-left:auto}
+.set-account{display:flex;align-items:center;gap:12px;padding:6px 0 10px;border-bottom:1px dashed #e3ebf2}
+.set-account>div{flex:1;min-width:0;display:grid}
+.set-account b{font:900 18px var(--font-fun,Nunito),sans-serif}
+.set-account small{font-size:13px;color:#5f7389}
+.pl-gain{background:#fff4c2;color:#8a6200;border-radius:99px;padding:3px 10px;font:900 13px var(--font-fun,Nunito),sans-serif}
+html[data-theme=night] :is(.wl-card,.quit-card){background:#1b2f45;color:#eef5fb}
+html[data-theme=night] :is(.wl-profile,.howto-step){background:#22394f;border-color:#35526e;box-shadow:none}
+html[data-theme=night] :is(.wl-card h2,.wl-who b,.quit-card b,.howto-step b){color:#eef5fb}
+html[data-theme=night] :is(.wl-who small,.wl-sub,.wl-note,.howto-step p,.quit-card p){color:#a9bfd3}
+
 /* Báo thiếu giọng đọc tiếng Việt (nằm trên mọi lớp, kể cả màn làm bài) */
 .voice-help{position:fixed;left:50%;top:calc(12px + env(safe-area-inset-top,0px));transform:translateX(-50%);z-index:300;width:min(560px,calc(100vw - 24px));box-sizing:border-box;background:#fffaf0;border:2px solid #f4c85a;border-radius:18px;padding:14px 16px;box-shadow:0 14px 40px rgba(0,0,0,.22);display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;color:#3b2f10}
 .voice-help>div:first-child{flex:1 1 260px}

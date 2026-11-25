@@ -72,6 +72,7 @@ function loadDB() {
 let db = loadDB();
 let S = db.profiles[db.current];
 function save() {
+  if (typeof GUEST_MODE !== 'undefined' && GUEST_MODE) { updateChrome(); return; } // học thử: không lưu
   try { localStorage.setItem(STORE_KEY, JSON.stringify(db)); } catch (e) { /* hết bộ nhớ / chế độ riêng tư */ }
   updateChrome();
 }
@@ -147,12 +148,26 @@ function sfx(kind) {
    Edge có giọng tự nhiên Hoài My / Nam Minh; Android và iPad thường có sẵn giọng Việt.
    Không có giọng Việt thì báo rõ + gợi ý mở bằng Edge, KHÔNG im lặng. */
 let viVoice = null, viVoices = [], voicesReady = false, voiceWarned = false, mutedHintAt = 0;
+const SPEECH_PACE = 0.85; // nhịp chung của giọng đọc (chậm hơn 15% so với trước)
 function findVoice() {
   if (!('speechSynthesis' in window)) return;
   const all = speechSynthesis.getVoices();
   if (all.length) voicesReady = true;
   viVoices = all.filter(v => /^vi/i.test(v.lang) || /vietnam/i.test(v.name));
-  viVoice = viVoices.find(v => v.name === db.settings.voice) || viVoices.find(v => /natural|online/i.test(v.name)) || viVoices[0] || null;
+  // Ưu tiên giọng NỮ (thầy cô thấy dễ nghe hơn với học sinh nhỏ): giọng đã chọn → nữ tự nhiên → nữ → không phải nam → bất kì
+  const natural = v => /natural|online|neural/i.test(v.name);
+  viVoice = viVoices.find(v => v.name === db.settings.voice)
+    || viVoices.find(v => voiceGender(v) === 'nữ' && natural(v)) || viVoices.find(v => voiceGender(v) === 'nữ')
+    || viVoices.find(v => voiceGender(v) !== 'nam' && natural(v)) || viVoices.find(v => voiceGender(v) !== 'nam')
+    || viVoices[0] || null;
+}
+/* Đoán giọng nam/nữ theo tên giọng phổ biến: Edge (Hoài My – nữ, Nam Minh – nam), Windows (An – nam),
+   iPhone/iPad (Linh – nữ). Không đoán được thì trả về ''. */
+function voiceGender(v) {
+  const n = v.name;
+  if (/ho[aà]i ?my|\blinh\b|female|\bnữ\b|\bmai\b|\blan\b|thu ?(hà|ha)|ngọc|hương/i.test(n)) return 'nữ';
+  if (/nam ?minh|microsoft an\b|\bmale\b|\bnam\b(?! *\))/i.test(n.replace(/vietnam/ig, ''))) return 'nam';
+  return '';
 }
 function noVoiceHelp() {
   if (voiceWarned) { toast('🔈 Trình duyệt này chưa có giọng đọc tiếng Việt.'); return; }
@@ -191,7 +206,7 @@ function speak(text, rate, retried) {
   const u = new SpeechSynthesisUtterance(plain(text));
   u.voice = viVoice; u.lang = viVoice.lang || 'vi-VN';
   u.volume = Math.min(1, Math.max(0.15, db.settings.sfxVol == null ? 1 : db.settings.sfxVol + 0.2)); // giọng đọc luôn đủ nghe
-  u.rate = (rate || 0.85) * (db.settings.rate || 1);
+  u.rate = Math.max(0.45, (rate || 0.85) * SPEECH_PACE * (db.settings.rate || 1)); // đọc chậm, rõ cho học sinh nhỏ
   // 'not-allowed' = trình duyệt chặn đọc khi chưa có cú chạm của người dùng → em chỉ cần bấm 🔊, không cần báo lỗi
   u.onerror = e => { if (!['interrupted', 'canceled', 'not-allowed'].includes(e.error)) toast('Chưa phát được giọng đọc (' + e.error + '). Em bấm 🔊 lại nhé.'); };
   // Chrome đôi khi “nuốt” câu nói nếu speak() ngay sau cancel(): chờ một nhịp ngắn
@@ -252,16 +267,37 @@ function render() {
   $('#viewRoot').innerHTML = ext ? ext.page() : (views[currentView] || renderHome)();
   $$('.nav-item, [data-tab]').forEach(n => n.classList.toggle('active', (n.dataset.view || n.dataset.tab) === currentView));
   $('#crumbCurrent').textContent = VIEW_NAMES[currentView] || 'Trang học';
+  const bb = $('#backBtn'); if (bb) bb.hidden = currentView === 'home';
   if (currentView === 'teacher') bindTeacher();
   if (currentView === 'shelf') WordShelf.bind();
   if (currentView === 'roadmap' && typeof bindRoadmap === 'function') bindRoadmap();
   if (ext && ext.bind) ext.bind();
   AFTER_RENDER.forEach(f => { try { f(currentView); } catch (e) { console.warn(e); } });
 }
-function go(view) {
+/* Quay lại: mỗi lần đổi trang ghi một mục vào lịch sử trình duyệt, nên nút ‹ Quay lại trên thanh trên,
+   nút Back của điện thoại Android và phím Alt+← đều đưa em về trang trước (không thoát khỏi web). */
+let navDepth = 0;
+function go(view, fromHistory) {
   if (view === 'teacher' && !teacherOK) { teacherGate(); return; }
+  if (view !== currentView && !fromHistory) {
+    try { history.pushState({ v: view }, '', '#' + view); navDepth++; } catch (e) { /* file:// cũ */ }
+  }
   currentView = view; closeSidebar(); render(); window.scrollTo(0, 0);
 }
+function goBack() {
+  sfx('tap');
+  if (navDepth > 0) history.back(); else go('home');
+}
+window.addEventListener('popstate', e => {
+  const keep = () => { try { history.pushState({ v: currentView }, '', '#' + currentView); navDepth++; } catch (err) {} };
+  navDepth = Math.max(0, navDepth - 1);
+  if (document.getElementById('welcome')) { keep(); return; }        // màn chọn người chơi: đứng yên
+  const qa = $('#quitAsk'); if (qa) { qa.remove(); keep(); return; }  // đang hỏi “Thoát bài?” → coi như Học tiếp
+  if (!$('#modalRoot').hidden) { if (!askQuit()) closeModal(); keep(); return; } // Back khi đang mở hộp → đóng hộp
+  const v = (e.state && e.state.v) || 'home';
+  go(v === 'teacher' && !teacherOK ? 'home' : v, true);
+});
+try { history.replaceState({ v: 'home' }, '', location.pathname + location.search); } catch (e) {}
 function pageHeading(kicker, title, desc, actions) {
   return '<div class="page-heading"><div><div class="eyebrow">' + kicker + '</div><h1>' + title + '</h1><p>' + desc + '</p></div>' + (actions ? '<div class="heading-actions">' + actions + '</div>' : '') + '</div>';
 }
@@ -291,10 +327,10 @@ function renderHome() {
     '<p>Chọn hòn đảo để học. Đảo của em: <b>Lớp ' + esc(S.grade) + ' – ' + gardenName() + '</b>.</p></section>' +
     WordShelf.home() +
     '<section class="hero-card voyage-actions" aria-label="Lối tắt">' +
-    voyageChoice('continue', '⚑', 'Tiếp tục hành trình', next ? esc(next.ten) : 'Cây Chữ Thần đang chờ') +
-    voyageChoice('quick', '✦', 'Luyện nhanh', '10 câu ngẫu nhiên') +
-    voyageChoice('review', '↻', 'Ôn câu sai', reviewN ? reviewN + ' mục đang chờ' : 'Chưa có câu sai') +
-    voyageChoice('placement', '◎', 'Kiểm tra trình độ', S.placement ? 'Lần trước: hợp lớp ' + S.placement.level : 'Gợi ý lớp phù hợp') +
+    voyageChoice('continue', '⛵', 'Tiếp tục hành trình', next ? esc(next.ten) : 'Cây Chữ Thần đang chờ') +
+    voyageChoice('quick', '🚀', 'Luyện nhanh', '10 câu ngẫu nhiên') +
+    voyageChoice('review', '🔁', 'Ôn câu sai', reviewN ? reviewN + ' mục đang chờ' : 'Chưa có câu sai') +
+    voyageChoice('placement', '🎯', 'Kiểm tra trình độ', S.placement ? 'Lần trước: hợp lớp ' + S.placement.level : 'Gợi ý lớp phù hợp') +
     '</section>' +
     '<section class="sea-chart" aria-label="Bản đồ quần đảo"><header><h2>Quần đảo Vườn Chữ</h2><span>Đảo của em: <i>Lớp ' + esc(S.grade) + '</i></span></header>' +
     '<div class="chart-water"><img class="island-art" src="assets/quan-dao.webp" alt="Bản đồ năm hòn đảo: nhà cây phượng, rừng thác nước, đồi cối xay gió, ngọn hải đăng và lâu đài" width="1536" height="1024" />' +
@@ -364,10 +400,21 @@ function gardenCard() {
     '<div class="daily-progress"><span style="width:' + (nx ? pct(S.xp - st.xp, nx.xp - st.xp) : 100) + '%"></span></div>' +
     (typeof gardenMini === 'function' ? gardenMini() : '') + '</div>';
 }
+/* Mùa Noel: 'auto' = từ 15/11 đến 10/1; thầy cô/học sinh bật tắt trong Cài đặt → Hiển thị */
+function noelOn() {
+  const m = db.settings.noel || 'auto';
+  if (m === 'on') return true; if (m === 'off') return false;
+  const d = window.NOEL_TODAY ? new Date(window.NOEL_TODAY) : new Date(), mo = d.getMonth() + 1, day = d.getDate();
+  return (mo === 11 && day >= 15) || mo === 12 || (mo === 1 && day <= 10);
+}
+/* Bài chưa mở: người tuyết (mùa Noel) hoặc quả trứng chờ nở – thay cho ổ khoá */
+function lockArt() { return noelOn() ? '☃️' : '🥚'; }
+const LOCK_MSG = () => 'Học xong bài trước để mở bài này nhé! ' + lockArt();
 function topicTile(t) {
   const st = topicStatus(t), ts = tstat(t.id);
-  return '<button class="topic-tile ' + st + '" style="--c:' + t.mau + '" ' + (st === 'locked' ? 'data-locked="1"' : 'data-start="' + t.id + '"') + '>' +
-    '<span class="topic-tile-icon">' + (st === 'locked' ? '🔒' : t.bieuTuong) + '</span><b>' + esc(t.ten) + '</b>' + starsHtml(ts.stars) + '</button>';
+  return '<button class="topic-tile ' + st + '" style="--c:' + t.mau + '" ' + (st === 'locked' ? 'data-locked="1" aria-label="' + esc(t.ten) + ' – chưa mở"' : 'data-start="' + t.id + '"') + '>' +
+    '<span class="topic-tile-icon' + (st === 'locked' ? ' lock-art' : '') + '">' + (st === 'locked' ? lockArt() : t.bieuTuong) + '</span><b>' + esc(t.ten) + '</b>' +
+    (st === 'locked' ? '<small class="tile-wait">Học xong bài trước</small>' : starsHtml(ts.stars)) + '</button>';
 }
 
 /* ============================== LỘ TRÌNH: CON ĐƯỜNG TRONG VƯỜN ============================== */
@@ -425,7 +472,7 @@ function renderRoadmap() {
     '<div class="gm-gate">🌈 Cổng ' + gardenName() + '</div>' +
     nodes.map((n, i) => {
       const st = statuses[i], p = pts[i], info = NODE_INFO[n.type];
-      const icon = st === 'locked' ? '🔒' : n.type === 'lesson' ? n.topic.bieuTuong : (n.type === 'gift' && st === 'done' ? '🧺' : info.icon);
+      const icon = st === 'locked' ? lockArt() : n.type === 'lesson' ? n.topic.bieuTuong : (n.type === 'gift' && st === 'done' ? '🧺' : info.icon);
       const label = n.type === 'lesson' ? esc(n.topic.ten) : info.name;
       return '<button class="gm-node ' + n.type + ' ' + st + (i === cur ? ' current' : '') + '" style="left:' + p.x + '%;top:' + p.y + 'px' + (n.topic ? ';--c:' + n.topic.mau : '') + '" data-node="' + i + '" aria-label="' + label + (st === 'locked' ? ' – đang khoá' : st === 'done' ? ' – đã xong' : '') + '">' +
         (i === cur ? '<span class="gm-me" aria-hidden="true">' + S.avatar + '</span>' : '') +
@@ -441,7 +488,7 @@ function bindRoadmap() {
 function openNode(i) {
   const n = mapNodes[i]; if (!n) return;
   const st = nodeStatus(n, i, mapNodes);
-  if (st === 'locked') { sfx('bad'); toast(n.type === 'lesson' ? 'Hoàn thành bài trước để mở bài này nhé! 🔒' : 'Học xong các bài phía trước trên ' + gardenName() + ' để mở ' + NODE_INFO[n.type].name.toLowerCase() + ' nhé! 🔒'); return; }
+  if (st === 'locked') { sfx('bad'); toast(n.type === 'lesson' ? LOCK_MSG() : 'Học xong các bài phía trước trên ' + gardenName() + ' để mở ' + NODE_INFO[n.type].name.toLowerCase() + ' nhé! ' + lockArt()); return; }
   if (n.type === 'lesson') { startTopic(n.id); return; }
   if (n.type === 'gift') { openGift(n, st); return; }
   const boss = n.type === 'boss', names = n.topics.map(t => t.ten);
@@ -503,7 +550,7 @@ function renderReview() {
 /* ============================== HUY HIỆU ============================== */
 function renderBadges() {
   return pageHeading('BỘ SƯU TẬP', 'Huy hiệu của em', 'Em đã có ' + S.badges.length + ' / ' + BADGES.length + ' huy hiệu. Cố gắng sưu tầm đủ nhé!') +
-    '<div class="badge-grid">' + BADGES.map(b => { const on = S.badges.includes(b.id); return '<div class="badge-card ' + (on ? 'on' : '') + '"><div class="badge-icon">' + (on ? b.icon : '🔒') + '</div><b>' + b.name + '</b><small>' + b.desc + '</small></div>'; }).join('') + '</div>' +
+    '<div class="badge-grid">' + BADGES.map(b => { const on = S.badges.includes(b.id); return '<div class="badge-card ' + (on ? 'on' : '') + '"><div class="badge-icon">' + b.icon + '</div><b>' + b.name + '</b><small>' + b.desc + '</small></div>'; }).join('') + '</div>' +
     '<div class="note-callout big-note">🔥 Chuỗi ngày học hiện tại: <b>' + S.streak + ' ngày</b> · ⚡ Đúng liên tiếp nhiều nhất: <b>' + S.bestCombo + ' câu</b></div>';
 }
 function checkBadges() {
@@ -537,7 +584,7 @@ function renderTeacher() {
     WordShelf.teacherPanel() + '<div class="teacher-layout">' +
     '<section class="teacher-panel span-2"><h2>👧👦 Học sinh trên máy này (' + profiles.length + ')</h2><div class="table-wrap"><table class="t-table"><thead><tr><th>Học sinh</th><th>Lớp</th><th>XP</th><th>Bài xong</th><th>Đúng</th><th>Chuỗi ngày</th><th>Học gần nhất</th><th></th></tr></thead><tbody>' +
     profiles.map(p => { const g = Number(p.grade), tl = ALL_TOPICS.filter(t => t.lop[0] <= g && g <= t.lop[1]); const d = tl.filter(t => p.topics[t.id] && p.topics[t.id].done).length;
-      return '<tr class="' + (p.id === S.id ? 'me' : '') + '"><td>' + p.avatar + ' ' + esc(p.name) + (p.id === S.id ? ' <small>(đang dùng)</small>' : '') + '</td><td>' + esc(p.grade) + '</td><td>' + p.xp + '</td><td>' + d + '/' + tl.length + '</td><td>' + pct(p.correct, p.attempts) + '%</td><td>' + p.streak + '</td><td>' + (p.lastDay || '—') + '</td><td>' + (p.id === S.id ? '' : '<button class="soft-btn sm" data-switch="' + p.id + '">Chọn</button>') + '</td></tr>'; }).join('') +
+      return '<tr class="' + (p.id === S.id ? 'me' : '') + '"><td>' + p.avatar + ' ' + esc(p.name) + (p.id === S.id ? ' <small>(đang dùng)</small>' : '') + '</td><td>' + esc(p.grade) + '</td><td>' + p.xp + '</td><td>' + d + '/' + tl.length + '</td><td>' + pct(p.correct, p.attempts) + '%</td><td>' + p.streak + '</td><td>' + (p.lastDay || '—') + '</td><td>' + (p.id === S.id ? '' : '<button class="soft-btn sm" data-switch="' + p.id + '">Chọn</button>') + (p.pin ? ' <button class="soft-btn sm" data-unpin="' + p.id + '" title="Học sinh quên mã PIN">🔓 Xoá PIN</button>' : '') + '</td></tr>'; }).join('') +
     '</tbody></table></div></section>' +
     '<section class="teacher-panel"><h2>📊 Chi tiết: ' + S.avatar + ' ' + esc(S.name) + ' · Lớp ' + esc(S.grade) + '</h2><div class="table-wrap"><table class="t-table"><thead><tr><th>Bài</th><th>Sao</th><th>Tốt nhất</th><th>Đúng</th></tr></thead><tbody>' +
     myTopics().map(t => { const ts = tstat(t.id); return '<tr><td>' + t.bieuTuong + ' ' + esc(t.ten) + '</td><td>' + starsHtml(ts.stars) + '</td><td>' + (ts.attempts ? ts.best + '%' : '—') + '</td><td>' + (ts.attempts ? pct(ts.correct, ts.attempts) + '%' : '—') + '</td></tr>'; }).join('') +
@@ -551,7 +598,8 @@ function renderTeacher() {
     '<section class="teacher-panel"><h2>🖨️ Phiếu bài tập in cho lớp</h2><p>Chọn chủ đề để in phiếu luyện tập: điền chữ, tìm lỗi sai, nghe – viết. Đáp án nằm ở trang sau, dùng cho giờ chính tả hoặc bài về nhà.</p>' +
     '<div class="btn-row"><select id="wsTopic" class="t-select" aria-label="Chọn chủ đề phiếu">' + ALL_TOPICS.map(t => '<option value="' + t.id + '" ' + (myTopics()[0] === t ? 'selected' : '') + '>' + t.bieuTuong + ' ' + esc(t.ten) + ' (lớp ' + t.lop[0] + '–' + t.lop[1] + ')</option>').join('') + '</select><button class="primary-btn" id="wsOpen">👀 Xem &amp; in phiếu</button></div></section>' +
     '<section class="teacher-panel"><h2>🔊 Giọng đọc</h2>' +
-    (viVoices.length ? '<div class="field-label">Giọng tiếng Việt trên máy này</div><select id="voiceSel" class="t-select" aria-label="Chọn giọng đọc">' + viVoices.map(v => '<option value="' + esc(v.name) + '" ' + (viVoice && v.name === viVoice.name ? 'selected' : '') + '>' + esc(v.name) + '</option>').join('') + '</select>'
+    (viVoices.length ? '<div class="field-label">Giọng tiếng Việt trên máy này</div><select id="voiceSel" class="t-select" aria-label="Chọn giọng đọc">' + viVoices.map(v => '<option value="' + esc(v.name) + '" ' + (viVoice && v.name === viVoice.name ? 'selected' : '') + '>' + esc(v.name) + (voiceGender(v) ? ' (' + voiceGender(v) + ')' : '') + '</option>').join('') + '</select>' +
+      (viVoices.some(v => voiceGender(v) === 'nữ') ? '' : '<p class="warn-text">Máy này chưa có giọng nữ tiếng Việt. Mở bằng <b>Microsoft Edge</b> để có giọng nữ tự nhiên <b>Hoài My</b>.</p>')
       : '<p class="warn-text">Máy này chưa có giọng đọc tiếng Việt, phần nghe – viết sẽ cần thầy cô đọc giúp. Gợi ý: trình duyệt <b>Microsoft Edge</b> thường có sẵn giọng tiếng Việt; trên Windows có thể thêm giọng ở Cài đặt → Thời gian &amp; ngôn ngữ → Giọng nói.</p>') +
     '<div class="field-label">Tốc độ đọc</div><select id="rateSel" class="t-select" aria-label="Tốc độ đọc"><option value="0.8">🐢 Chậm (lớp 1–2)</option><option value="1">Vừa</option><option value="1.15">Nhanh hơn (lớp 4–5)</option></select>' +
     '<div class="btn-row"><button class="soft-btn" id="voiceTest">▶ Nghe thử</button></div></section>' +
@@ -597,6 +645,7 @@ function bindTeacher() {
     delete db.profiles[S.id]; db.current = Object.keys(db.profiles)[0]; S = db.profiles[db.current]; save(); render(); toast('Đã xoá học sinh.');
   });
   $$('[data-switch]').forEach(b => b.onclick = () => switchProfile(b.dataset.switch));
+  $$('[data-unpin]').forEach(b => b.onclick = () => { const p = db.profiles[b.dataset.unpin]; if (!p) return; p.pin = undefined; save(); render(); toast('🔓 Đã xoá mã PIN của ' + p.name); });
 }
 /* ============================== PHIẾU BÀI TẬP IN ============================== */
 function worksheetHtml(t) {
@@ -637,24 +686,37 @@ function switchProfile(id) { db.current = id; S = db.profiles[id]; save(); rende
 /* ============================== HỒ SƠ HỌC SINH ============================== */
 function showProfile() {
   const others = Object.values(db.profiles).filter(p => p.id !== S.id);
-  const body = '<div class="profile-form">' +
-    (others.length ? '<div><div class="field-label">Đổi sang bạn khác</div><div class="profile-list">' + others.map(p => '<button class="profile-chip" data-switch-p="' + p.id + '">' + p.avatar + ' ' + esc(p.name) + ' <small>lớp ' + esc(p.grade) + '</small></button>').join('') + '</div></div>' : '') +
-    '<label>Tên của em<input id="nameInput" maxlength="18" value="' + esc(S.name) + '" /></label>' +
-    '<label>Em học lớp<select id="profileGrade">' + [1, 2, 3, 4, 5].map(g => '<option value="' + g + '" ' + (S.grade == g ? 'selected' : '') + '>Lớp ' + g + '</option>').join('') + '</select></label>' +
-    '<div><div class="field-label">Chọn bạn đồng hành</div><div class="profile-avatars">' + AVATARS.map(a => '<button type="button" class="' + (a === S.avatar ? 'selected' : '') + '" data-avatar="' + a + '" aria-label="Chọn ' + a + '">' + a + '</button>').join('') + '</div></div>' +
-    '<div class="modal-actions"><button class="soft-btn" id="addProfile">➕ Thêm bạn mới</button><button class="primary-btn" id="saveProfile">Lưu</button></div>' +
-    '<p class="small-print">Nhiều bạn dùng chung một máy? Mỗi bạn tạo một hồ sơ riêng nhé. Dữ liệu chỉ lưu trên máy này.</p></div>';
-  openModal('Hồ sơ của em', 'Đổi tên, lớp, bạn đồng hành', body);
+  const picker = typeof charPicker === 'function' ? charPicker(S.avatar)
+    : '<div class="profile-avatars">' + AVATARS.map(a => '<button type="button" class="' + (a === S.avatar ? 'selected' : '') + '" data-char="' + a + '" aria-label="Chọn ' + a + '">' + a + '</button>').join('') + '</div>';
+  const body = '<form class="profile-form" id="profileForm" novalidate>' +
+    (others.length ? '<div><div class="field-label">Đổi sang bạn khác</div><div class="profile-list">' + others.map(p => '<button type="button" class="profile-chip" data-switch-p="' + p.id + '">' + p.avatar + ' ' + esc(p.name) + ' <small>lớp ' + esc(p.grade) + (p.pin ? ' · 🔐' : '') + '</small></button>').join('') + '</div></div>' : '') +
+    '<label>Tên của em<input id="nameInput" maxlength="20" placeholder="Ví dụ: Minh An" value="' + esc(S.name) + '" autocomplete="off" /></label>' +
+    '<div><div class="field-label">Chọn bạn đồng hành</div>' + picker + '</div>' +
+    '<label>Em đang học lớp<select id="profileGrade">' + [1, 2, 3, 4, 5].map(g => '<option value="' + g + '" ' + (S.grade == g ? 'selected' : '') + '>Lớp ' + g + ' – ' + gardenName(g) + '</option>').join('') + '</select></label>' +
+    '<label>Mã PIN 4 số (không bắt buộc)<input id="pinInput" type="password" inputmode="numeric" maxlength="4" autocomplete="new-password" placeholder="' + (S.pin ? 'Đã đặt mã – nhập 4 số mới để đổi' : 'Để trống nếu không cần') + '" /></label>' +
+    (S.pin ? '<label class="switch-row"><input type="checkbox" id="pinOff" /> Bỏ mã PIN của hồ sơ này</label>' : '') +
+    '<p class="pin-err" id="profileErr" role="alert"></p>' +
+    '<div class="modal-actions"><button type="button" class="soft-btn" id="addProfile">➕ Thêm bạn mới</button><button type="submit" class="primary-btn" id="saveProfile">Lưu thay đổi</button></div>' +
+    '<p class="small-print">Nhiều bạn dùng chung một máy? Mỗi bạn tạo một hồ sơ riêng, có thể đặt mã PIN để không ai vào nhầm. Dữ liệu chỉ lưu trên máy này.</p></form>';
+  openModal('Sửa hồ sơ', 'Tên, bạn đồng hành, lớp và mã PIN', body);
   let avatar = S.avatar;
-  $$('[data-avatar]').forEach(b => b.onclick = () => { avatar = b.dataset.avatar; sfx('tap'); $$('[data-avatar]').forEach(x => x.classList.toggle('selected', x.dataset.avatar === avatar)); });
-  $$('[data-switch-p]').forEach(b => b.onclick = () => { closeModal(); switchProfile(b.dataset.switchP); });
-  $('#saveProfile').onclick = () => {
-    S.name = $('#nameInput').value.trim() || 'Bạn nhỏ'; S.grade = $('#profileGrade').value; S.avatar = avatar;
-    save(); closeModal(); render(); toast('Đã lưu hồ sơ của em!');
+  if (typeof bindCharPicker === 'function') bindCharPicker(a => { avatar = a; });
+  else $$('[data-char]').forEach(b => b.onclick = () => { avatar = b.dataset.char; sfx('tap'); $$('[data-char]').forEach(x => x.classList.toggle('selected', x === b)); });
+  $$('[data-switch-p]').forEach(b => b.onclick = () => { closeModal(); if (typeof requestSwitch === 'function') requestSwitch(b.dataset.switchP); else switchProfile(b.dataset.switchP); });
+  $('#pinInput').oninput = e => { e.target.value = e.target.value.replace(/\D/g, '').slice(0, 4); };
+  $('#profileForm').onsubmit = e => {
+    e.preventDefault();
+    const pin = $('#pinInput').value;
+    if (pin && !/^\d{4}$/.test(pin)) { $('#profileErr').textContent = 'Mã PIN gồm đúng 4 chữ số, hoặc để trống.'; return; }
+    S.name = $('#nameInput').value.trim().replace(/\s+/g, ' ') || 'Bạn nhỏ'; S.grade = $('#profileGrade').value; S.avatar = avatar;
+    if (pin && typeof pinHash === 'function') S.pin = pinHash(pin, S.id);
+    const off = $('#pinOff'); if (off && off.checked) delete S.pin;
+    save(); closeModal(); render(); toast(pin ? '🔐 Đã lưu hồ sơ và mã PIN!' : 'Đã lưu hồ sơ của em!');
   };
   $('#addProfile').onclick = () => {
+    closeModal();
+    if (typeof showCreate === 'function') { showCreate(false); return; }
     const p = newProfile('Bạn mới', S.grade, pick(AVATARS)); db.profiles[p.id] = p; db.current = p.id; S = p; save(); render(); showProfile();
-    setTimeout(() => { const i = $('#nameInput'); if (i) { i.select(); i.focus(); } }, 50);
   };
 }
 
@@ -680,7 +742,7 @@ function closeModal() {
 /* ============================== BÀI HỌC ============================== */
 function startTopic(id) {
   const t = getTopic(id); if (!t) return;
-  if (topicStatus(t) === 'locked') { toast('Hoàn thành bài trước để mở bài này nhé! 🔒'); return; }
+  if (topicStatus(t) === 'locked') { toast(LOCK_MSG()); return; }
   showIntro(t);
 }
 /* Hộp “thông tin bài học”: số chặng · trạng thái · 3 mức sao · 2 lối vào Lý thuyết / Bài tập */
@@ -693,7 +755,7 @@ function showIntro(t, level) {
     '<div class="lp-status ' + (ts.attempts ? 'has' : '') + '"><b>' + status + '</b><span>' + (ts.theory ? '📖 Em đã đọc lý thuyết bài này.' : 'Đọc lý thuyết trước, rồi làm bài tập để nhận sao.') + '</span></div>' +
     '<div class="field-label">Chọn mức</div><div class="lp-tiers" role="group" aria-label="Chọn mức">' + Object.keys(TIERS).map(k => {
       const open = tierOpen(ts, k), got = ts.stars >= TIERS[k].stars;
-      return '<button class="lp-tier ' + (k === level ? 'is-chosen ' : '') + (open ? '' : 'locked ') + (got ? 'got' : '') + '" data-level="' + k + '" aria-pressed="' + (k === level) + '"' + (open ? '' : ' aria-disabled="true"') + '><b>' + TIERS[k].name + '</b><span class="lp-stars">' + '★'.repeat(TIERS[k].stars) + '☆'.repeat(3 - TIERS[k].stars) + '</span><small>' + (got ? '✓ Đã qua' : open ? 'Đang mở' : '🔒 Qua mức trước') + '</small></button>';
+      return '<button class="lp-tier ' + (k === level ? 'is-chosen ' : '') + (open ? '' : 'locked ') + (got ? 'got' : '') + '" data-level="' + k + '" aria-pressed="' + (k === level) + '"' + (open ? '' : ' aria-disabled="true"') + '><b>' + TIERS[k].name + '</b><span class="lp-stars">' + '★'.repeat(TIERS[k].stars) + '☆'.repeat(3 - TIERS[k].stars) + '</span><small>' + (got ? '✓ Đã qua' : open ? 'Đang mở' : '🗝️ Qua mức trước') + '</small></button>';
     }).join('') + '</div>' +
     '<p class="lp-desc"><b>Mức ' + tier.name + ':</b> ' + tier.desc + '</p>' +
     '<div class="lp-enter"><button class="lp-btn theory" id="openTheory"><span aria-hidden="true">📖</span><b>Lý thuyết</b><small>Mẹo, ví dụ, lỗi thường gặp</small></button>' +
@@ -701,7 +763,7 @@ function showIntro(t, level) {
   openModal('Bài ' + num + ' · ' + esc(t.ten), gardenName() + ' · Lớp ' + esc(S.grade), body);
   $$('[data-level]').forEach(b => b.onclick = () => {
     const k = b.dataset.level;
-    if (!tierOpen(ts, k)) { sfx('bad'); toast('Qua mức ' + (k === 'kho' ? 'Vừa' : 'Dễ') + ' trước để mở mức ' + TIERS[k].name + ' nhé! 🔒'); return; }
+    if (!tierOpen(ts, k)) { sfx('bad'); toast('Qua mức ' + (k === 'kho' ? 'Vừa' : 'Dễ') + ' trước để mở mức ' + TIERS[k].name + ' nhé! 🗝️'); return; }
     sfx('tap'); showIntro(t, k);
   });
   $('#openTheory').onclick = () => { if (typeof openTheory === 'function') openTheory(t.id, level); };
@@ -897,7 +959,7 @@ function doCheck() {
 function showSheet(res) {
   const sh = $('#plSheet'), last = Q.i + 1 >= Q.items.length || (Q.lives != null && Q.lives <= 0);
   sh.className = 'pl-sheet ' + (res.right ? 'good' : 'bad');
-  sh.innerHTML = '<div class="pl-sheet-in"><div class="pl-sheet-head"><span class="pl-sheet-icon">' + (res.right ? '✓' : '✕') + '</span><b>' + (res.right ? pick(PRAISE) : pick(ENCOURAGE)) + '</b><span class="fb-mascot" aria-hidden="true">' + (res.right ? '🥳' : '🤗') + '</span></div>' +
+  sh.innerHTML = '<div class="pl-sheet-in"><div class="pl-sheet-head"><span class="pl-sheet-icon">' + (res.right ? '✓' : '✕') + '</span><b>' + (res.right ? pick(PRAISE) : pick(ENCOURAGE)) + '</b>' + (res.right && Q.kind !== 'placement' ? '<span class="pl-gain">+10 XP</span>' : '') + '<span class="fb-mascot" aria-hidden="true">' + (res.right ? '🥳' : '🤗') + '</span></div>' +
     (res.html ? '<div class="pl-sheet-body">' + res.html + '</div>' : '') +
     '<button class="pl-cont" id="plCont">' + (Q.lives != null && Q.lives <= 0 ? 'Xem kết quả' : last ? 'Xem kết quả 🎉' : 'Tiếp tục') + '</button></div>';
   sh.hidden = false; $('#plFoot').hidden = true;
@@ -1215,22 +1277,36 @@ function speedAfter(right) {
 }
 
 /* ============================== SỰ KIỆN ============================== */
+/* Đang làm dở bài (đã trả lời ít nhất 1 câu) mà bấm ✕ → hỏi lại, tránh bé bấm nhầm mất bài */
+function askQuit() {
+  const root = $('#modalRoot');
+  if (!Q || !root.classList.contains('player-mode') || !(Q.i > 0 || Q.answered) || $('#quitAsk')) return false;
+  const box = document.createElement('div');
+  box.id = 'quitAsk'; box.className = 'quit-ask'; box.setAttribute('role', 'alertdialog'); box.setAttribute('aria-labelledby', 'quitTitle');
+  box.innerHTML = '<div class="quit-card"><div class="quit-ico" aria-hidden="true">' + S.avatar + '</div><b id="quitTitle">Thoát bài?</b><p>Kết quả bài đang làm sẽ không được lưu.</p>' +
+    '<div class="quit-actions"><button class="primary-btn big" id="quitStay">Học tiếp</button><button class="soft-btn big" id="quitGo">Thoát</button></div></div>';
+  root.appendChild(box);
+  $('#quitStay').onclick = () => box.remove();
+  $('#quitGo').onclick = () => { box.remove(); closeModal(); };
+  $('#quitStay').focus();
+  return true;
+}
 function closeSidebar() { $('#sidebar').classList.remove('mobile-open'); $('#sidebarScrim').hidden = true; }
 document.addEventListener('click', e => {
   const t = e.target;
   const island = t.closest('[data-island]');
   if (island) { S.grade = island.dataset.island; save(); go('roadmap'); return; }
-  if (t.closest('[data-close-modal]')) { closeModal(); return; }
+  if (t.closest('[data-close-modal]')) { if (!askQuit()) closeModal(); return; }
   const say = t.closest('[data-say]'); if (say) { speak(say.dataset.say); return; }
   const isl = t.closest('[data-island]'); if (isl) { chooseIsland(isl.dataset.island); return; }
   const v = t.closest('[data-view]'); if (v) { e.preventDefault(); if ($('#modalRoot').hidden === false) closeModal(); go(v.dataset.view); return; }
   const s = t.closest('[data-start]'); if (s) { startTopic(s.dataset.start); return; }
-  if (t.closest('[data-locked]')) { toast('Hoàn thành bài trước để mở bài này nhé! 🔒'); return; }
+  if (t.closest('[data-locked]')) { sfx('bad'); toast(LOCK_MSG()); return; }
   const a = t.closest('[data-action]'); if (a) { doAction(a.dataset.action); return; }
 });
 document.addEventListener('keydown', e => {
   if ($('#modalRoot').hidden) return;
-  if (e.key === 'Escape') { closeModal(); return; }
+  if (e.key === 'Escape') { const qa = $('#quitAsk'); if (qa) { qa.remove(); return; } if (!askQuit()) closeModal(); return; }
   if (e.key === 'Enter' && e.target.tagName !== 'BUTTON') { // Enter: Kiểm tra → Tiếp tục
     const cont = $('#plCont'), chk = $('#plCheck');
     if (cont && !$('#plSheet').hidden) { e.preventDefault(); cont.click(); return; }
@@ -1243,6 +1319,7 @@ $('#gradeSelect').addEventListener('change', e => { S.grade = e.target.value; sa
 $('#mobileMenu').onclick = () => { const open = $('#sidebar').classList.toggle('mobile-open'); $('#sidebarScrim').hidden = !open; };
 $('#sidebarScrim').onclick = closeSidebar;
 $('#profileButton').onclick = showProfile;
+$('#backBtn').onclick = goBack;
 $('#soundToggle').onclick = () => { if (typeof toggleVolumePanel === 'function') { toggleVolumePanel(); return; } db.settings.sound = !db.settings.sound; save(); if (db.settings.sound) sfx('good'); else stopSpeak(); toast(db.settings.sound ? 'Đã bật âm thanh 🔊' : 'Đã tắt âm thanh 🔇'); };
 
 if (!ALL_TOPICS.length) document.getElementById('viewRoot').innerHTML = '<p style="padding:30px">Không tải được ngân hàng câu hỏi (data/ngan-hang-chinh-ta.js).</p>';

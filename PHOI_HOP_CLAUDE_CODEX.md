@@ -153,3 +153,32 @@ Tham khảo nước ngoài: ABCmouse (vé thưởng → mua đồ trang trí ph�
 - `music.js`: nhạc nền WebAudio tự sinh (I–vi–IV–V Đô trưởng, giai điệu ngũ cung kiểu hộp nhạc, vọng nhẹ, 66 BPM); bắt đầu sau lần chạm đầu; nhỏ còn 25% khi máy đọc; dừng khi ẩn tab. Bảng âm lượng mở từ `#soundToggle` (`#volPanel`, `#musicVol`, `#sfxVol`, `#musicOn`, `#sfxOn`, `#volAll`). Cài đặt mới: `db.settings.music`, `musicVol` (mặc định 0.3), `sfxVol` (0.8) – `tone()` và `speak()` nhân theo `sfxVol`.
 - `rewards.js`: view `garden` – 18 món (2–20 🌸), vườn 6×4 ô, túi đồ, chuyển chỗ/cất vào túi; mini vườn trong thẻ “Khu vườn của em” ở trang chủ. Giấy khen A4 ngang (`showCertificate`, cqw), mục “📜 Giấy khen của em” trong Hồ sơ, nút sau khi thắng Cây Chữ Thần. Đã xuất PDF thật: đúng 1 trang.
 - Kiểm thử: Claude 62/62 (1366, 390, 360px qua http); `tests/browser_qa.py` 180/180. Lưu ý QA: chạm giả lập vào `document` sẽ đóng bảng âm lượng (đóng khi chạm ra ngoài) – hãy phát `pointerdown` trên chính `#volPanel`.
+
+## Claude – giọng nữ + đọc chậm hơn
+- `findVoice()` ưu tiên giọng nữ (Hoài My, Linh…), `voiceGender()` gắn nhãn nam/nữ trong Cài đặt và Góc thầy cô; `SPEECH_PACE = 0.85` nhân vào mọi tốc độ đọc. Chrome trên Windows chỉ có giọng nam “Microsoft An” → Cài đặt gợi ý mở bằng Edge để có Hoài My.
+
+## ✅ Claude – ĐỢT 10 XONG (đã nhả tệp): hồ sơ học sinh kiểu “Ai đang chơi?” (làm luôn mục B của Codex)
+Khảo sát lại toàn bộ chức năng trang tham khảo (Chrome headless, đọc iframe): màn chào chọn người chơi + 🔒, tạo hồ sơ (tên ≤ 20 ký tự, nhân vật có tên, lớp, PIN 4 số), hướng dẫn cách chơi sau khi tạo, hỏi PIN (“Mã PIN chưa đúng, em thử lại nhé.”), chơi thử không lưu, hỏi “Thoát bài?”, Cài đặt → Tài khoản / Lớp đang học / Đổi người chơi, phản hồi “+10”.
+**Claude nhận:** tệp mới `onboarding.js` (nạp sau `music.js`), `app.js` (`showProfile` mới, `askQuit`, `+10 XP`, `save()` bỏ qua khi học thử, nút Xoá PIN ở Góc thầy cô), `settings.js` (mục 👤 Tài khoản), `kid.css` (khối đợt 10), `index.html` (1 dòng script), `tests/browser_qa.js` (bước tạo hồ sơ ở đầu).
+
+### Kết quả đợt 10 (Claude)
+- `onboarding.js`: `CHARACTERS` (10 bạn đồng hành có tên + màu nền), `avatarBubble`, `charPicker`; màn chào `#welcome` (“Ai đang học nhỉ?”, `[data-pick]`, `.wl-lock`, `#wlCreate`, `#wlGuest`) hiện khi chưa có hồ sơ, có ≥ 2 hồ sơ, hoặc hồ sơ đang dùng có PIN; `showCreate()` (`#createForm`, `#nameInput`, `#profileGrade`, `#pinInput`, `#createErr`, `#saveProfile`) → `showHowTo()` (`#howToGo`); `askPin()` (`#pinIn`, `#pinOk`, `#pinErr`); `startGuest()` → `GUEST_MODE` + thanh `#guestBar`; `switchPlayer()`.
+- PIN lưu dạng băm (`pinHash`, FNV-1a + id hồ sơ) – chỉ để các bé không vào nhầm hồ sơ của nhau trên máy chung, không phải bảo mật thật. Quên PIN → Góc thầy cô `[data-unpin]`.
+- Đặt lại tiến độ / xoá hồ sơ vẫn để trong Góc thầy cô (cố ý, tránh bé bấm nhầm).
+- Kiểm thử: Claude 83/83 (1366, 390px qua http); `tests/browser_qa.py` 188/188 (1366, 390px). QA nay bắt đầu bằng: `#wlCreate` → nhập tên → `[data-char="🦊"]` → `#saveProfile` → `#howToGo`.
+### Còn lại cho Codex
+- F: PWA (`manifest.webmanifest`, `sw.js`) + cập nhật README (thêm màn chào/hồ sơ/PIN, vườn trang trí, giấy khen, nhạc nền).
+
+## ✅ Claude – ĐỢT 11 XONG (đã nhả tệp): nút Quay lại · hình 3D dễ thương · mùa Noel · kiểm thử điện thoại
+Yêu cầu của thầy/cô: có nút back; bỏ ổ khoá “thô”; thay ký hiệu thô bằng hình dễ thương; trang trí Noel (đỏ hồng · xanh lá · xanh dương, cây thông, tuyết rơi); kiểm thử kỹ máy tính + điện thoại (không chồng nút, không xung đột).
+Tham khảo: Google Santa’s Village (mỗi ngày mở một điều bất ngờ tới 24/12), ABCya / PBS Kids mùa lễ (trò chơi theo chủ đề lễ, nhân vật dễ thương).
+**Claude nhận:** tệp mới `emoji.js` (nạp ĐẦU TIÊN), `noel.js` (sau `onboarding.js`), `noel.css` (sau `typography.css`), thư mục `assets/emoji/` (160 ảnh webp 128px, ~660 KB, Microsoft Fluent Emoji 3D – MIT, có `LICENSE-MIT.txt`); sửa `app.js`, `index.html`, `music.js`, `rewards.js`, `settings.js`, `onboarding.js`, `tests/browser_qa.js`.
+
+### Kết quả đợt 11 (Claude)
+- **Biểu tượng 3D**: `emoji.js` dùng MutationObserver đổi mọi emoji trong giao diện thành `<img class="emo">` trước khi vẽ (bỏ qua input/option/title/svg và `[data-noemo]`). Các tệp khác cứ viết emoji như cũ. Lưu ý QA: đọc `textContent` sẽ không còn emoji – kiểm tra `img.emo[alt="…"]`. Ký hiệu chữ ⚑ ◎ ▤ ☺ ⚙ ✥ ✦ ↻ đã đổi sang 🗺️ 🎮 📇 🧸 ⚙️ 🌱 🚀 🔁 🎯.
+- **Bài chưa mở**: `lockArt()` = ☃️ người tuyết (mùa Noel) / 🥚 trứng chờ nở; thẻ bài có chữ “Học xong bài trước”; huy hiệu chưa có hiện hình mờ; mức sao khoá dùng 🗝️; PIN dùng 🔐.
+- **Quay lại**: `#backBtn` trên thanh trên (ẩn ở Trang học), `go()` ghi `history.pushState`, `popstate`: đang mở hộp → đóng hộp; đang làm bài → hỏi “Thoát bài?”; màn chọn người chơi → đứng yên. Nút Back của Android / Alt+← dùng được.
+- **Mùa Noel** (`noelOn()`: Tự động 15/11→10/1, Cài đặt → Hiển thị → 🎄 Trang trí Giáng sinh): tuyết rơi canvas (30–56 bông, ~30 khung/giây, dừng khi ẩn tab, đứng yên khi Giảm chuyển động), rặng thông phủ tuyết, dây đèn dưới thanh trên, mũ Noel cho bạn đồng hành, tuyết đọng trên mép thẻ, nút chính đỏ hồng / thanh dưới xanh lá / nền trời xanh dương. `window.NOEL_TODAY` để giả lập ngày khi kiểm thử.
+- **Lịch Noel** trên Trang học: trước 1/12 đếm ngày; 1–24/12 lưới 24 ô, học 1 bài trong ngày → mở ô hôm nay (🌸 hoặc đồ Noel vào túi); `S.advent.opened`. Vườn có 10 món Noel (nhãn “Noel”, lên đầu cửa hàng mùa lễ), trời vườn có ❄️.
+- **Sửa lỗi phát hiện khi kiểm thử**: bảng âm lượng tràn ra ngoài mép trái điện thoại (giờ tự canh trong màn hình); thông báo (toast) che thanh dưới / nút Kiểm tra (giờ nổi trên thanh dưới, lúc làm bài thì hiện ở trên); nút “Lý thuyết” trong hộp bài học bị đệm 60px do trùng lớp `.theory`; mũ Noel làm trang rộng thêm 1px ở 375px.
+- **Kiểm thử**: dò bố cục tự động (nút chồng nhau, tràn ngang, nút ra ngoài màn hình) trên 22 trang/hộp thoại ở 360 · 390 · 768 · 1024 · 1366px → 0 lỗi; kiểm thử đợt 11: 32/32 (390, 1366px); Claude e2e 83/83 (390, 1366px); `tests/browser_qa.py` 188/188 (390) + 191/191 (1366); 0 lỗi JS.
