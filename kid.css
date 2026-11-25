@@ -921,8 +921,8 @@ body.welcome-open{overflow:hidden}
 .welcome{position:fixed;inset:0;z-index:45;overflow:auto;background:radial-gradient(circle at 12% 14%,rgba(255,255,255,.5) 0,transparent 28%),linear-gradient(170deg,#3d8fd8 0%,#62b4f0 40%,#b7e3fb 100%)}
 .wl-inner{min-height:100%;box-sizing:border-box;max-width:1100px;margin:0 auto;padding:calc(28px + env(safe-area-inset-top,0px)) 20px 28px;display:grid;grid-template-columns:1.15fr minmax(320px,420px);gap:28px;align-items:center}
 .wl-hero{text-align:center;color:#fff}
-.wl-art{width:100%;max-width:560px;border-radius:26px;border:5px solid rgba(255,255,255,.85);box-shadow:0 18px 40px rgba(16,60,110,.28);display:block;margin:0 auto 18px}
-.wl-title{margin:0;font:900 clamp(40px,6vw,66px)/1.05 var(--font-fun,Nunito),sans-serif;letter-spacing:-1px;text-shadow:0 4px 0 rgba(20,70,130,.35)}
+.wl-art{width:min(100%,560px,64vh);height:auto;aspect-ratio:3/2;object-fit:cover;max-width:100%;border-radius:26px;border:5px solid rgba(255,255,255,.85);box-shadow:0 18px 40px rgba(16,60,110,.28);display:block;margin:0 auto 18px}
+.wl-title{margin:0;font:900 clamp(36px,min(6vw,7.5vh),66px)/1.05 var(--font-fun,Nunito),sans-serif;letter-spacing:-1px;text-shadow:0 4px 0 rgba(20,70,130,.35)}
 .wl-title span{display:block}
 .wl-title span+span{color:#ffd54f;text-shadow:0 4px 0 #c27c0e}
 .wl-tag{font-size:17px;font-weight:600;margin:12px auto 14px;max-width:460px;text-shadow:0 1px 2px rgba(0,0,0,.2)}
@@ -945,6 +945,10 @@ body.welcome-open{overflow:hidden}
 .wl-guest{width:100%}
 .wl-note{margin:0;text-align:center;font-size:12.5px;color:#5b708c}
 @media(max-width:860px){.wl-inner{grid-template-columns:1fr;gap:18px;padding-top:18px}.wl-art{max-width:420px;margin-bottom:10px}.wl-tag{font-size:15px}.wl-chips{display:none}}
+/* Màn hình lớn (máy chiếu, màn 2K/4K): phóng to màn chào cho đỡ trống */
+@media(min-width:1600px) and (min-height:950px){.wl-inner{max-width:1360px;grid-template-columns:1.2fr minmax(380px,500px);gap:44px}.wl-art{width:min(100%,720px,58vh)}.wl-card{padding:30px 28px;gap:14px}.wl-card h2{font-size:31px}.wl-tag{font-size:19px;max-width:560px}.wl-chips span{font-size:15px}}
+/* Điện thoại thấp (360×640…): bỏ dòng giới thiệu, thu nhỏ tranh để thấy ngay nút Tạo hồ sơ */
+@media(max-width:860px) and (max-height:720px){.wl-tag{display:none}.wl-art{width:min(100%,420px,46vh)}.wl-inner{gap:12px;padding-bottom:10px}.wl-title{font-size:34px}}
 @media(max-width:480px){.char-grid{grid-template-columns:repeat(5,minmax(0,1fr));gap:4px}.char-opt .av-bubble{width:48px;height:48px;font-size:28px}.char-opt small{font-size:10px}.wl-card{padding:18px 16px}.wl-title{font-size:38px}}
 /* Cách chơi */
 .howto{display:grid;gap:10px}
