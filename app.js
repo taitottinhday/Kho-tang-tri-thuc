@@ -46,10 +46,15 @@ function tierOpen(ts, k) { return db.settings.unlockAll || k === 'de' || (k === 
 function suggestTier(ts) { return ts.stars >= 2 ? 'kho' : ts.stars >= 1 ? 'vua' : 'de'; }
 
 /* ============================== LƯU TRỮ ============================== */
+const SCHOOL_GRADES = Object.freeze([1, 2, 3]);
+function schoolGrade(value) {
+  const number = Number(value);
+  return String(SCHOOL_GRADES.includes(number) ? number : number > 3 ? 3 : 2);
+}
 function newProfile(name, grade, avatar) {
   return {
     id: 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
-    name: name || 'Bạn nhỏ', grade: String(grade || 2), avatar: avatar || '🐰',
+    name: name || 'Bạn nhỏ', grade: schoolGrade(grade), avatar: avatar || '🐰',
     xp: 0, streak: 0, lastDay: '', topics: {}, review: {}, wrongLog: {},
     attempts: 0, correct: 0, combo: 0, bestCombo: 0,
     daily: { day: '', done: false }, badges: [], bestSpeed: 0,
@@ -61,7 +66,11 @@ function loadDB() {
   try {
     const db = JSON.parse(localStorage.getItem(STORE_KEY));
     if (db && db.profiles && db.profiles[db.current]) {
-      for (const id in db.profiles) db.profiles[id] = Object.assign(newProfile(), db.profiles[id], { id });
+      for (const id in db.profiles) {
+        const p = db.profiles[id];
+        db.profiles[id] = Object.assign(newProfile(), p, { id, grade: schoolGrade(p.grade) });
+        if (p.placement) db.profiles[id].placement = { ...p.placement, level: schoolGrade(p.placement.level) };
+      }
       db.settings = Object.assign({ sound: true, unlockAll: false, rate: 1, voice: '', music: true, musicVol: 0.3, sfxVol: 0.8 }, db.settings);
       return db;
     }
@@ -91,11 +100,14 @@ function getTopic(id) { return ALL_TOPICS.find(t => t.id === id); }
 function tstat(id) { return S.topics[id] || (S.topics[id] = { stars: 0, done: false, attempts: 0, correct: 0, best: 0 }); }
 function itemOf(key) { // “mã:5” = câu trong ngân hàng; “mã:g12” = câu sinh tự động (data/sinh-cau.js, tên bạn nhỏ đổi mỗi lần)
   const [tid, i = ''] = key.split(':'); const t = getTopic(tid); if (!t) return null;
+  if (i.startsWith('cq-')) return typeof ClassPractice === 'undefined' ? null : ClassPractice.byKey(tid, i);
+  if (!SCHOOL_GRADES.some(g => gradeTopics(g).includes(t))) return null;
   const gen = i[0] === 'g', b = gen ? (t.sinh || [])[Number(i.slice(1))] : t.baiTap[Number(i)];
   return b ? Object.assign({}, b, { _t: tid, _i: gen ? i : Number(i) }) : null;
 }
 function fullSentence(item) { return item.de.includes('___') ? item.de.replace('___', item.dapAn) : item.dapAn; }
 function itemWord(item) { // từ đúng để hiển thị trong danh sách ôn
+  if (item.loai === 'classQuestion') return item.type === 'fill' ? item.prompt.replace('___', item.answer) : item.answer;
   if (item.loai === 'timLoi') return item.tuDung;
   if (item.loai === 'ngheViet') return item.cau;
   if (!item.de.includes('___')) return item.dapAn;
@@ -106,7 +118,7 @@ function itemWord(item) { // từ đúng để hiển thị trong danh sách ôn
 }
 
 /* ============================== CHỦ ĐỀ THEO LỚP ============================== */
-function myTopics() { const g = Number(S.grade); return ALL_TOPICS.filter(t => t.lop[0] <= g && g <= t.lop[1]); }
+function myTopics() { return gradeTopics(S.grade); }
 function topicStatus(t) {
   if (tstat(t.id).done) return 'done';
   const list = myTopics(); const i = list.indexOf(t);
@@ -286,9 +298,9 @@ function updateChrome() {
   $('#profileName').textContent = S.name;
   $('.avatar').textContent = S.avatar;
   $('#gradeSelect').value = S.grade;
-  $('#streakCount').textContent = S.streak;
+  $('#streakCount').textContent = typeof StreakRoom === 'undefined' ? S.streak : StreakRoom.live();
   $('#sidebarXP').textContent = S.xp + ' XP';
-  $('#reviewNavCount').textContent = Object.keys(S.review).length + WordShelf.dueCount();
+  $('#reviewNavCount').textContent = Object.keys(S.review).filter(itemOf).length + WordShelf.dueCount();
   $('#soundIcon').textContent = typeof volIcon === 'function' ? volIcon() : (db.settings.sound ? '🔊' : '🔇');
   const fc = $('#flowerCount'); if (fc) fc.textContent = S.flowers;
   const sc = $('#starCount'); if (sc) sc.textContent = Object.values(S.topics).reduce((a, t) => a + (t.stars || 0), 0);
@@ -382,18 +394,19 @@ function accuracy() { return pct(S.correct, S.attempts); }
    Giao diện theo voyage.css + tranh assets/quan-dao.webp của Codex. Mỗi đảo là một lớp,
    chạm vào đảo → chọn lớp và mở con đường trong vườn của đảo đó. */
 const ISLAND_SHORT = { 1: 'Phượng Đỏ', 2: 'Thác Bạc', 3: 'Cối Gió', 4: 'Hải Đăng', 5: 'Lâu Đài' };
-function gradeTopics(g) { g = Number(g); return ALL_TOPICS.filter(t => t.lop[0] <= g && g <= t.lop[1]); }
+function gradeTopics(g) { g = Number(g); return SCHOOL_GRADES.includes(g) ? ALL_TOPICS.filter(t => t.lop[0] <= g && g <= t.lop[1]) : []; }
 function islandProgress(g) { const tl = gradeTopics(g); return { done: tl.filter(t => S.topics[t.id] && S.topics[t.id].done).length, total: tl.length }; }
 function voyageChoice(action, sym, title, sub) {
   return '<button class="voyage-choice" data-action="' + action + '"><span class="choice-symbol" aria-hidden="true">' + sym + '</span><span><b>' + title + '</b><small>' + sub + '</small></span></button>';
 }
 function chooseIsland(g) {
+  if (!SCHOOL_GRADES.includes(Number(g))) return;
   S.grade = String(g); save(); sfx('tap');
   go('roadmap'); toast('⛵ Cập bến ' + gardenName() + '!');
 }
 function renderHome() {
   const topics = myTopics(), done = topics.filter(t => tstat(t.id).done).length, next = nextTopic();
-  const reviewN = Object.keys(S.review).length + WordShelf.dueCount();
+  const reviewN = Object.keys(S.review).filter(itemOf).length + WordShelf.dueCount();
   const hour = new Date().getHours(), greet = hour < 11 ? 'Chào buổi sáng' : hour < 14 ? 'Chào buổi trưa' : hour < 18 ? 'Chào buổi chiều' : 'Chào buổi tối';
   const tip = next ? next.quyTac[0] : 'Em đã học hết các bài của ' + gardenName() + '. Hãy đánh thức Cây Chữ Thần hoặc sang đảo mới nhé!';
   return '<div class="voyage-home">' +
@@ -407,8 +420,8 @@ function renderHome() {
     voyageChoice('placement', '🎯', 'Kiểm tra trình độ', S.placement ? 'Lần trước: hợp lớp ' + S.placement.level : 'Gợi ý lớp phù hợp') +
     '</section>' +
     '<section class="sea-chart" aria-label="Bản đồ quần đảo"><header><h2>Quần đảo Vườn Chữ</h2><span>Đảo của em: <i>Lớp ' + esc(S.grade) + '</i></span></header>' +
-    '<div class="chart-water"><img class="island-art" src="assets/quan-dao.webp" alt="Bản đồ năm hòn đảo: nhà cây phượng, rừng thác nước, đồi cối xay gió, ngọn hải đăng và lâu đài" width="1536" height="1024" />' +
-    [1, 2, 3, 4, 5].map(g => { const p = islandProgress(g);
+    '<div class="chart-water chart-primary"><img class="island-art" src="assets/quan-dao-tieu-hoc.webp" alt="" width="1536" height="430" />' +
+    SCHOOL_GRADES.map(g => { const p = islandProgress(g);
       return '<button class="island-pin island-' + g + (String(g) === S.grade ? ' selected' : '') + '" data-island="' + g + '" aria-label="Lớp ' + g + ' – ' + gardenName(g) + ', ' + p.done + ' trên ' + p.total + ' bài đã xong"><b>Lớp ' + g + '</b><span>' + ISLAND_SHORT[g] + (p.done ? '<i class="pin-prog"> · ' + p.done + '/' + p.total + '</i>' : '') + '</span></button>'; }).join('') +
     '</div></section>' +
     '<section class="hero-card next-voyage"><div class="hero-copy"><div class="eyebrow">BÀI HỌC TIẾP THEO · ' + gardenName().toUpperCase() + '</div>' +
@@ -419,7 +432,7 @@ function renderHome() {
     stat('⭐', 'gold', S.xp, 'Điểm XP') +
     stat('🌱', '', done + '<small> / ' + topics.length + '</small>', 'Bài đã xong') +
     stat('🌸', 'pink', S.flowers, 'Bông hoa') +
-    stat('🔥', 'blue', S.streak, 'Ngày liên tiếp') + '</section>' +
+    stat('🔥', 'blue', typeof StreakRoom === 'undefined' ? S.streak : StreakRoom.live(), 'Ngày liên tiếp') + '</section>' +
     '<div class="two-column"><section><div class="section-title-row"><h2>Nhiệm vụ hôm nay</h2><span class="eyebrow">🎁 +2 🌸</span></div>' + missionCard() + '</section>' +
     '<section><div class="section-title-row"><h2>Khu vườn của em</h2></div>' + gardenCard() + '</section></div>' +
     '<section class="voyage-lessons"><div class="section-title-row"><h2>Các bài trên ' + gardenName() + '</h2><button class="text-link" data-view="roadmap">Xem con đường →</button></div>' +
@@ -427,14 +440,12 @@ function renderHome() {
 }
 
 /* ============================== KIỂM TRA TRÌNH ĐỘ ==============================
-   10 câu = 2 câu × 5 mức khó. Mức nào đúng ít nhất 1/2 thì qua; dừng ở mức đầu tiên chưa qua.
+   Hai câu mỗi khối. Mức nào đúng ít nhất 1/2 thì qua; dừng ở mức đầu tiên chưa qua.
    Kết quả chỉ là GỢI Ý lớp – không ghi vào danh sách ôn, không tính sao bài học. */
 const PLACEMENT_LEVELS = [
   ['c-k-q', 'g-gh', 'ng-ngh'],
   ['l-n', 'an-ang', 'viet-hoa'],
-  ['s-x', 'ch-tr', 'uon-uong', 'uon-uong-2', 'ien-ieng'],
-  ['d-gi-r', 'hoi-nga'],
-  ['tu-kho']
+  ['s-x', 'ch-tr', 'd-gi-r', 'hoi-nga', 'uon-uong', 'ien-ieng']
 ];
 function startPlacement() {
   const items = [];
@@ -443,7 +454,7 @@ function startPlacement() {
     ids.map(getTopic).filter(Boolean).forEach(t => t.baiTap.forEach((b, i) => { if (b.loai === 'chon' || b.loai === 'timLoi') pool.push(Object.assign({}, b, { _t: t.id, _i: i, _lv: k + 1 })); }));
     shuffle(pool).slice(0, 2).forEach(it => items.push(it.loai === 'chon' && Math.random() < 0.3 ? Object.assign(makeDungSai(it), { _lv: k + 1 }) : it));
   });
-  openModal('◎ Kiểm tra trình độ', '10 câu · không tính giờ', '<div class="speed-intro"><div class="big-emoji">🧭</div><h3>Em hợp với đảo nào?</h3><p>Làm <b>10 câu</b> từ dễ đến khó. Cứ bình tĩnh làm hết sức nhé – câu sai không bị trừ gì cả!</p><button class="primary-btn big" id="goPlace">Bắt đầu ◎</button></div>');
+  openModal('◎ Kiểm tra trình độ', items.length + ' câu · không tính giờ', '<div class="speed-intro"><div class="big-emoji">🧭</div><h3>Em hợp với đảo nào?</h3><p>Làm <b>' + items.length + ' câu</b> từ dễ đến khó. Cứ bình tĩnh làm hết sức nhé!</p><button class="primary-btn big" id="goPlace">Bắt đầu ◎</button></div>');
   $('#goPlace').onclick = () => startQuiz({ kind: 'placement', title: 'Kiểm tra trình độ', icon: '🧭', subtitle: 'Từ dễ đến khó', items });
 }
 function finishPlacement(q) {
@@ -452,12 +463,15 @@ function finishPlacement(q) {
   for (const arr of per) { if (arr.length && arr.some(x => x.right)) passed++; else break; }
   const suggest = String(Math.max(1, passed));
   S.placement = { day: dayKey(), level: suggest, score: q.correct };
-  S.xp += q.correct * 5; mission().games++; bumpDay(); checkBadges(); save();
+  S.xp += q.correct * 5; mission().games++;
+  const prizes = StreakRoom.award();
+  saveHistory('placement', '', 'Kiểm tra trình độ', q.correct, q.items.length);
+  checkBadges(); save();
   sfx('win'); confetti();
   const body = '<div class="lesson-complete"><div class="result-mascot" aria-hidden="true">' + S.avatar + '</div><div class="complete-medal">🧭</div>' +
     '<h3>Em hợp với Lớp ' + suggest + ' – ' + gardenName(suggest) + '!</h3><p>Đây chỉ là gợi ý. Thầy cô và bố mẹ sẽ giúp em chọn lớp phù hợp nhất.</p>' +
     '<div class="place-levels">' + per.map((arr, k) => { const ok = arr.filter(x => x.right).length; return '<div class="place-row ' + (k < passed ? 'pass' : '') + '"><span>Mức ' + (k + 1) + '</span><div class="mission-bar"><span style="width:' + pct(ok, arr.length || 1) + '%"></span></div><b>' + ok + '/' + arr.length + '</b></div>'; }).join('') + '</div>' +
-    '<div class="score-pills"><span>✅ ' + q.correct + ' / ' + q.items.length + ' câu đúng</span><span>⭐ +' + q.correct * 5 + ' XP</span></div>' +
+    '<div class="score-pills"><span>✅ ' + q.correct + ' / ' + q.items.length + ' câu đúng</span><span>⭐ +' + q.correct * 5 + ' XP</span></div>' + StreakRoom.celebrate(prizes) +
     '<div class="modal-actions center">' + (suggest !== S.grade ? '<button class="primary-btn big" id="goSuggest">⛵ Sang ' + gardenName(suggest) + '</button><button class="soft-btn" id="home">Giữ Lớp ' + esc(S.grade) + '</button>' : '<button class="primary-btn big" id="home">Tuyệt! Về trang học</button>') + '</div></div>';
   openModal('Kết quả kiểm tra', q.correct + ' / ' + q.items.length + ' câu đúng', body, 'result');
   Q = null;
@@ -538,7 +552,7 @@ function renderRoadmap() {
   let lessonNo = 0;
   return '<div class="gm-head"><div><div class="eyebrow">CON ĐƯỜNG TRONG VƯỜN</div><h1>🌿 Lớp ' + esc(S.grade) + ' · ' + gardenName() + '</h1><p>' + done + ' / ' + topics.length + ' bài đã hoàn thành' + (bossDone ? ' · 🌳 Em đã đánh thức Cây Chữ Thần!' : '') + '</p></div>' +
     '<div class="gm-head-right"><div class="progress-track wide"><span style="width:' + pct(done, topics.length) + '%"></span></div><small>Mỗi bài có 3 mức: Dễ ★ · Vừa ★★ · Khó ★★★</small></div></div>' +
-    '<div class="gm-grades" role="group" aria-label="Chọn lớp">' + [1, 2, 3, 4, 5].map(g => { const p = islandProgress(g);
+    '<div class="gm-grades" role="group" aria-label="Chọn lớp">' + SCHOOL_GRADES.map(g => { const p = islandProgress(g);
       return '<button class="gm-grade ' + (String(g) === S.grade ? 'on' : '') + '" data-island="' + g + '"><b>Lớp ' + g + '</b><small>' + p.done + '/' + p.total + ' bài</small><i style="width:' + pct(p.done, p.total) + '%"></i></button>'; }).join('') + '</div>' +
     (done < topics.length ? '<div class="gm-skip"><div><b>🚀 Kiểm tra kiến thức Lớp ' + esc(S.grade) + '</b><small>' + (skipDone ? 'Em đã vượt cấp – mọi bài đã mở để em học tự do.' : 'Đã biết nhiều rồi? Đúng từ 80% để mở khoá tất cả các bài.') + '</small></div>' +
       (skipDone ? '<span class="gm-skip-done">✓ Đã vượt cấp</span>' : '<button class="soft-btn" data-action="skip">Làm bài vượt cấp →</button>') + '</div>' : '') +
@@ -609,19 +623,20 @@ const GAMES = [
 ];
 function renderGames() {
   return pageHeading('HỌC MÀ CHƠI', 'Chọn một trò chơi', 'Chơi vui một chút, nhớ chữ thật lâu!') +
+    '<div class="project-panel practice-link"><div><h2>Luyện theo chủ đề</h2><p>Chọn dạng chính tả, nhìn tranh, điền chữ, nghe viết hoặc xếp tiếng.</p></div><button class="primary-btn" data-view="practice">Chọn bài →</button></div>' +
     '<div class="game-grid">' + GAMES.map(g => '<article class="game-card"><div class="game-icon">' + g.icon + '</div><div><h3>' + g.title + '</h3><p>' + g.desc + '</p><div class="game-meta">' + g.meta + (g.action === 'speed' ? S.bestSpeed + ' điểm' : g.action === 'snowcatch' ? (S.bestSnow || 0) + ' điểm' : '') + '</div><button class="primary-btn" data-action="' + g.action + '">Chơi ngay →</button></div></article>').join('') + '</div>';
 }
 
 /* ============================== ÔN LẠI ============================== */
 function renderReview() {
-  const keys = Object.keys(S.review);
+  const keys = Object.keys(S.review).filter(itemOf);
   const sets = WordShelf.dueSets(), total = keys.length + WordShelf.dueCount();
   return pageHeading('GÓC GHI NHỚ', 'Ôn lại từ em hay nhầm', 'Luyện lại các thẻ từ còn sai. Với câu trong bài học, em cần trả lời đúng ở hai lượt khác nhau.', total ? '<button class="primary-btn" data-action="review">▶ Ôn ngay</button>' : '') +
     '<div class="review-summary"><div class="review-summary-card"><b>' + total + '</b><small>Mục đang chờ ôn</small></div><div class="review-summary-card"><b>' + S.reviewed + '</b><small>Câu đã ôn trong bài học</small></div><div class="review-summary-card"><b>' + accuracy() + '%</b><small>Độ chính xác bài học</small></div></div>' +
     WordShelf.reviewList(sets) +
     (keys.length ? '<div class="review-list">' + keys.map(k => {
       const it = itemOf(k); if (!it) return ''; const t = getTopic(it._t), box = S.review[k].box;
-      return '<div class="review-item"><span class="review-word">' + esc(itemWord(it)) + '</span><span class="review-note">' + esc(t.ten) + '</span><span class="lesson-tag">' + (box ? '✅ Đúng 1/2 lần' : '⏳ Cần ôn') + '</span><button class="mini-speak" data-say="' + esc(it.loai === 'chon' ? fullSentence(it) : it.loai === 'timLoi' ? it.cau.replace(it.tuSai, it.tuDung) : it.cau) + '" aria-label="Nghe">🔊</button></div>';
+      return '<div class="review-item"><span class="review-word">' + esc(itemWord(it)) + '</span><span class="review-note">' + esc(t.ten) + '</span><span class="lesson-tag">' + (box ? '✅ Đúng 1/2 lần' : '⏳ Cần ôn') + '</span><button class="mini-speak" data-say="' + esc(it.loai === 'chon' ? fullSentence(it) : it.loai === 'timLoi' ? it.cau.replace(it.tuSai, it.tuDung) : it.loai === 'classQuestion' ? itemWord(it) : it.cau) + '" aria-label="Nghe">🔊</button></div>';
     }).join('') + '</div>'
       : sets.length ? '' : '<div class="review-empty"><div class="empty-icon">🌷</div><b>Chưa có từ nào cần ôn</b><p>Em hãy học một bài mới. Câu nào sai, mình sẽ lưu lại đây để luyện thêm.</p><button class="primary-btn" data-view="roadmap">Chọn bài học</button></div>');
 }
@@ -650,6 +665,7 @@ function checkBadges() {
 
 /* ============================== GÓC GIÁO VIÊN ============================== */
 function teacherGate() {
+  if (typeof GUEST_MODE !== 'undefined' && GUEST_MODE) { toast('Hãy thoát chế độ học thử để mở Góc thầy cô.'); return; }
   const a = 3 + Math.floor(Math.random() * 7), b = 3 + Math.floor(Math.random() * 7);
   openModal('Dành cho thầy cô 👩‍🏫', 'Trả lời câu hỏi để vào góc giáo viên',
     '<div class="gate"><p>Góc này dùng để xem tiến độ và cài đặt. Thầy cô hãy nhập kết quả phép tính:</p><div class="gate-q">' + a + ' × ' + b + ' = ?</div><input id="gateInput" class="dictation-input" inputmode="numeric" autocomplete="off" aria-label="Kết quả phép tính" /><div class="modal-actions"><button class="primary-btn" id="gateOk">Vào góc thầy cô</button></div></div>');
@@ -660,7 +676,7 @@ function renderTeacher() {
   const profiles = Object.values(db.profiles);
   const missed = Object.entries(S.wrongLog).sort((a, b) => b[1] - a[1]).slice(0, 12).map(([k, n]) => { const it = itemOf(k); return it ? { it, n } : null; }).filter(Boolean);
   return pageHeading('GÓC DÀNH CHO GIÁO VIÊN', 'Theo dõi tiến độ học', 'Dữ liệu chỉ lưu trong trình duyệt của thiết bị này, không gửi lên mạng.', '<button class="soft-btn" id="printReport">🖨️ In báo cáo</button>') +
-    WordShelf.teacherPanel() + '<div class="teacher-layout">' +
+    ClassRoom.panel() + ClassPractice.questionPanel() + WordShelf.teacherPanel() + '<div class="teacher-layout">' +
     '<section class="teacher-panel span-2"><h2>👧👦 Học sinh trên máy này (' + profiles.length + ')</h2><div class="table-wrap"><table class="t-table"><thead><tr><th>Học sinh</th><th>Lớp</th><th>XP</th><th>Bài xong</th><th>Đúng</th><th>Chuỗi ngày</th><th>Học gần nhất</th><th></th></tr></thead><tbody>' +
     profiles.map(p => { const g = Number(p.grade), tl = ALL_TOPICS.filter(t => t.lop[0] <= g && g <= t.lop[1]); const d = tl.filter(t => p.topics[t.id] && p.topics[t.id].done).length;
       return '<tr class="' + (p.id === S.id ? 'me' : '') + '"><td>' + p.avatar + ' ' + esc(p.name) + (p.id === S.id ? ' <small>(đang dùng)</small>' : '') + '</td><td>' + esc(p.grade) + '</td><td>' + p.xp + '</td><td>' + d + '/' + tl.length + '</td><td>' + pct(p.correct, p.attempts) + '%</td><td>' + p.streak + '</td><td>' + (p.lastDay || '—') + '</td><td>' + (p.id === S.id ? '' : '<button class="soft-btn sm" data-switch="' + p.id + '">Chọn</button>') + (p.pin ? ' <button class="soft-btn sm" data-unpin="' + p.id + '" title="Học sinh quên mã PIN">🔓 Xoá PIN</button>' : '') + '</td></tr>'; }).join('') +
@@ -675,12 +691,12 @@ function renderTeacher() {
     '<div class="btn-row"><button class="soft-btn danger" id="resetCurrent">🗑️ Xoá tiến độ của ' + esc(S.name) + '</button>' + (profiles.length > 1 ? '<button class="soft-btn danger" id="deleteCurrent">❌ Xoá học sinh này</button>' : '') + '</div>' +
     '<div id="confirmArea"></div></section>' +
     '<section class="teacher-panel"><h2>🖨️ Phiếu bài tập in cho lớp</h2><p>Chọn chủ đề để in phiếu luyện tập: điền chữ, tìm lỗi sai, nghe – viết. Đáp án nằm ở trang sau, dùng cho giờ chính tả hoặc bài về nhà.</p>' +
-    '<div class="btn-row"><select id="wsTopic" class="t-select" aria-label="Chọn chủ đề phiếu">' + ALL_TOPICS.map(t => '<option value="' + t.id + '" ' + (myTopics()[0] === t ? 'selected' : '') + '>' + t.bieuTuong + ' ' + esc(t.ten) + ' (lớp ' + t.lop[0] + '–' + t.lop[1] + ')</option>').join('') + '</select><button class="primary-btn" id="wsOpen">👀 Xem &amp; in phiếu</button></div></section>' +
+    '<div class="btn-row"><select id="wsTopic" class="t-select" aria-label="Chọn chủ đề phiếu">' + myTopics().map(t => '<option value="' + t.id + '">' + t.bieuTuong + ' ' + esc(t.ten) + '</option>').join('') + '</select><button class="primary-btn" id="wsOpen">👀 Xem &amp; in phiếu</button></div></section>' +
     '<section class="teacher-panel"><h2>🔊 Giọng đọc</h2>' +
     (viVoices.length ? '<div class="field-label">Giọng tiếng Việt trên máy này</div><select id="voiceSel" class="t-select" aria-label="Chọn giọng đọc">' + viVoices.map(v => '<option value="' + esc(v.name) + '" ' + (viVoice && v.name === viVoice.name ? 'selected' : '') + '>' + esc(v.name) + (voiceGender(v) ? ' (' + voiceGender(v) + ')' : '') + '</option>').join('') + '</select>' +
       (viVoices.some(v => voiceGender(v) === 'nữ') ? '' : '<p class="warn-text">Máy này chưa có giọng nữ tiếng Việt. Mở bằng <b>Microsoft Edge</b> để có giọng nữ tự nhiên <b>Hoài My</b>.</p>')
       : '<p class="warn-text">Máy này chưa có giọng đọc tiếng Việt, phần nghe – viết sẽ cần thầy cô đọc giúp. Gợi ý: trình duyệt <b>Microsoft Edge</b> thường có sẵn giọng tiếng Việt; trên Windows có thể thêm giọng ở Cài đặt → Thời gian &amp; ngôn ngữ → Giọng nói.</p>') +
-    '<div class="field-label">Tốc độ đọc</div><select id="rateSel" class="t-select" aria-label="Tốc độ đọc"><option value="0.8">🐢 Chậm (lớp 1–2)</option><option value="1">Vừa</option><option value="1.15">Nhanh hơn (lớp 4–5)</option></select>' +
+    '<div class="field-label">Tốc độ đọc</div><select id="rateSel" class="t-select" aria-label="Tốc độ đọc"><option value="0.8">🐢 Chậm (lớp 1–2)</option><option value="1">Vừa</option><option value="1.15">Nhanh hơn</option></select>' +
     '<div class="btn-row"><button class="soft-btn" id="voiceTest">▶ Nghe thử</button></div></section>' +
     '<section class="teacher-panel"><h2>🧭 Gợi ý sử dụng trên lớp</h2><ul>' +
     '<li>Mỗi học sinh tạo một hồ sơ (bấm vào avatar góc trên) để máy dùng chung vẫn lưu riêng tiến độ.</li>' +
@@ -691,6 +707,8 @@ function renderTeacher() {
     '</div>';
 }
 function bindTeacher() {
+  ClassRoom.bind();
+  ClassPractice.bindBank();
   $('#printReport').onclick = () => window.print();
   $('#wsOpen').onclick = () => showWorksheet(getTopic($('#wsTopic').value));
   const vs = $('#voiceSel');
@@ -771,7 +789,7 @@ function showProfile() {
     (others.length ? '<div><div class="field-label">Đổi sang bạn khác</div><div class="profile-list">' + others.map(p => '<button type="button" class="profile-chip" data-switch-p="' + p.id + '">' + p.avatar + ' ' + esc(p.name) + ' <small>lớp ' + esc(p.grade) + (p.pin ? ' · 🔐' : '') + '</small></button>').join('') + '</div></div>' : '') +
     '<label>Tên của em<input id="nameInput" maxlength="20" placeholder="Ví dụ: Minh An" value="' + esc(S.name) + '" autocomplete="off" /></label>' +
     '<div><div class="field-label">Chọn bạn đồng hành</div>' + picker + '</div>' +
-    '<label>Em đang học lớp<select id="profileGrade">' + [1, 2, 3, 4, 5].map(g => '<option value="' + g + '" ' + (S.grade == g ? 'selected' : '') + '>Lớp ' + g + ' – ' + gardenName(g) + '</option>').join('') + '</select></label>' +
+    '<label>Em đang học lớp<select id="profileGrade">' + SCHOOL_GRADES.map(g => '<option value="' + g + '" ' + (S.grade == g ? 'selected' : '') + '>Lớp ' + g + ' – ' + gardenName(g) + '</option>').join('') + '</select></label>' +
     '<label>Mã PIN 4 số (không bắt buộc)<input id="pinInput" type="password" inputmode="numeric" maxlength="4" autocomplete="new-password" placeholder="' + (S.pin ? 'Đã đặt mã – nhập 4 số mới để đổi' : 'Để trống nếu không cần') + '" /></label>' +
     (S.pin ? '<label class="switch-row"><input type="checkbox" id="pinOff" /> Bỏ mã PIN của hồ sơ này</label>' : '') +
     '<p class="pin-err" id="profileErr" role="alert"></p>' +
@@ -821,6 +839,7 @@ function closeModal() {
 /* ============================== BÀI HỌC ============================== */
 function startTopic(id) {
   const t = getTopic(id); if (!t) return;
+  if (!myTopics().includes(t)) return;
   if (topicStatus(t) === 'locked') { toast(LOCK_MSG()); return; }
   showIntro(t);
 }
@@ -991,7 +1010,8 @@ function renderItem() {
   if (Q.i >= Q.items.length) { finishQuiz(); return; }
   Q.answered = false; Q.evaluate = null;
   const it = Q.items[Q.i];
-  ({ chon: renderChon, timLoi: renderLoi, ngheViet: renderNghe, dungSai: renderDungSai, ghepChu: renderGhep, ngheChon: renderNgheChon }[it.loai] || renderChon)(it);
+  if (it.loai === 'classQuestion') ClassPractice.show(it);
+  else ({ chon: renderChon, timLoi: renderLoi, ngheViet: renderNghe, dungSai: renderDungSai, ghepChu: renderGhep, ngheChon: renderNgheChon }[it.loai] || renderChon)(it);
   $('#plCheck').onclick = doCheck;
   const hb = $('#plHint'); if (hb) hb.onclick = () => useHint(it);
 }
@@ -1216,9 +1236,14 @@ function record(it, right) {
 }
 function bumpDay() {
   const today = dayKey();
+  S.bestStreak = Math.max(S.bestStreak || 0, S.streak);
   if (S.lastDay === today) return;
   const y = new Date(); y.setDate(y.getDate() - 1);
   S.streak = S.lastDay === dayKey(y) ? S.streak + 1 : 1; S.lastDay = today;
+  S.bestStreak = Math.max(S.bestStreak, S.streak);
+}
+function saveHistory(kind, topic, title, correct, total) {
+  S.history.unshift({ d: dayKey(), grade: S.grade, kind, topic, title, correct, total, acc: pct(correct,total) });
 }
 function finishQuiz() {
   clearInterval(qTimer);
@@ -1252,9 +1277,10 @@ function finishQuiz() {
   if (q.kind === 'daily' && !(S.daily.day === dayKey() && S.daily.done)) { xp += 20; S.daily = { day: dayKey(), done: true }; extra.push('🎯 Hoàn thành thử thách hôm nay: +20 XP'); }
   if (q.kind === 'speed') { xp = q.correct * 5; if (q.correct > S.bestSpeed) { S.bestSpeed = q.correct; extra.push('🏆 Kỉ lục mới: ' + q.correct + ' điểm!'); } }
   if (failed) xp = Math.round(xp / 2);
-  S.xp += xp; S.flowers += flowers; bumpDay();
+  S.xp += xp; S.flowers += flowers;
+  const prizes = total ? StreakRoom.award() : [];
   if (flowers) extra.push('🌸 +' + flowers + ' bông hoa cho khu vườn');
-  S.history.unshift({ d: dayKey(), kind: q.kind, topic: q.topicId || q.nodeId || '', acc }); S.history = S.history.slice(0, 60);
+  if (total) saveHistory(q.kind, q.topicId || q.nodeId || '', q.title, q.correct, total);
   const fresh = checkBadges(); save();
   const afterStage = gardenStage(S.xp);
   const gated = q.kind === 'lesson' || q.kind === 'skip';
@@ -1275,6 +1301,7 @@ function finishQuiz() {
     '<h3>' + title + '</h3><p>' + msg + '</p>' +
     '<div class="score-pills"><span>✅ ' + head + '</span><span>⭐ +' + xp + ' XP</span>' + (q.kind !== 'speed' ? '<span>🎯 ' + acc + '%</span>' : '') + '</div>' +
     extra.map(x => '<div class="unlock-note">' + x + '</div>').join('') +
+    StreakRoom.celebrate(prizes) +
     (afterStage !== beforeStage ? '<div class="unlock-note">' + afterStage.icon + ' Khu vườn của em đã lớn thành <b>' + afterStage.name + '</b>!</div>' : '') +
     fresh.map(b => '<div class="unlock-note badge-new">' + b.icon + ' Huy hiệu mới: <b>' + b.name + '</b></div>').join('') +
     '<div class="modal-actions center">' + (next ? '<button class="primary-btn big" id="goNext">Bài tiếp: ' + next.bieuTuong + ' ' + esc(next.ten) + ' →</button>' : '') +
@@ -1284,6 +1311,7 @@ function finishQuiz() {
   openModal('Kết quả của em', head, body, 'result');
   Q = null;
   $('#again').onclick = () => {
+    if (q.kind === 'classPractice') { ClassPractice.play(...q.bankFilter); return; }
     if (q.kind === 'lesson') { showIntro(getTopic(q.topicId), q.level); return; }
     if (q.kind === 'challenge' || q.kind === 'boss') { closeModal(); go('roadmap'); openNode(mapNodes.findIndex(n => n.id === q.nodeId)); return; }
     doAction(q.kind);
@@ -1309,12 +1337,12 @@ function doAction(action) {
     const rest = shuffle(poolItems(b => b.loai !== 'ngheViet').filter(x => !dueKeys.includes(x._t + ':' + x._i))).slice(0, 5 - due.length).map(vary);
     startQuiz({ kind: 'daily', title: 'Thử thách mỗi ngày', icon: '🎯', subtitle: '5 câu trộn', items: shuffle(due.concat(rest)) });
   } else if (action === 'review') {
-    if (WordShelf.dueCount() && (currentView !== 'review' || !Object.keys(S.review).length)) {
+    if (WordShelf.dueCount() && (currentView !== 'review' || !Object.keys(S.review).some(itemOf))) {
       if (currentView === 'review') $('[data-retry-set]')?.click();
       else go('review');
       return;
     }
-    const items = shuffle(Object.keys(S.review)).slice(0, 10).map(itemOf).filter(Boolean)
+    const items = shuffle(Object.keys(S.review).map(itemOf).filter(Boolean)).slice(0, 10)
       .map(it => it.loai === 'ngheViet' && Number(S.grade) < 2 ? null : it).filter(Boolean);
     if (!items.length) { toast('Chưa có từ nào cần ôn. Em học bài mới nhé! 🌷'); return; }
     startQuiz({ kind: 'review', title: 'Ôn từ hay nhầm', icon: '🔁', subtitle: 'Đúng 2 lần là thuộc', items });
@@ -1379,8 +1407,6 @@ function askQuit() {
 function closeSidebar() { $('#sidebar').classList.remove('mobile-open'); $('#sidebarScrim').hidden = true; }
 document.addEventListener('click', e => {
   const t = e.target;
-  const island = t.closest('[data-island]');
-  if (island) { S.grade = island.dataset.island; save(); go('roadmap'); return; }
   if (t.closest('[data-close-modal]')) { if (!askQuit()) closeModal(); return; }
   const say = t.closest('[data-say]'); if (say) { speak(say.dataset.say); return; }
   const isl = t.closest('[data-island]'); if (isl) { chooseIsland(isl.dataset.island); return; }
@@ -1400,7 +1426,7 @@ document.addEventListener('keydown', e => {
   if (e.target.matches('input, textarea, select')) return;
   if (/^[1-4]$/.test(e.key)) { const b = $$('[data-answer], [data-tf]')[Number(e.key) - 1]; if (b && !b.disabled) b.click(); }
 });
-$('#gradeSelect').addEventListener('change', e => { S.grade = e.target.value; save(); render(); toast('Đã chuyển sang lộ trình lớp ' + S.grade); });
+$('#gradeSelect').addEventListener('change', e => { S.grade = schoolGrade(e.target.value); save(); render(); toast('Đã chuyển sang lộ trình lớp ' + S.grade); });
 $('#mobileMenu').onclick = () => { const open = $('#sidebar').classList.toggle('mobile-open'); $('#sidebarScrim').hidden = !open; };
 $('#sidebarScrim').onclick = closeSidebar;
 $('#profileButton').onclick = showProfile;

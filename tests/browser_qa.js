@@ -53,16 +53,16 @@
     await doc().fonts.ready;
     check('Bundled Nunito loaded', doc().fonts.check('900 18px Nunito') && [...doc().fonts].some(f => f.family === 'Nunito' && f.status === 'loaded'));
     check('Treasure map artwork loaded', el('.island-art').naturalWidth > 0);
-    check('Five island destinations', all('[data-island]').length === 5);
-    click('[data-island="4"]');
-    check('Island opens its grade roadmap', el('#gradeSelect').value === '4' && el('h1').textContent.includes('4'));
+    check('Three island destinations', all('[data-island]').length === 3);
+    click('[data-island="3"]');
+    check('Island opens its grade roadmap', el('#gradeSelect').value === '3' && el('h1').textContent.includes('3'));
     click('.voyage-dock [data-view=home]');
     for (const asset of all('script[src],link[rel=stylesheet]')) {
       const response = await fetch(asset.src || asset.href);
       check('Asset ' + new URL(response.url).pathname, response.ok);
     }
     const bank = browser.NGAN_HANG_CHINH_TA;
-    for (let grade = 1; grade <= 5; grade++) {
+    for (let grade = 1; grade <= 3; grade++) {
       const picker = el('#gradeSelect');
       picker.value = String(grade);
       picker.dispatchEvent(new Event('change', {bubbles:true}));
@@ -147,7 +147,8 @@
     click('.game-card [data-action=speed]');
     click('#goSpeed');
     check('Timed round starts', visible(el('.answer-option')));
-    await new Promise(resolve => setTimeout(resolve, 61000));
+    browser.eval('Q.endAt = Date.now() + 100');
+    await new Promise(resolve => setTimeout(resolve, 550));
     check('Timed round finishes at timeout', visible(el('.lesson-complete')));
     click('#home');
     nav('roadmap');
@@ -167,13 +168,13 @@
     finish('Challenge');
     check('Challenge win recorded', frame.contentWindow.eval("Object.keys(S.nodes).some(k => k.startsWith('ch') && S.nodes[k].done)"));
     click('#home');
-    // Kiểm tra trình độ: 10 câu, chỉ gợi ý lớp, không ghi sổ ôn
+    // Hai câu mỗi khối, gợi ý lớp, không ghi sổ ôn.
     const reviewBefore = el('#reviewNavCount').textContent;
     click('[data-action=placement]');
     click('#goPlace');
     let placed = 0;
     while (el('#plCheck') && placed < 12) { answer('Placement ' + placed, placed >= 4); placed++; }
-    check('Placement has 10 questions', placed === 10);
+    check('Placement covers the three grades in six questions', placed === 6);
     check('Placement suggests grade 2 after two strong levels', el('.lesson-complete h3').textContent.includes('Lớp 2'));
     check('Placement misses stay out of review list', el('#reviewNavCount').textContent === reviewBefore);
     click('#home');
@@ -324,6 +325,88 @@
     el('#setWords').value += '\nsân trường';
     click('#setForm [type=submit]');
     check('Editing words starts a fresh version', !el('.managed-set details') && el('.managed-set').textContent.includes('3 thẻ'));
+    click('#questionNew');
+    el('#questionType').value = 'fill';
+    el('#questionType').dispatchEvent(new Event('change'));
+    el('#questionTopic').value = 's-x';
+    el('#questionPrompt').value = 'Em thích quả ___oài.';
+    el('#questionAnswer').value = 'x';
+    el('#questionNote').value = 'Xoài viết với x.';
+    click('#questionSave');
+    check('Teacher authors fill question', el('#bankEntries').textContent.includes('Em thích quả'));
+    const importStatus = el('#questionStatus');
+    const questions = new DataTransfer();
+    questions.items.add(new File([JSON.stringify([{type:'sort', grades:[2], topic:'s-x',
+      prompt:'Nhập kho thử', answer:'s', choices:['s','x']}])], 'test.json', {type:'application/json'}));
+    el('#questionImport').files = questions.files;
+    el('#questionImport').dispatchEvent(new Event('change'));
+    for (let i = 0; i < 100 && !importStatus.textContent; i++) await new Promise(resolve => setTimeout(resolve,10));
+    check('Validated questions imported as drafts', importStatus.textContent.includes('1 câu') && el('#bankEntries').textContent.includes('Bản nháp'));
+    click('[data-class-student]');
+    check('Teacher sees completed sessions', all('.class-history li').length > 5);
+    el('#studentNote').value = 'Em hãy luyện thêm s/x nhé.';
+    click('#studentNoteForm button');
+    check('Teacher note persists', el('#classStudentDetail .teacher-notes').textContent.includes('luyện thêm'));
+    nav('profile');
+    check('Learner sees teacher note', el('.teacher-notes').textContent.includes('luyện thêm'));
+    nav('games');
+    click('[data-view=practice].primary-btn');
+    el('#practiceTopic').value = 's-x';
+    el('#practiceType').value = 'fill';
+    el('#practiceType').dispatchEvent(new Event('change',{bubbles:true}));
+    click('#practiceFilter button');
+    let practiced = 0, customSeen = false;
+    while (el('#practiceAnswer') && practiced++ < 8) {
+      const custom = el('.question-prompt').textContent.includes('quả');
+      customSeen ||= custom;
+      el('#practiceAnswer').value = custom ? 'x' : 's';
+      el('#practiceAnswer').dispatchEvent(new Event('input'));
+      click('#plCheck');
+      check('Immediate feedback in typed practice', el('#plSheet').classList.contains('good'));
+      if (custom) check('Teacher explanation shown', el('#plSheet').textContent.includes('Xoài viết với x.'));
+      click('#plCont');
+    }
+    check('Published question connects to learner', customSeen && fits() && visible(el('.lesson-complete')));
+    click('#home');
+    for (const [type, topic] of [['picture','s-x'], ['order','s-x'], ['sort','s-x'], ['listen','ch-tr']]) {
+      nav('games');
+      click('[data-view=practice].primary-btn');
+      el('#practiceTopic').value = topic;
+      el('#practiceType').value = type;
+      el('#practiceType').dispatchEvent(new Event('change',{bubbles:true}));
+      click('#practiceFilter button');
+      const part = browser.eval('Q.items[Q.i]');
+      if (type === 'picture') {
+        await el('.practice-image').decode();
+        check('Illustrated question loads a real image', el('.practice-image').naturalWidth > 0);
+      }
+      if (type === 'listen') {
+        check('Listen and slow controls do not reveal the answer', !!el('#practiceListen') && !!el('#practiceSlow') && !el('#plCard').textContent.includes(part.answer));
+        el('#practiceAnswer').value = part.answer.normalize('NFD');
+        el('#practiceAnswer').dispatchEvent(new Event('input'));
+      } else if (type === 'order') {
+        for (const word of part.answer.split(' ')) click('[data-practice-token="' + word + '"]:not(:disabled)');
+      } else {
+        all('[data-answer]').find(b => b.dataset.answer === part.answer).click();
+      }
+      click('#plCheck');
+      check('Correct feedback for ' + type, el('#plSheet').classList.contains('good'));
+      browser.eval('closeModal()');
+    }
+    nav('home');
+    click('[data-season-pick=tet]');
+    check('Tết has its own scene and live canvas', doc().documentElement.dataset.season === 'tet' && el('.cd-art') && el('.cd-fx') && !el('.noel-lights'));
+    click('[data-season-pick=trungthu]');
+    check('Mid-Autumn has its own scene', doc().documentElement.dataset.season === 'trungthu' && el('.cd-trungthu'));
+    click('[data-season-pick=noel]');
+    check('Noel returns with snow', doc().documentElement.dataset.season === 'noel' && el('.noel-snow') && !el('.cd-fx'));
+    frame.contentWindow.eval("const t = new Date(); t.setDate(t.getDate()-1); S.lastDay = dayKey(t); S.streak = 2; S.bestStreak = 2; StreakRoom.award(); save();");
+    click('.streak-pill[data-view=streak]');
+    check('Day 3 unlocks first costume', !el('[data-outfit="3"]').disabled && el('[data-outfit="10"]').disabled);
+    click('[data-outfit="3"]');
+    check('Costume equips on avatar', !!el('.profile-button .avatar').dataset.costume);
+    frame.contentWindow.eval("StreakRoom.award(); save();");
+    check('Repeated practice on same date keeps streak', el('#streakCount').textContent === '3');
     nav('home');
     check('Home fits after all flows', fits());
     // Capture a clean example of the first screen in the isolated browser profile.

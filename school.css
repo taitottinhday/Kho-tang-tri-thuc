@@ -1,0 +1,67 @@
+/* Lớp 1–3, khu luyện tập và màn hình thời vụ. */
+/* Ảnh 3 đảo giữ đúng tỉ lệ 1536×430 (không kéo méo). Máy tính: nút lớp nằm trên ảnh. Điện thoại (<720px): nút lớp xếp thành hàng dưới ảnh. */
+.chart-water.chart-primary{aspect-ratio:1536/430;height:auto}
+.chart-primary .island-art{width:100%;height:100%;object-fit:cover}
+.chart-primary .island-pin{top:86%}
+@media(max-width:720px){
+  .chart-water.chart-primary{aspect-ratio:auto;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;padding:0 6px 8px;background:#54cce5}
+  .chart-primary .island-art{grid-column:1/-1;width:calc(100% + 12px);margin:0 -6px;height:auto;aspect-ratio:1536/430}
+  .chart-primary .island-pin{position:static;transform:none;min-width:0;max-width:none;width:100%;padding-inline:4px}
+}
+.project-panel :is(input,select),.project-form :is(input,select,textarea){
+  color:#243755;background:#fff;border:1px solid #859cb6;border-radius:10px;
+  min-height:42px;max-width:100%;padding:8px 11px;font:inherit;
+}
+.project-panel{margin:0 0 16px;padding:clamp(14px,3vw,22px);background:#fff;color:#273859;border:1px solid #cbdaf0;border-radius:18px;overflow-wrap:anywhere}
+.project-panel h2{margin:0;font-size:21px;color:#233858}
+.project-panel p{margin:5px 0 10px}
+.project-panel label,.project-form label{display:grid;gap:4px;font-weight:730;margin:8px 0}
+.project-panel input[type=search]{width:100%}
+.lesson-filter{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 12px}
+.lesson-filter>p,.lesson-filter>button{grid-column:1/-1}
+.lesson-filter button{justify-self:start}
+.project-form textarea{width:100%;resize:vertical}
+.project-form fieldset{display:flex;gap:14px;flex-wrap:wrap;border:1px solid #acbcd0;border-radius:12px}
+.project-form .project-check{display:flex;align-items:center;gap:5px}
+.project-check input{min-height:auto;width:19px;height:19px}
+.project-form label[hidden],.project-form img[hidden]{display:none!important}
+.project-row{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:8px 0;border-top:1px solid #dce5f0}
+.project-row small{display:block;color:#4c6078}
+.project-row button{flex:none}
+.project-detail{background:#f0f6ff;color:#243755;border-radius:14px;padding:12px;margin-top:9px}
+.project-detail h3{margin:3px 0}
+.project-detail summary{cursor:pointer;padding:7px 0;font-weight:800}
+.class-history,.teacher-notes{padding-left:16px}
+.class-history li,.teacher-notes li{padding:5px 0}
+.class-history time,.teacher-notes time{font-size:13px;margin-right:10px;color:#526680}
+.teacher-notes p{white-space:pre-line;overflow-wrap:anywhere}
+.practice-link{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px}
+.practice-image{display:block;width:min(46vw,180px);max-height:180px;object-fit:contain;margin:10px auto 14px}
+.practice-answer{display:grid;gap:7px;font-weight:750}
+.class-type{font-weight:800;margin:0 0 8px}
+.practice-tokens{display:flex;justify-content:center;flex-wrap:wrap;gap:8px;margin:13px 0}
+#practiceOrder{display:block;padding:10px;background:#fff2db;color:#553920;border-radius:10px;text-align:center}
+.streak-stage{display:flex;align-items:center;gap:clamp(14px,4vw,36px);padding:clamp(14px,3vw,26px);margin-bottom:18px;
+  background:radial-gradient(ellipse at 18% 80%,#ffe398,#fff0df 51%,#fff9ed);color:#583320;border:1px solid #e2aa7a;border-radius:24px}
+.streak-stage h2{font-size:clamp(21px,4vw,35px);line-height:1.15;margin:0}
+.streak-stage p{margin:7px 0}
+.streak-stage progress{width:100%;accent-color:#ec7e41}
+.streak-pet{position:relative;flex:none;display:grid;place-items:center;width:clamp(89px,24vw,165px);aspect-ratio:1;
+  border:5px solid #fffdf5;border-radius:50%;background:radial-gradient(ellipse at 38% 29%,#fff6cc,var(--costume));
+  box-shadow:0 8px 0 #b46e4040}
+.streak-mascot{font-size:clamp(47px,11vw,103px);line-height:1;animation:pet-bounce 3s ease-in-out infinite}
+.streak-costume{position:absolute;right:3%;bottom:2%;font-size:clamp(26px,6vw,56px);line-height:1;filter:drop-shadow(0 2px 0 white)}
+.wardrobe{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,145px),1fr));gap:10px}
+.outfit-card{display:grid;justify-items:center;text-align:center;padding:12px 8px;color:#263658;background:#fff;border:1px solid #becde0;border-top:6px solid var(--costume);border-radius:15px}
+.outfit-card>span{font-size:36px}.outfit-card p{margin:4px 0 8px}
+.streak-pill[data-fire-level]:not([data-fire-level="0"])>span{filter:drop-shadow(0 0 4px #ff8a38);animation:pet-bounce 1.8s ease-in-out infinite}
+.streak-pill[data-fire-level="2"]>span,.streak-pill[data-fire-level="3"]>span,.streak-pill[data-fire-level="4"]>span{font-size:1.3em}
+.streak-pill[data-fire-level="4"]>span{filter:drop-shadow(0 0 6px #f33b1e)}
+.profile-button .avatar[data-costume]:not([data-costume=""]){position:relative;overflow:visible}
+.profile-button .avatar[data-costume]:not([data-costume=""])::after{content:attr(data-costume);position:absolute;bottom:-5px;right:-5px;font-size:14px;z-index:1}
+@keyframes pet-bounce{50%{transform:translateY(-5px) scale(1.05)}}
+body.calm :is(.streak-mascot,.streak-pill>span){animation:none!important}
+@media(prefers-reduced-motion:reduce){.streak-mascot,.streak-pill>span{animation:none!important}}
+@media(max-width:410px){
+  .lesson-filter{grid-template-columns:1fr}
+}

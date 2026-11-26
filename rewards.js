@@ -128,7 +128,7 @@ function showCertificate(opts) {
 }
 function certList() {
   certItems = [];
-  [1, 2, 3, 4, 5].forEach(g => {
+  SCHOOL_GRADES.forEach(g => {
     if (S.nodes && S.nodes['boss' + g] && S.nodes['boss' + g].done) certItems.push({ kind: 'island', grade: String(g), icon: '🌳', text: 'Đánh thức Cây Chữ Thần – ' + gardenName(g) });
     const tl = gradeTopics(g);
     if (tl.length && tl.every(t => S.topics[t.id] && S.topics[t.id].done)) certItems.push({ kind: 'grade', grade: String(g), icon: '👑', text: 'Hoàn thành mọi bài Lớp ' + g });

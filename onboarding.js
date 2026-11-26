@@ -28,7 +28,7 @@ function bindCharPicker(onPick) {
     $$('[data-char]').forEach(x => { const on = x === b; x.classList.toggle('selected', on); x.setAttribute('aria-checked', on); });
   });
 }
-function gradeOptions(sel) { return [1, 2, 3, 4, 5].map(g => '<option value="' + g + '"' + (String(g) === String(sel) ? ' selected' : '') + '>Lớp ' + g + ' – ' + gardenName(g) + '</option>').join(''); }
+function gradeOptions(sel) { return SCHOOL_GRADES.map(g => '<option value="' + g + '"' + (String(g) === String(sel) ? ' selected' : '') + '>Lớp ' + g + ' – ' + gardenName(g) + '</option>').join(''); }
 function pinHash(pin, id) { // FNV-1a – đủ để không lưu PIN nguyên văn
   let h = 2166136261; const s = 'vuonchu:' + id + ':' + pin;
   for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }

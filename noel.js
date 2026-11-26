@@ -236,9 +236,7 @@
   /* ---------- Bật / tắt ---------- */
   function applyNoel(view) {
     const on = noelOn();
-    document.documentElement.classList.toggle('noel', on);
-    const logo = document.getElementById('brandLogo');
-    if (logo && logo.dataset.mode !== String(on)) { logo.dataset.mode = String(on); logo.textContent = on ? '🎄' : '🌱'; }
+    document.documentElement.classList.toggle('noel', window.seasonId ? seasonId() !== 'none' : on); // bộ áo chung cho mọi mùa (chu-de.js); riêng tuyết/cây thông/Lịch Noel chỉ chạy khi on
     noelWords(on); syncMeta();
     if (!on) { stopSnow(); stopSleigh(); const sc = document.querySelector('.noel-scene'); if (sc) sc.remove(); const li = document.querySelector('.noel-lights'); if (li) li.remove(); return; }
     ensureScene(); ensureLights(); startSnow();
@@ -255,7 +253,8 @@
   function syncMeta() {
     const meta = document.querySelector('meta[name="theme-color"]'); if (!meta) return;
     if (!meta.dataset.base) meta.dataset.base = meta.content;
-    meta.content = document.documentElement.classList.contains('noel') ? (document.documentElement.dataset.theme === 'night' ? '#3b0c1a' : '#b31c35') : meta.dataset.base;
+    const sm = window.seasonMeta && seasonMeta();
+    meta.content = document.documentElement.classList.contains('noel') ? (document.documentElement.dataset.theme === 'night' ? '#3b0c1a' : (sm || '#b31c35')) : meta.dataset.base;
   }
   // Công tắc “Giảm chuyển động” / “Ngày – Đêm” trong Cài đặt đổi class ngay mà không vẽ lại trang → tuyết, xe tuần lộc
   // và màu thanh trạng thái phải theo kịp ngay lập tức

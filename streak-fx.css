@@ -1,0 +1,34 @@
+/* Ngọn lửa chuỗi ngày – Claude Code (đợt 15) */
+.sf-hero{display:grid;grid-template-columns:auto 1fr;gap:6px clamp(14px,3vw,30px);align-items:center;padding:clamp(14px,2.6vw,24px);margin:0 0 18px;background:linear-gradient(135deg,#fff7e8,#ffe9d2);border:3px solid #ffc27a;border-radius:24px;box-shadow:0 4px 0 #e59a4a;color:#4a2a12}
+.sf-flame{position:relative;width:clamp(96px,22vw,170px);aspect-ratio:120/150;display:grid;place-items:end center}
+.sf-flame svg{width:100%;height:100%;overflow:visible;filter:drop-shadow(0 0 12px rgba(255,150,40,.75));transform:scale(var(--sc,1));transform-origin:50% 100%}
+.sf-body{transform-box:fill-box;transform-origin:50% 100%;animation:sfFlick 1.1s ease-in-out infinite alternate}
+.sf-in{transform-box:fill-box;transform-origin:50% 100%;animation:sfFlick 0.8s ease-in-out infinite alternate-reverse}
+.sf-embers{position:absolute;inset:0;pointer-events:none}
+.sf-embers i{position:absolute;bottom:20%;width:7px;height:7px;border-radius:50%;background:#ffd35a;box-shadow:0 0 8px #ff9d3c;opacity:0;animation:sfEmber 2s ease-in infinite}
+@keyframes sfFlick{from{transform:scale(1,1) skewX(-2deg)}to{transform:scale(.95,1.07) skewX(2deg)}}
+@keyframes sfEmber{0%{opacity:0;transform:translateY(0) scale(1)}15%{opacity:1}100%{opacity:0;transform:translateY(-110px) scale(.3)}}
+.sf-info h2{margin:0 0 4px;font-size:clamp(20px,3.4vw,30px);color:#a8420a}
+.sf-info p{margin:4px 0;font-size:clamp(14px,2vw,17px)}
+.sf-bar{height:16px;border-radius:99px;background:#f3d8bd;overflow:hidden;box-shadow:inset 0 2px 0 rgba(0,0,0,.08);max-width:420px}
+.sf-bar i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,#ff9d3c,#ff5d2a);min-width:14px}
+.sf-track{grid-column:1/-1;list-style:none;margin:10px 0 0;padding:0;display:grid;grid-template-columns:repeat(8,1fr);gap:8px}
+.sf-node{display:grid;justify-items:center;align-content:center;gap:0;padding:8px 2px;border-radius:16px;background:#fff;border:2px solid #f0d3b4;min-height:84px;text-align:center}
+.sf-node .sf-ico{height:34px;display:grid;place-items:center;font-size:26px;line-height:1}
+.sf-node .sf-ico .emo{width:34px;height:34px}
+.sf-node b{font-size:1.05rem;line-height:1.1}
+.sf-node small{font-size:.74rem;color:#7a5a46}
+.sf-node.got{background:linear-gradient(#fff3c4,#ffe08a);border-color:#f2a516;box-shadow:0 0 0 2px rgba(255,190,60,.35)}
+.sf-node.next{border-color:#ff7a1f;animation:sfPulse 1.6s ease-in-out infinite}
+.sf-node.later{opacity:.72;filter:grayscale(.5)}
+@keyframes sfPulse{50%{transform:translateY(-3px);box-shadow:0 6px 0 rgba(255,122,31,.3)}}
+@media(max-width:620px){.sf-hero{grid-template-columns:1fr;justify-items:center;text-align:center}.sf-info .sf-bar{margin:0 auto}.sf-track{grid-template-columns:repeat(4,1fr);width:100%}}
+body.calm :is(.sf-body,.sf-in,.sf-embers i,.sf-node.next){animation:none!important}
+body.calm .sf-embers{display:none}
+@media(prefers-reduced-motion:reduce){:is(.sf-body,.sf-in,.sf-embers i,.sf-node.next){animation:none!important}}
+html[data-theme=night] .sf-hero{background:linear-gradient(135deg,#3a1b2c,#2c1422);border-color:#c99a32;box-shadow:0 4px 0 #1f0b15;color:#ffe8ee}
+html[data-theme=night] .sf-info h2{color:#ffc27a}
+html[data-theme=night] .sf-node{background:#3a1b2c;border-color:#5c2c42;color:#ffe8ee}
+html[data-theme=night] .sf-node small{color:#d9bfca}
+html[data-theme=night] .sf-node.got{background:#6a4a1a;border-color:#f2a516}
+@media print{.sf-hero{display:none}}

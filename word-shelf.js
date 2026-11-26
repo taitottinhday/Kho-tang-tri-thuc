@@ -78,7 +78,7 @@ const WordShelf = (() => {
     });
   }
   function teacherPanel() {
-    const sets = customSets();
+    const sets = customSets().filter(set => SCHOOL_GRADES.includes(Number(set.grade)));
     return '<section class="teacher-panel shelf-manager"><div class="shelf-panel-heading"><div><h2>Bộ thẻ của thầy cô</h2>' +
       '<p>Soạn từ một lần để giao cho học sinh trên máy này hoặc in phiếu cho cả lớp.</p></div><button class="primary-btn" id="newWordSet">+ Soạn bộ thẻ</button></div>' +
       sets.map(set => {
@@ -95,7 +95,7 @@ const WordShelf = (() => {
   }
   function editor(set) {
     if (!teacherOK || currentView !== 'teacher') return;
-    const options = [1, 2, 3, 4, 5].map(g => '<option ' + (g == (set?.grade || S.grade) ? 'selected' : '') + ' value="' + g + '">Lớp ' + g + '</option>').join('');
+    const options = SCHOOL_GRADES.map(g => '<option ' + (g == (set?.grade || S.grade) ? 'selected' : '') + ' value="' + g + '">Lớp ' + g + '</option>').join('');
     openModal(set ? 'Chỉnh sửa bộ thẻ' : 'Soạn bộ thẻ', 'Bộ thẻ dùng để luyện trên máy và in ra giấy.',
       '<form id="setForm" class="shelf-form"><label>Tên bộ thẻ<input id="setTitle" maxlength="70" required value="' + esc(set?.title || '') +
       '" placeholder="Ví dụ: Từ ngữ về sân trường"></label><label>Khối lớp<select id="setGrade">' + options + '</select></label>' +
@@ -199,12 +199,15 @@ const WordShelf = (() => {
       S.wordRounds[set.id] = {
         revision: set.revision, last: retry && previous ? previous.last : score, missed: missed.slice()
       };
+      const prizes = StreakRoom.award();
+      saveHistory('cards', '', 'Thẻ từ · ' + set.title, score, words.length);
+      checkBadges();
       save();
       openModal(roundTitle, 'Kết quả luyện thẻ', '<div class="memory-summary"><p>' + (retry ? 'Lượt ôn lại' : 'Lượt luyện cả bộ') +
         '</p><h3>Em viết đúng ' + score + ' / ' + words.length + ' từ</h3>' +
         (missed.length ? '<p>Những từ cần nhớ thêm</p><ul>' + missed.map(w => '<li>' + esc(w) + '</li>').join('') +
         '</ul><button class="primary-btn" id="retryMissed">Ôn lại ' + missed.length + ' từ này</button>' : '<p>Em đã nhớ hết các từ trong lượt này!</p>') +
-        '<button class="soft-btn" data-close-modal>Hoàn tất</button></div>', 'memory-dialog');
+        StreakRoom.celebrate(prizes) + '<button class="soft-btn" data-close-modal>Hoàn tất</button></div>', 'memory-dialog');
       const next = $('#retryMissed');
       if (next) next.onclick = () => { words = missed.slice(); missed = []; index = 0; retry = true; question(true); };
       (next || $('.memory-summary [data-close-modal]')).focus();

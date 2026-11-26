@@ -48,7 +48,7 @@
       '<div><b>' + esc(S.name) + '</b><small>' + (typeof GUEST_MODE !== 'undefined' && GUEST_MODE ? '👀 Đang học thử – không lưu tiến độ' : S.pin ? '🔐 Đã bật mã PIN' : 'Chưa đặt mã PIN') + '</small></div>' +
       '<button class="soft-btn" id="setProfile">✏️ Sửa hồ sơ</button></div>' +
       '<div class="set-row"><span><b>Lớp đang học</b><small>Đổi lớp là đổi sang hòn đảo khác</small></span><select id="setGrade" class="t-select" aria-label="Lớp đang học">' +
-      [1, 2, 3, 4, 5].map(g => '<option value="' + g + '"' + (String(g) === S.grade ? ' selected' : '') + '>Lớp ' + g + ' – ' + gardenName(g) + '</option>').join('') + '</select></div>' +
+      SCHOOL_GRADES.map(g => '<option value="' + g + '"' + (String(g) === S.grade ? ' selected' : '') + '>Lớp ' + g + ' – ' + gardenName(g) + '</option>').join('') + '</select></div>' +
       '<div class="btn-row"><button class="primary-btn" id="setSwitch">🔄 Đổi người chơi</button><button class="soft-btn" data-view="profile">Xem hồ sơ</button></div>' +
       '<p class="small-print">Xoá tiến độ, xoá hồ sơ, xoá mã PIN khi quên nằm trong Góc thầy cô để tránh bấm nhầm.</p></section>' +
       '</div>';

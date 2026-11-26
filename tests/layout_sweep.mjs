@@ -31,7 +31,7 @@ const LINT = String.raw`(() => {
   const isFixedish = el => { for (let e = el; e && e.nodeType === 1; e = e.parentElement) { const p = cs(e).position; if (p === 'fixed' || p === 'sticky') return e; } return null; };
   const visibleEl = el => { if (!el.getClientRects().length) return false; for (let e = el; e && e.nodeType === 1; e = e.parentElement) { const s = cs(e); if (s.visibility === 'hidden' || s.display === 'none' || Number(s.opacity) === 0) return false; } return true; };
   const inView = r => r.bottom > 0 && r.top < H && r.right > 0 && r.left < W && r.width > 0.5 && r.height > 0.5;
-  const ignoreDeco = el => el.closest('.noel-lights,.noel-scene,.noel-snow,.confetti-layer,#confetti,.gm-deco,.sr-only,[data-lint-ignore]');
+  const ignoreDeco = el => el.closest('.noel-lights,.noel-scene,.noel-snow,.cd-sky,.cd-scene,.cd-fx,.confetti-layer,#confetti,.gm-deco,.sr-only,[data-lint-ignore]');
   const clipCache = new Map();
   const innerBox = a => { const ar = a.getBoundingClientRect(), as = cs(a), z = a.currentCSSZoom || 1; const L = ar.left + (parseFloat(as.borderLeftWidth) || 0) * z, T = ar.top + (parseFloat(as.borderTopWidth) || 0) * z; return { L, T, R: L + a.clientWidth * z, B: T + a.clientHeight * z }; };
   const clipOf = el => {
@@ -185,7 +185,7 @@ const LINT = String.raw`(() => {
     }
   }
   // tranh quần đảo dùng object-fit:fill trong khung tỉ lệ 3:2 → kiểm tra khung
-  for (const img of scope.querySelectorAll('img.island-art')) { const r = img.getBoundingClientRect(); if (r.width && Math.abs(r.width / r.height - 1.5) > 0.05) add('img-distort', img, 'tỉ lệ ' + (r.width / r.height).toFixed(2)); }
+  for (const img of scope.querySelectorAll('img.island-art')) { const r = img.getBoundingClientRect(); const want = img.naturalWidth && img.naturalHeight ? img.naturalWidth / img.naturalHeight : 1.5; if (r.width && Math.abs(r.width / r.height - want) / want > 0.05) add('img-distort', img, 'tỉ lệ ' + (r.width / r.height).toFixed(2)); }
 
   // ---------- thanh trên ----------
   const bar = document.querySelector('.topbar');
@@ -362,7 +362,8 @@ function makeRunner(c, results) {
       await step('học thử', "switchPlayer(); const g=document.getElementById('wlGuest'); if(g) g.click()");
     },
     async states(w) {
-      const STATES = { 'ban đêm': "db.settings.theme='night'", 'chữ lớn': "db.settings.bigText=true", 'tắt Noel': "db.settings.noel='off'", 'chữ lớn + đêm + tắt Noel': "db.settings.bigText=true; db.settings.theme='night'; db.settings.noel='off'" };
+      const STATES = { 'ban đêm': "db.settings.theme='night'", 'chữ lớn': "db.settings.bigText=true", 'tắt Noel': "db.settings.noel='off'", 'chữ lớn + đêm + tắt Noel': "db.settings.bigText=true; db.settings.theme='night'; db.settings.noel='off'",
+        'cảnh Tết': "db.settings.season='tet'", 'cảnh Trung thu': "db.settings.season='trungthu'", 'cảnh Khai giảng': "db.settings.season='khaigiang'", 'cảnh 20/11': "db.settings.season='nhagiao'", 'cảnh Thiếu nhi · chữ lớn': "db.settings.season='thieunhi'; db.settings.bigText=true", 'cảnh Tết · đêm': "db.settings.season='tet'; db.settings.theme='night'" };
       await setSize(w);
       for (const [name, js] of Object.entries(STATES)) {
         await fresh(SEED_RICH); await c.ev(`(()=>{ ${js}; save(); return 1 })()`); await c.nav(BASE);

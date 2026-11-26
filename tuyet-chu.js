@@ -175,9 +175,10 @@
     const beforeStage = gardenStage(S.xp);
     const xp = g.score * 5, extra = [];
     if (g.score > (S.bestSnow || 0)) { S.bestSnow = g.score; if (g.score) extra.push('🏆 Kỉ lục mới: ' + g.score + ' điểm!'); }
-    S.xp += xp; mission().games++; bumpDay();
-    const acc = pct(g.q.correct, g.q.correct + g.missed.length);
-    S.history.unshift({ d: dayKey(), kind: 'snowcatch', topic: '', acc }); S.history = S.history.slice(0, 60);
+    S.xp += xp; mission().games++;
+    const total = g.q.correct + g.missed.length;
+    const prizes = total ? StreakRoom.award() : [];
+    if (total) saveHistory('snowcatch', '', 'Hứng tuyết chữ', g.q.correct, total);
     const fresh = checkBadges(); save();
     const good = g.score >= 5;
     if (good) { sfx('win'); confetti(); }
@@ -189,6 +190,7 @@
       '<h3>' + title + '</h3><p>' + (outOfLives ? 'Không sao cả! Em nhìn kĩ từng chữ rồi chơi lại nhé.' : 'Mỗi bông tuyết em hứng đúng là một chữ em nhớ thêm.') + '</p>' +
       '<div class="score-pills"><span>❄️ ' + g.score + ' điểm</span><span>⭐ +' + xp + ' XP</span>' + (g.bestCombo >= 3 ? '<span>🔥 ' + g.bestCombo + ' câu liền</span>' : '') + '</div>' +
       extra.map(x => '<div class="unlock-note">' + x + '</div>').join('') +
+      StreakRoom.celebrate(prizes) +
       (missed ? '<div class="sc-missed"><b>Chữ cần nhớ:</b><ul>' + missed + '</ul></div>' : '') +
       (afterStage !== beforeStage ? '<div class="unlock-note">' + afterStage.icon + ' Khu vườn của em đã lớn thành <b>' + afterStage.name + '</b>!</div>' : '') +
       fresh.map(b => '<div class="unlock-note badge-new">' + b.icon + ' Huy hiệu mới: <b>' + b.name + '</b></div>').join('') +
