@@ -7,14 +7,22 @@ const fs = require('fs'), path = require('path');
   const b = await launch(w, h);
   try {
     await b.goto('index.html', 2200);
-    await b.eval(`document.querySelector('#wlCreate').click(); await new Promise(r=>setTimeout(r,300));
-      document.querySelector('#nameInput').value='Bé Na'; document.querySelector('[data-char="🦊"]')?.click();
-      document.querySelector('#saveProfile').click(); await new Promise(r=>setTimeout(r,400));
-      document.querySelector('#howToGo')?.click(); await new Promise(r=>setTimeout(r,300)); return 1;`);
+    await b.eval(`for (let i=0;i<60 && typeof seasonId !== 'function';i++) {
+        await new Promise(resolve => setTimeout(resolve,150));
+      }
+      if (typeof seasonId !== 'function') throw Error('Không tải được Vườn Chữ: ' + location.href);
+      S.name = 'Bé Na'; S.avatar = '🦊'; hideWelcome(); render();`);
     for (const id of ['noel', 'tet', 'trungthu', 'khaigiang', 'nhagiao', 'thieunhi', 'none']) {
       await b.eval(`db.settings.season='${id}'; save(); go('${view}'); return 1`);
       await b.sleep(1600);
       await b.shot(path.join(out, `${id}-${view}-${w}.png`));
+      const preview = await b.eval(`const button = document.querySelector('[data-cd-look]');
+        if (!button) return false; button.click(); return true;`);
+      if (preview) {
+        await b.sleep(300);
+        await b.shot(path.join(out, `${id}-preview-${w}.png`));
+        await b.eval(`closeModal();`);
+      }
     }
     console.log('errors:', b.errors, b.consoleMsgs);
   } finally { await b.close(); }

@@ -24,8 +24,39 @@ const CONG_THUC = {
   'tu-kho': 'Hiểu nghĩa → nhớ mặt chữ → viết lại 3 lần',
   'viet-hoa': 'Đầu câu · tên người · tên địa danh → viết hoa',
   'viet-hoa-ngoai': 'Viết hoa mỗi bộ phận · các tiếng nối bằng gạch ngang',
-  'viet-hoa-ten-rieng': 'Viết hoa chữ đầu của mỗi bộ phận tạo thành tên'
+  'viet-hoa-ten-rieng': 'Viết hoa chữ đầu của mỗi bộ phận tạo thành tên',
+  // các cặp của chương trình lớp 1–3 (data/chuong-trinh.js, đợt 16)
+  'c-k': 'k + i, e, ê · c + các âm còn lại',
+  'gi-d': 'Nhớ từ theo nghĩa · từ láy cùng âm đầu: dịu dàng, giữ gìn',
+  'r-d': 'Tiếng động → r: rì rào, róc rách · nhớ từ: dạy, dễ',
+  'r-gi': 'Nhớ từ theo nghĩa: rùa, rau, rửa · gia đình, gió, giỏ',
+  'v-d': 'v: môi dưới chạm răng · từ láy cùng âm đầu: vui vẻ, dịu dàng',
+  'in-inh': 'in → n (chín, pin) · inh → nh (xinh, kính)',
+  'uyp-uyu': 'uyp: đèn tuýp · uyu: khuỷu tay, khúc khuỷu',
+  'uynh-uych': 'uynh: phụ huynh, huỳnh quang · uych: ngã huỵch, huých',
+  'an-uan': 'ân: cân, sân, chân · uân: xuân, tuần, khuân',
+  'im-iem': 'im: chim, kim, tim · iêm: diêm, tiêm, liềm',
+  'ieng-yeng': 'Không âm đầu → yê (yểng) · có âm đầu → iê (tiếng)',
+  'et-oet': 'et: vẹt, tét, sét · oet: khoét, toét, loét',
+  'ong-ong': 'ong: ong, võng, bóng · ông: bông, sông, lông',
+  'anh-enh': 'anh: chanh, xanh, cành · ênh: kênh, bênh, lênh đênh',
+  'inh-uynh': 'inh: xinh, kính, bình · uynh: huynh, huỳnh',
+  'oan-oan2': 'oan: ngoan, toán, xoan · oăn: xoăn, khoăn, thoăn thoắt',
+  'oa-ue': 'oa: hoa, loa, xoa · uê: quê, huệ, xum xuê',
+  'uu-iu': 'ưu: cừu, bưu điện, lựu · iu: rìu, dịu, xíu',
+  'ich-it': 'ich: lịch, thích, xích · it: vịt, mít, thịt',
+  'ach-ech': 'ach: sách, gạch, sạch · êch: ếch, lệch, hếch',
+  'ien-yen-uyen': 'Có âm đầu → iê · không âm đầu → yê · có âm đệm u → uyê',
+  'ieu-yeu-iu': 'Có âm đầu → iêu · không âm đầu → yêu · iu đọc ngắn: rìu, dịu',
+  'en-eng': 'en → n (đèn, khen) · eng → ng (xẻng, kẻng)',
+  'i-y': 'Không âm đầu, sau âm đệm u → y · sau phụ âm → i (kĩ, sĩ)',
+  'ay-ay2': 'ay: tay, bay, cay · ây: mây, cây, dây',
+  'at-ac': 'at → lưỡi chạm răng (cát, hát) · ac → miệng mở (bác, rác)',
+  'uoc-uot': 'ươc → c (nước, bước) · ươt → t (ướt, lướt)',
+  'iec-iet': 'iêc → c (chiếc, xiếc) · iêt → t (viết, biết)'
 };
+// Bài ghép nhiều cặp: nối công thức của từng cặp
+function congThuc(t) { return t.cap ? t.cap.map(id => CONG_THUC[id]).filter(Boolean).join(' ‖ ') : CONG_THUC[t.id]; }
 function markWord(sentence, word, cls) {
   const s = esc(sentence), w = esc(word), i = s.indexOf(w);
   return i < 0 ? s : s.slice(0, i) + '<mark class="' + cls + '">' + w + '</mark>' + s.slice(i + w.length);
@@ -35,7 +66,7 @@ function openTheory(id, level) {
   const items = t.baiTap.map((b, i) => Object.assign({}, b, { _t: t.id, _i: i }));
   const chon = items.filter(b => b.loai === 'chon' && b.de.includes('___'));
   const loi = items.filter(b => b.loai === 'timLoi');
-  const formula = CONG_THUC[t.id] || plain(t.quyTac[0]);
+  const formula = congThuc(t) || plain(t.quyTac[0]);
   const ex0 = chon[0];
   // Đối chiếu: nếu đáp án là “phần chữ” (k/c/q, ai/ay…) thì xếp từ theo cột; nếu không thì bảng Viết đúng / Không viết
   const groups = {};

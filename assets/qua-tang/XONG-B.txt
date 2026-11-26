@@ -1,0 +1,17 @@
+﻿Danh sách ảnh trong assets/qua-tang (PNG gốc):
+- su-tu-dung.png — nền trong suốt (alpha; đã có sẵn)
+- su-tu-gam.png — nền trong suốt (alpha; đã có sẵn)
+- vuong-mien.png — nền trong suốt (alpha)
+- cup-vang.png — nền trong suốt (alpha)
+- ten-lua.png — nền trong suốt (alpha)
+- ca-heo.png — nền trong suốt (alpha)
+- bien-hoang-hon.png — nền ảnh toàn khung, không trong suốt
+- ki-lan.png — nền trong suốt (alpha)
+- troi-cau-vong.png — nền ảnh toàn khung, không trong suốt
+- phuong-hoang.png — nền trong suốt (alpha)
+- ruong-dong.png — nền trong suốt (alpha)
+- ruong-mo.png — nền trong suốt (alpha)
+- dong-vang.png — nền trong suốt (alpha)
+- thanh-pho-dem.png — nền ảnh toàn khung, không trong suốt
+- cau-thu-nhi.png — nền trong suốt (alpha)
+- ngoi-sao-vang.png — nền trong suốt (alpha)

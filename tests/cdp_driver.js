@@ -7,7 +7,7 @@ const os = require('os');
 
 const ROOT = process.env.SITE_ROOT || path.resolve(__dirname, '..');
 const CHROME = process.env.CHROME_PATH || 'C:/Program Files/Google/Chrome/Application/chrome.exe';
-const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.webp': 'image/webp', '.png': 'image/png', '.svg': 'image/svg+xml', '.ttf': 'font/ttf', '.woff2': 'font/woff2', '.json': 'application/json' };
+const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.webp': 'image/webp', '.png': 'image/png', '.svg': 'image/svg+xml', '.ttf': 'font/ttf', '.woff2': 'font/woff2', '.json': 'application/json', '.mp4': 'video/mp4' };
 
 function serve() {
   return new Promise(res => {
@@ -25,16 +25,20 @@ function serve() {
 
 async function launch(width, height) {
   const srv = await serve();
-  const port = 9300 + Math.floor(Math.random() * 500);
   const prof = fs.mkdtempSync(path.join(os.tmpdir(), 'vc-cdp-'));
   const proc = spawn(CHROME, [...(process.env.HEADED ? ['--window-position=-2600,0'] : ['--headless=new']), '--no-first-run', '--disable-extensions', '--disable-background-networking', '--disable-sync', '--hide-scrollbars', '--disable-background-timer-throttling', '--disable-renderer-backgrounding', '--disable-backgrounding-occluded-windows',
-    '--remote-debugging-port=' + port, '--user-data-dir=' + prof, '--window-size=' + width + ',' + height, '--autoplay-policy=no-user-gesture-required', 'about:blank'], { stdio: 'ignore' });
-  let ver;
+    '--remote-debugging-port=0', '--user-data-dir=' + prof, '--window-size=' + width + ',' + height, '--autoplay-policy=no-user-gesture-required', 'about:blank'], { stdio: 'ignore' });
+  let page;
   for (let i = 0; i < 60; i++) {
-    try { ver = await (await fetch('http://127.0.0.1:' + port + '/json/list')).json(); if (ver.length) break; } catch (e) {}
+    try {
+      const port = Number(fs.readFileSync(path.join(prof, 'DevToolsActivePort'), 'utf8').split(/\r?\n/)[0]);
+      const targets = await (await fetch('http://127.0.0.1:' + port + '/json/list')).json();
+      page = targets.find(t => t.type === 'page');
+      if (page) break;
+    } catch (e) {}
     await new Promise(r => setTimeout(r, 150));
   }
-  const page = ver.find(t => t.type === 'page');
+  if (!page) { proc.kill(); srv.close(); throw new Error('Không mở được Chrome cho hồ sơ kiểm thử.'); }
   const ws = new WebSocket(page.webSocketDebuggerUrl);
   await new Promise(r => ws.addEventListener('open', r, { once: true }));
   let id = 0; const pend = new Map(); const errors = []; const consoleMsgs = [];

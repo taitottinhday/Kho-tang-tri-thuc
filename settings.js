@@ -51,9 +51,35 @@
       SCHOOL_GRADES.map(g => '<option value="' + g + '"' + (String(g) === S.grade ? ' selected' : '') + '>Lớp ' + g + ' – ' + gardenName(g) + '</option>').join('') + '</select></div>' +
       '<div class="btn-row"><button class="primary-btn" id="setSwitch">🔄 Đổi người chơi</button><button class="soft-btn" data-view="profile">Xem hồ sơ</button></div>' +
       '<p class="small-print">Xoá tiến độ, xoá hồ sơ, xoá mã PIN khi quên nằm trong Góc thầy cô để tránh bấm nhầm.</p></section>' +
+      classCard() +
       '</div>';
   }
+  /* Lớp học của em (đợt 16): nhập mã lớp thầy cô phát → kết quả học tự gửi về trang giáo viên (may-chu.js) */
+  const CLASS_KEY = 'vuonchu.classCode';
+  function classCard() {
+    if (typeof MayChu === 'undefined') return '';
+    let code = ''; try { code = localStorage.getItem(CLASS_KEY) || ''; } catch (e) {}
+    return '<section class="set-card"><h2>🏫 Lớp học của em</h2>' +
+      (code ? '<div class="set-row"><span><b>Đã kết nối lớp <span class="class-code">' + esc(code) + '</span></b><small>Sau mỗi bài học, kết quả tự gửi cho thầy cô. Nhận xét của thầy cô hiện trong Hồ sơ.</small></span><button class="soft-btn" id="classLeave">Bỏ kết nối</button></div>'
+        : '<p class="set-hint">Nhập <b>mã lớp 6 chữ</b> thầy cô đưa cho em để thầy cô xem được bài em đã học.</p>') +
+      '<form class="class-join" id="classJoin"><input id="classCodeIn" maxlength="6" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="VD: AB2CDE" aria-label="Mã lớp" value="">' +
+      '<button class="primary-btn">' + (code ? 'Đổi lớp' : 'Kết nối') + '</button></form><p class="class-err" id="classErr" role="alert"></p></section>';
+  }
+  function bindClass() {
+    const f = $('#classJoin'); if (!f) return;
+    const inp = $('#classCodeIn');
+    inp.oninput = () => { const v = inp.value.toUpperCase().replace(/[^A-Z0-9]/g, ''); if (v !== inp.value) inp.value = v; };
+    f.onsubmit = async e => {
+      e.preventDefault(); const btn = $('button', f); btn.disabled = true; $('#classErr').textContent = '';
+      try { const code = await MayChu.connectClass(inp.value); toast('🏫 Đã kết nối lớp ' + code + '!'); sfx('win'); render(); }
+      catch (err) { $('#classErr').textContent = err.message || 'Chưa kết nối được. Em thử lại nhé.'; sfx('bad'); }
+      finally { btn.disabled = false; }
+    };
+    const leave = $('#classLeave');
+    if (leave) leave.onclick = () => { try { localStorage.removeItem(CLASS_KEY); } catch (e) {} toast('Đã bỏ kết nối lớp.'); render(); };
+  }
   function bind() {
+    bindClass();
     $$('[data-set]').forEach(b => b.onclick = () => {
       const k = b.dataset.set, v = b.dataset.val;
       db.settings[k] = k === 'rate' ? Number(v) : v;

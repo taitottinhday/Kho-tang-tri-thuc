@@ -18,31 +18,39 @@ html[data-season=trungthu]{
   background:#1f1450;
 }
 html[data-season=khaigiang]{
-  --xm-red:#2d7fd9; --xm-red-d:#1c5fb0; --xm-red-dd:#14457f; --xm-rose:#7fb8f2; --xm-blush:#e1f0ff; --xm-cream:#f5faff;
-  --xm-gold:#ffd23f; --xm-gold-d:#e5aa00; --xm-ink:#143a66; --noel-red:#2d7fd9; --noel-red-d:#1c5fb0;
-  --sa:#f0454d; --sb:#d0202b; --sd:#8f1119; --dock-a:#e0343c; --dock-b:#b81f28;
-  --xm-sky:radial-gradient(120% 50% at 80% -6%,rgba(255,244,170,.55) 0%,rgba(255,244,170,0) 55%),linear-gradient(180deg,#2a7fd2 0%,#4a9be5 50%,#78b9f0 100%);
-  background:#2f86d6;
+  --xm-red:#3775a5; --xm-red-d:#22527d; --xm-red-dd:#193a59; --xm-rose:#9fc7df; --xm-blush:#e0f1f9; --xm-cream:#fcfbef;
+  --xm-gold:#ffd382; --xm-gold-d:#d79745; --xm-ink:#233d57; --noel-red:#3775a5; --noel-red-d:#22527d;
+  --sa:#397ba7; --sb:#235b87; --sd:#1d4268; --dock-a:#2d5e82; --dock-b:#233f61;
+  --xm-sky:linear-gradient(#24567a,#7eaccc 70%,#d9c493);background:#24567a;
+  --art-wash:linear-gradient(180deg,#173a58a3 0%,#2e607753 45%,#1b3b484b 100%);
 }
 html[data-season=nhagiao]{
-  --xm-red:#d8447f; --xm-red-d:#a82b61; --xm-red-dd:#7a1d46; --xm-rose:#f59bbd; --xm-blush:#ffe3ee; --xm-cream:#fff6f9;
-  --xm-gold:#ffd166; --xm-gold-d:#e5a82a; --xm-ink:#4a1830; --noel-red:#d8447f; --noel-red-d:#a82b61;
-  --sa:#ee5c95; --sb:#c93272; --sd:#8c1c4d; --dock-a:#b8336f; --dock-b:#8f2455;
-  --xm-sky:radial-gradient(120% 55% at 50% -8%,rgba(255,236,190,.5) 0%,rgba(255,236,190,0) 60%),linear-gradient(180deg,#c93a78 0%,#e0669a 50%,#f3a0bf 100%);
-  background:#c93a78;
+  --xm-red:#80517c; --xm-red-d:#6c3c65; --xm-red-dd:#51324d; --xm-rose:#d8adc8; --xm-blush:#f6e6f1; --xm-cream:#fff7f1;
+  --xm-gold:#f5d295; --xm-gold-d:#d6a861; --xm-ink:#4c344c; --noel-red:#80517c; --noel-red-d:#6c3c65;
+  --sa:#935783; --sb:#743f6b; --sd:#553055; --dock-a:#754469; --dock-b:#533052;
+  --xm-sky:linear-gradient(#673b66,#b683a4 68%,#edc4a8);background:#673b66;
+  --art-wash:linear-gradient(180deg,#462542ac 0%,#58345962 44%,#47254455 100%);
 }
 html[data-season=thieunhi]{
-  --xm-red:#0fa0bd; --xm-red-d:#0a7d94; --xm-red-dd:#07566a; --xm-rose:#7edbea; --xm-blush:#dff7fb; --xm-cream:#f3fcfe;
-  --xm-gold:#ffd23f; --xm-gold-d:#e5aa00; --xm-ink:#0b3f4d; --noel-red:#0fa0bd; --noel-red-d:#0a7d94;
-  --sa:#ff9a4a; --sb:#f06a1c; --sd:#a8420a; --dock-a:#ff8a3d; --dock-b:#e8661c;
-  --xm-sky:radial-gradient(120% 50% at 80% -6%,rgba(255,244,170,.6) 0%,rgba(255,244,170,0) 55%),linear-gradient(180deg,#0e9bb8 0%,#25b3cf 50%,#5fd0e2 100%);
-  background:#14a8c4;
+  --xm-red:#147f86; --xm-red-d:#176673; --xm-red-dd:#124654; --xm-rose:#87cad0; --xm-blush:#dff4ee; --xm-cream:#fff8e8;
+  --xm-gold:#ffcf76; --xm-gold-d:#d7933b; --xm-ink:#174653; --noel-red:#147f86; --noel-red-d:#176673;
+  --sa:#21858a; --sb:#176771; --sd:#104857; --dock-a:#247681; --dock-b:#144a58;
+  --xm-sky:linear-gradient(#146773,#60b8bf 62%,#eed1a2);background:#146773;
+  --art-wash:linear-gradient(180deg,#104c5aaf 0%,#145b635d 48%,#153e4f4c 100%);
+}
+html[data-season=none]{
+  --xm-red:#3b8558; --xm-red-d:#2a6747; --xm-red-dd:#1b4c35; --xm-rose:#b3d3a4; --xm-blush:#e6f2dd; --xm-cream:#fffbea;
+  --xm-gold:#efcf83; --xm-gold-d:#cba44f; --xm-ink:#244a36; --noel-red:#3b8558; --noel-red-d:#2a6747;
+  --sa:#448358; --sb:#2e6749; --sd:#214b36; --dock-a:#357255; --dock-b:#234b38;
+  --xm-sky:linear-gradient(#235b41,#6a9a62 70%,#d4d092);background:#235b41;
+  --art-wash:linear-gradient(180deg,#143b2eb5 0%,#163e2f60 45%,#153c2c53 100%);
 }
 html[data-season=tet][data-theme=night]{--xm-sky:linear-gradient(180deg,#3d0a10 0%,#561319 50%,#2f080d 100%);background:#3d0a10}
 html[data-season=trungthu][data-theme=night]{--xm-sky:linear-gradient(180deg,#0f0a2e 0%,#1d1250 50%,#120a36 100%);background:#0f0a2e}
 html[data-season=khaigiang][data-theme=night]{--xm-sky:linear-gradient(180deg,#0f2748 0%,#173a66 50%,#0f2748 100%);background:#0f2748}
 html[data-season=nhagiao][data-theme=night]{--xm-sky:linear-gradient(180deg,#4a1330 0%,#68204a 50%,#3b0f27 100%);background:#4a1330}
 html[data-season=thieunhi][data-theme=night]{--xm-sky:linear-gradient(180deg,#07384a 0%,#0b5568 50%,#06303f 100%);background:#07384a}
+html[data-season=none][data-theme=night]{--xm-sky:linear-gradient(#112a20,#234333);background:#112a20}
 
 /* nút chính, thanh dưới, chữ nhấn: theo màu của mùa (Noel giữ nguyên bản cũ) */
 html[data-season]:not([data-season=noel]) .primary-btn:not(:disabled){background:linear-gradient(var(--sa),var(--sb));color:#fff;box-shadow:0 4px 0 var(--sd)}
@@ -66,15 +74,15 @@ html[data-season]:not([data-season=noel])[data-theme=night] .topbar{background:#
 html[data-season]:not([data-season=noel]) .compass-logo{background:linear-gradient(#fff,var(--xm-blush))!important;box-shadow:0 2px 0 var(--xm-rose)}
 
 /* ================= Tầng nền ================= */
-.cd-sky,.cd-scene{position:fixed;pointer-events:none;z-index:0}
-.cd-sky{inset:0;overflow:hidden}
-.cd-scene{left:0;right:0;bottom:0;height:clamp(90px,19vw,300px)}
-.cd-scene svg{width:100%;height:100%;display:block}
+.cd-sky{position:fixed;inset:0;overflow:hidden;pointer-events:none;z-index:0}
+.noel-snow.cd-ambient-fx,body.modal-open .noel-snow.cd-ambient-fx{z-index:0}
 .cd-art{position:absolute;inset:0;background:var(--art) var(--art-pos,50% 60%)/cover no-repeat}
 .cd-art::after{content:'';position:absolute;inset:0}
 .cd-tet .cd-art::after{background:linear-gradient(180deg,rgba(108,8,22,.58),rgba(150,18,30,.28) 42%,rgba(96,8,18,.55))}
 .cd-trungthu .cd-art::after{background:linear-gradient(180deg,rgba(26,12,78,.5),rgba(40,20,100,.22) 45%,rgba(20,10,60,.55))}
 html[data-theme=night] .cd-art::after{background:rgba(8,4,24,.62)}
+html.cd-painted .cd-art::after{background:var(--art-wash)}
+html.cd-painted[data-theme=night] .cd-art::after{background:linear-gradient(180deg,#091528cf,#1218279e 55%,#101e2fbf)}
 /* điểm sáng đặt trên tranh */
 .cd-glow{position:absolute;border-radius:50%;mix-blend-mode:screen;animation:cdGlow 3.2s ease-in-out infinite alternate}
 .cd-glow[hidden]{display:none}
@@ -87,37 +95,44 @@ html[data-theme=night] .cd-art::after{background:rgba(8,4,24,.62)}
 @keyframes cdFire{0%{opacity:.6;transform:scale(.9)}30%{opacity:1;transform:scale(1.07)}55%{opacity:.72;transform:scale(.96)}100%{opacity:.98;transform:scale(1.12)}}
 @keyframes cdShimmer{from{opacity:.25;transform:translateX(-6px)}to{opacity:.8;transform:translateX(6px)}}
 
-/* mặt trời, mây, máy bay giấy, hải âu (Khai giảng, Thiếu nhi) */
-.cd-sun{position:absolute;right:4vw;top:2vh;width:clamp(90px,13vw,190px);height:auto}
-.cd-rays{transform-box:fill-box;transform-origin:center;animation:cdSpin 50s linear infinite}
-.cd-cloud{position:absolute;left:-200px;width:calc(120px * var(--sc,1));height:auto;animation:cdCloud linear infinite}
-.cd-plane{position:absolute;left:-80px;top:44vh;width:54px;height:auto;animation:cdPlane 24s linear infinite;animation-delay:-6s}
-.cd-gull{position:absolute;width:34px;height:auto;animation:cdGull 3.4s ease-in-out infinite alternate}
-@keyframes cdSpin{to{transform:rotate(360deg)}}
-@keyframes cdCloud{to{transform:translateX(calc(100vw + 420px))}}
-@keyframes cdPlane{0%{transform:translate(0,0) rotate(-6deg)}50%{transform:translate(55vw,-12vh) rotate(-14deg)}100%{transform:translate(calc(100vw + 160px),-26vh) rotate(-4deg)}}
-@keyframes cdGull{from{transform:translate(-14px,0) scaleY(1)}to{transform:translate(14px,-8px) scaleY(.6)}}
-/* cờ đỏ, bé đi học, bó hoa, quả bóng, sóng biển */
-.cd-flag{transform-box:fill-box;transform-origin:0 50%;animation:cdFlag 1.1s ease-in-out infinite alternate}
-.cd-kid{animation:cdBob .9s ease-in-out infinite alternate}
-.cd-flower{transform-box:fill-box;transform-origin:50% 100%;animation:cdSway 2.8s ease-in-out infinite alternate}
-.cd-ball{animation:cdBounce 1.3s cubic-bezier(.3,.7,.4,1) infinite alternate}
-.cd-wave.w1{animation:cdWave 8s linear infinite}
-.cd-wave.w2{animation:cdWave 6s linear infinite reverse}
-@keyframes cdFlag{from{transform:skewY(-5deg) scaleX(1)}to{transform:skewY(5deg) scaleX(.93)}}
-@keyframes cdBob{to{transform:translateY(-5px)}}
-@keyframes cdSway{from{transform:rotate(-5deg)}to{transform:rotate(5deg)}}
-@keyframes cdBounce{from{transform:translateY(0)}to{transform:translateY(-46px) rotate(120deg)}}
-@keyframes cdWave{to{transform:translateX(-200px)}}
-/* 20/11: tia nắng và sao lấp lánh */
-.cd-beams{position:absolute;inset:-40% -20% 0;background:repeating-conic-gradient(from 0deg at 50% 0,rgba(255,255,255,.17) 0 7deg,transparent 7deg 20deg);transform-origin:50% 0;animation:cdBeam 9s ease-in-out infinite alternate}
-@keyframes cdBeam{from{transform:rotate(-7deg)}to{transform:rotate(7deg)}}
-.cd-sparkles i{position:absolute;width:12px;height:12px;background:#fff;clip-path:polygon(50% 0,62% 38%,100% 50%,62% 62%,50% 100%,38% 62%,0 50%,38% 38%);opacity:.2;animation:cdTw 2.8s ease-in-out infinite}
-@keyframes cdTw{50%{opacity:1;transform:scale(1.5) rotate(45deg)}}
-body.calm :is(.cd-glow,.cd-rays,.cd-cloud,.cd-plane,.cd-gull,.cd-flag,.cd-kid,.cd-flower,.cd-ball,.cd-wave,.cd-beams,.cd-sparkles i){animation:none!important}
-body.calm .cd-cloud{left:12%}
-@media (prefers-reduced-motion:reduce){:is(.cd-glow,.cd-rays,.cd-cloud,.cd-plane,.cd-gull,.cd-flag,.cd-kid,.cd-flower,.cd-ball,.cd-wave,.cd-beams,.cd-sparkles i){animation:none!important}}
-@media print{.cd-sky,.cd-scene,.cd-fx,.cd-pick{display:none!important}}
+/* Hiệu ứng vẽ trên tranh, chạy sau các thẻ và nút. */
+.cd-cloud-bank,.cd-paper-plane,.cd-surface-light,.cd-veranda-light,.cd-canopy-light{position:absolute;pointer-events:none}
+.cd-cloud-bank{
+  top:var(--cloud-y);left:-250px;width:calc(230px * var(--cloud-scale));height:58px;
+  background:radial-gradient(ellipse closest-side,#f8fbf5b5,transparent 98%);
+  filter:blur(5px);animation:cdCloudBank var(--cloud-period) var(--cloud-delay) linear infinite;
+}
+.cd-paper-plane{
+  top:37%;left:-60px;width:46px;aspect-ratio:1.5;transform-origin:center;
+  animation:cdPaperPlane 24s -8s linear infinite;
+}
+.cd-paper-plane i{display:block;width:100%;height:100%;background:linear-gradient(145deg,#fffcee 54%,#bddeeb 55%);
+  clip-path:polygon(0 32%,100% 0,67% 100%,49% 65%,37% 80%,42% 55%)}
+.cd-surface-light{
+  inset:36% -12% 14%;background:radial-gradient(ellipse at 34% 52%,#fff9c658,transparent 55%);mix-blend-mode:screen;
+  animation:cdSurface 13s ease-in-out infinite alternate;
+}
+.cd-veranda-light,.cd-canopy-light{
+  inset:0;background:radial-gradient(ellipse at 78% 12%,#ffdda477,transparent 48%);mix-blend-mode:screen;
+  animation:cdSunlight 12s ease-in-out infinite alternate;
+}
+.cd-canopy-light{background:radial-gradient(ellipse at 42% 16%,#fff3b766,transparent 47%)}
+@keyframes cdCloudBank{to{transform:translateX(calc(100vw + 500px))}}
+@keyframes cdPaperPlane{
+  0%{transform:translate(0,10vh) rotate(2deg);opacity:0}
+  12%,85%{opacity:.95}
+  55%{transform:translate(55vw,-10vh) rotate(-12deg)}
+  100%{transform:translate(calc(100vw + 125px),-18vh) rotate(-5deg);opacity:0}
+}
+@keyframes cdSurface{from{opacity:.36;transform:translate(-4%,2%)}to{opacity:.8;transform:translate(6%,-2%)}}
+@keyframes cdSunlight{from{opacity:.35;transform:scale(1.04)}to{opacity:.8;transform:scale(1.13)}}
+body.calm :is(.cd-glow,.cd-cloud-bank,.cd-paper-plane,.cd-surface-light,.cd-veranda-light,.cd-canopy-light){animation:none!important}
+body.calm :is(.cd-paper-plane,.cd-cloud-bank){display:none}
+@media(prefers-reduced-motion:reduce){
+  :is(.cd-glow,.cd-cloud-bank,.cd-paper-plane,.cd-surface-light,.cd-veranda-light,.cd-canopy-light){animation:none!important}
+  :is(.cd-paper-plane,.cd-cloud-bank){display:none}
+}
+@media print{.cd-sky,.cd-fx,.cd-pick{display:none!important}}
 /* Màn toàn màn hình (làm bài, Đấu đội…): nền vẫn hiện nhưng nhạt hơn để chữ rõ */
 body.modal-open .cd-sky{opacity:.9}
 
@@ -131,9 +146,33 @@ body.modal-open .cd-sky{opacity:.9}
 .cd-chip b{font-size:.88rem;font-weight:800;line-height:1.2}
 .cd-chip .cd-ic{display:grid;place-items:center;height:34px;font-size:26px;line-height:1}
 .cd-chip .cd-ic .emo{width:34px;height:34px}
+.cd-preview{display:block;width:min(100%,68px);height:34px;border-radius:9px;background:var(--thumb) center/cover no-repeat #e3eedf}
+.cd-chip[data-season-pick=khaigiang]{--thumb:url("assets/canh-khai-giang-thumb.webp")}
+.cd-chip[data-season-pick=nhagiao]{--thumb:url("assets/canh-nha-giao-thumb.webp")}
+.cd-chip[data-season-pick=thieunhi]{--thumb:url("assets/canh-thieu-nhi-thumb.webp")}
+.cd-chip[data-season-pick=none]{--thumb:url("assets/canh-vuon-xanh-thumb.webp")}
 .cd-chip:hover{background:var(--xm-blush,#ffe4e1);border-color:var(--xm-rose,#f27a86)}
 .cd-chip.on{background:var(--xm-blush,#ffe4e1);border-color:var(--xm-red,#d63447);box-shadow:inset 0 0 0 1px var(--xm-red,#d63447)}
 .cd-chip:focus-visible{outline:3px solid var(--xm-gold,#ffc94d);outline-offset:2px}
+.cd-look-btn{
+  margin-inline-start:auto;min-height:36px;padding:5px 12px;border-radius:11px;
+  border:1px solid var(--xm-rose);background:var(--xm-blush);color:var(--xm-red-dd);font:inherit;font-weight:850;
+}
+.cd-look-btn:hover{background:var(--xm-cream)}
+.cd-look-btn:focus-visible{outline:3px solid var(--xm-red);outline-offset:2px}
+body:has(.cd-look-card) .app-shell{visibility:hidden}
+body:has(.cd-look-card) .cd-sky{opacity:1}
+html.cd-painted body:has(.cd-look-card) .cd-art::after{background:transparent}
+html.cd-painted[data-theme=night] body:has(.cd-look-card) .cd-art::after{background:#101b32a6}
+html.cd-painted #modalRoot:has(.cd-look-card){
+  background:transparent;backdrop-filter:none;align-items:end;padding:16px 12px max(16px,env(safe-area-inset-bottom));
+}
+.cd-look-card.modal-card{width:min(350px,100%);background:var(--xm-cream);border:1px solid var(--xm-rose);border-radius:19px;box-shadow:0 6px 28px #17292d50}
+.cd-look-card .modal-head{position:static;align-items:center;padding:9px 12px 9px 16px;background:transparent;border:0}
+.cd-look-card .modal-head h2{color:var(--xm-red-dd);margin:0}
+.cd-look-card :is(.modal-head p,.modal-body){display:none}
+html[data-theme=night] .cd-look-card.modal-card{background:#22273a}
+html[data-theme=night] .cd-look-card .modal-head h2{color:#fff2d9}
 .cd-set-row{flex-wrap:wrap}
 .cd-set-row .cd-chips{flex:1 1 100%;margin-top:6px}
 html[data-theme=night] .cd-pick{background:#2c1422;border-color:#c99a32}
@@ -144,5 +183,14 @@ html[data-theme=night] .cd-chip.on{background:#5c2c42;border-color:#ffc94d;box-s
 @media(max-width:420px){.cd-chips{grid-template-columns:repeat(3,1fr)}.cd-pick{padding:12px 12px 14px}}
 
 /* chữ nằm thẳng trên trời sáng (Khai giảng, Thiếu nhi, 20/11): trắng, có bóng đậm cho dễ đọc */
-html:is([data-season=khaigiang],[data-season=thieunhi],[data-season=nhagiao]) :is(.voyage-kicker,.page-heading .eyebrow,.section-title-row .eyebrow){color:#fff!important;text-shadow:0 1px 0 var(--xm-red-dd),0 0 6px var(--xm-red-dd)}
-html:is([data-season=khaigiang],[data-season=thieunhi],[data-season=nhagiao]) :is(.voyage-intro h1,.page-heading h1,.section-title-row h2){text-shadow:0 2px 0 var(--xm-red-dd)}
+html.cd-painted :is(.voyage-kicker,.page-heading .eyebrow,.section-title-row .eyebrow){color:#fff7d8!important;text-shadow:0 1px 0 var(--xm-red-dd),0 0 6px var(--xm-red-dd)}
+html.cd-painted :is(.voyage-intro h1,.voyage-intro p,.page-heading h1,.page-heading p,.section-title-row h2){
+  text-shadow:0 2px 2px var(--xm-red-dd),0 0 8px var(--xm-red-dd);
+}
+html.cd-painted:not([data-theme=night]) :is(.cd-pick,.sea-chart){box-shadow:0 4px 0 var(--sd),0 14px 30px #152b3a30}
+html.cd-painted .voyage-home .voyage-intro{padding-bottom:clamp(18px,6vw,82px)}
+@media(max-width:420px){
+  html.cd-painted .cd-pick .cd-chips{grid-template-columns:repeat(4,minmax(0,1fr));gap:5px}
+  html.cd-painted .cd-pick .cd-chip{padding-inline:3px;white-space:normal}
+  html.cd-painted .cd-pick .cd-chip b{font-size:.74rem}
+}

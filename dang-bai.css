@@ -1,0 +1,68 @@
+/* 7 dạng bài thêm – Claude Code (đợt 16). Nút ≥ 44px, chữ to, vừa màn hình 320px. */
+.db-chips{display:flex;flex-wrap:wrap;justify-content:center;gap:10px;margin:6px 0 14px}
+.db-chip{min-height:48px;padding:6px 16px;border-radius:16px;border:2px solid #e1e9e2;background:#fff;font:800 19px/1.2 Nunito,'Be Vietnam Pro',sans-serif;color:#24402f;box-shadow:0 4px 0 #e1e9e2;cursor:pointer;transition:transform .12s,background .15s;max-width:100%;overflow-wrap:anywhere}
+.db-chips.big .db-chip{min-height:56px;font-size:20px}
+.db-chip:hover:not(:disabled){transform:translateY(-1px);background:#f6fbf7}
+.db-chip.is-sel{border-color:#4f9de0;background:#eaf4fe;box-shadow:0 4px 0 #b9d8f5}
+.db-chip:disabled{cursor:default}
+.db-chip.good{border-color:#58b873;background:#e6f7ea;box-shadow:0 4px 0 #b6e0c2}
+.db-chip.bad{border-color:#ef8a62;background:#fff0ea;box-shadow:0 4px 0 #f6c9b4;text-decoration:line-through}
+.db-chip.missed{border-color:#58b873;border-style:dashed;background:#fff}
+
+/* Xếp vào giỏ */
+.db-baskets{display:grid;gap:12px;grid-template-columns:repeat(2,minmax(0,1fr))}
+.db-baskets.n3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.db-basket{min-height:150px;border:3px dashed #c9b48a;border-radius:22px 22px 30px 30px;background:linear-gradient(#fffaf0,#fbefd6);padding:8px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:6px}
+.db-basket:hover,.db-basket:focus-visible{border-color:#e09d17;background:#fff6df;outline:none}
+.db-label{display:inline-grid;place-items:center;min-width:64px;padding:4px 14px;border-radius:99px;background:#e2a03a;color:#fff;font:900 22px/1.2 Nunito,'Be Vietnam Pro',sans-serif}
+.db-in{display:flex;flex-wrap:wrap;justify-content:center;gap:6px;width:100%}
+.db-in .db-chip{font-size:16px;min-height:44px;padding:4px 10px;box-shadow:0 3px 0 #e1e9e2}
+
+/* Nối */
+.db-match{display:grid;grid-template-columns:1fr 1fr;gap:12px 28px;max-width:520px;margin:0 auto}
+.db-col{display:grid;gap:10px}
+.db-m{min-height:54px;padding:6px 12px;border-radius:16px;border:2px solid #e1e9e2;background:#fff;font:800 20px/1.2 Nunito,'Be Vietnam Pro',sans-serif;color:#24402f;box-shadow:0 4px 0 #e1e9e2;cursor:pointer}
+.db-m.is-sel{border-color:#4f9de0;background:#eaf4fe}
+.db-m[data-c="0"]{border-color:#f28b52;background:#fff1e6}
+.db-m[data-c="1"]{border-color:#4f9de0;background:#e8f2fd}
+.db-m[data-c="2"]{border-color:#a873e0;background:#f3ebfc}
+.db-m[data-c="3"]{border-color:#2fae7a;background:#e5f7ef}
+.db-m.good{box-shadow:0 0 0 3px #58b873}
+.db-m.bad{box-shadow:0 0 0 3px #ef8a62}
+.db-m:disabled{cursor:default}
+
+/* Gõ chữ, sửa lỗi */
+.db-type{display:inline-block;width:3.2em;min-height:46px;padding:2px 6px;margin:0 2px;border:0;border-bottom:4px solid #f0bd4a;border-radius:10px 10px 4px 4px;background:#fff8e1;font:900 1em/1.2 Nunito,'Be Vietnam Pro',sans-serif;color:#24402f;text-align:center;vertical-align:baseline}
+.db-type.wide{width:min(260px,100%);font-size:24px}
+.db-type:focus{outline:3px solid #4f9de0;outline-offset:2px}
+.db-type.good{border-color:#58b873;background:#e6f7ea}
+.db-type.bad{border-color:#ef8a62;background:#fff0ea}
+.db-small{text-align:center;color:#5b6b62;font-size:15px;margin:6px 0 0}
+.db-fix{display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;margin-top:16px;font-size:22px;font-weight:800}
+.db-old{color:#c2410c;text-decoration:line-through}
+mark.db-wrong{background:#ffe0d6;color:#b3261e;border-radius:6px;padding:0 4px;text-decoration:underline wavy #ef8a62}
+
+/* Xếp chữ thành câu */
+.db-line{min-height:64px;margin:4px 0 14px;padding:12px 14px;border:2.5px dashed #b9cdbd;border-radius:16px;background:#f7fbf7;font:800 21px/1.5 Nunito,'Be Vietnam Pro',sans-serif;color:#24402f;text-align:center}
+.db-line i{color:#8a9a90;font-weight:600;font-size:17px}
+.db-line.good{border-style:solid;border-color:#58b873;background:#e6f7ea}
+.db-line.bad{border-style:solid;border-color:#ef8a62;background:#fff0ea}
+
+@media(max-width:480px){
+  .db-baskets.n3{grid-template-columns:1fr}
+  .db-basket{min-height:110px}
+  .db-match{gap:10px 14px}
+  .db-m{font-size:18px}
+  .db-chip{font-size:17px;padding:6px 12px}
+}
+html[data-theme=night] :is(.db-chip,.db-m){background:#2b3a33;border-color:#41564b;color:#eef7f1;box-shadow:0 4px 0 #1d2924}
+html[data-theme=night] :is(.db-basket){background:#3a3222;border-color:#8a7246}
+html[data-theme=night] .db-line{background:#26332d;border-color:#41564b;color:#eef7f1}
+html[data-theme=night] .db-type{background:#3a3222;color:#fff}
+
+/* Nhìn tranh chọn từ */
+.db-pic{display:grid;place-items:center;margin:2px auto 14px;width:min(210px,56vw);aspect-ratio:1;border-radius:28px;background:radial-gradient(circle at 50% 38%,#fff,#e9f6ff 70%,#d6ecfb);border:3px solid #cfe5f5;box-shadow:0 6px 0 #cfe0ee}
+.db-pic img{width:78%;height:78%;object-fit:contain;filter:drop-shadow(0 8px 8px rgba(30,60,90,.22));animation:dbPic 2.6s ease-in-out infinite alternate}
+@keyframes dbPic{to{transform:translateY(-6px) scale(1.03)}}
+body.calm .db-pic img{animation:none}
+html[data-theme=night] .db-pic{background:#2b3a46;border-color:#41566a;box-shadow:0 6px 0 #1d2933}

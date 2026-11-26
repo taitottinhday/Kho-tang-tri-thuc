@@ -3,6 +3,17 @@ qa-results/
 # Bản sao lưu cũ của Codex (không cần cho web)
 _sao-luu-codex-v1/
 node_modules/
+.data/
 .DS_Store
 Thumbs.db
 desktop.ini
+assets/qua-tang/_goc/
+assets/thu-cung/_goc/
+# bản chúc mừng cũ (không dùng nữa)
+lesson-celebration.js
+lesson-celebration.css
+assets/celebrations/lion*
+assets/celebrations/crystal.webp
+assets/celebrations/galaxy.webp
+assets/celebrations/cup-*
+assets/celebrations/rocket-*

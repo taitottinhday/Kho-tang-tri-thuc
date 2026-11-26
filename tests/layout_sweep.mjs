@@ -304,7 +304,7 @@ const SEED_RICH = `(()=>{ db.onboarded=true; S.name='Nguyễn Hoàng Bảo An'; 
   S.history=[{d:dayKey(),kind:'lesson',topic:ts[0].id,acc:90},{d:dayKey(),kind:'quick',topic:'',acc:70}];
   save(); return 1 })()`;
 const SEED_NEW = `(()=>{ db.onboarded=true; save(); return 1 })()`;
-const VIEWS = ['home', 'roadmap', 'shelf', 'games', 'review', 'badges', 'garden', 'profile', 'settings', 'teacher'];
+const VIEWS = ['home', 'roadmap', 'shelf', 'games', 'review', 'badges', 'garden', 'profile', 'settings', 'teacher', 'practice', 'streak', 'gifts', 'docs'];
 const H = w => (w < 600 ? 780 : w < 1000 ? 1024 : w < 1500 ? 800 : 1080);
 
 function makeRunner(c, results) {

@@ -102,8 +102,11 @@ function itemOf(key) { // “mã:5” = câu trong ngân hàng; “mã:g12” = 
   const [tid, i = ''] = key.split(':'); const t = getTopic(tid); if (!t) return null;
   if (i.startsWith('cq-')) return typeof ClassPractice === 'undefined' ? null : ClassPractice.byKey(tid, i);
   if (!SCHOOL_GRADES.some(g => gradeTopics(g).includes(t))) return null;
-  const gen = i[0] === 'g', b = gen ? (t.sinh || [])[Number(i.slice(1))] : t.baiTap[Number(i)];
-  return b ? Object.assign({}, b, { _t: tid, _i: gen ? i : Number(i) }) : null;
+  const own = i.startsWith('gv-'), gen = !own && i[0] === 'g';
+  if (own) { const n = t.baiTap.findIndex(x => x._k === i); return n < 0 ? null : Object.assign({}, t.baiTap[n], { _t: tid, _i: n }); }
+  const at = t.goc ? t.baiTap.findIndex(x => String(x._k) === i) : Number(i); // bài đã được thầy cô chỉnh
+  const b = gen ? (t.sinh || [])[Number(i.slice(1))] : t.baiTap[at];
+  return b ? Object.assign({}, b, { _t: tid, _i: gen ? i : at }) : null;
 }
 function fullSentence(item) { return item.de.includes('___') ? item.de.replace('___', item.dapAn) : item.dapAn; }
 function itemWord(item) { // từ đúng để hiển thị trong danh sách ôn
@@ -442,11 +445,8 @@ function renderHome() {
 /* ============================== KIỂM TRA TRÌNH ĐỘ ==============================
    Hai câu mỗi khối. Mức nào đúng ít nhất 1/2 thì qua; dừng ở mức đầu tiên chưa qua.
    Kết quả chỉ là GỢI Ý lớp – không ghi vào danh sách ôn, không tính sao bài học. */
-const PLACEMENT_LEVELS = [
-  ['c-k-q', 'g-gh', 'ng-ngh'],
-  ['l-n', 'an-ang', 'viet-hoa'],
-  ['s-x', 'ch-tr', 'd-gi-r', 'hoi-nga', 'uon-uong', 'ien-ieng']
-];
+// Mỗi mức = các bài của một lớp trong chương trình (data/chuong-trinh.js)
+const PLACEMENT_LEVELS = SCHOOL_GRADES.map(g => gradeTopics(g).map(t => t.id));
 function startPlacement() {
   const items = [];
   PLACEMENT_LEVELS.forEach((ids, k) => {
@@ -675,7 +675,8 @@ function teacherGate() {
 function renderTeacher() {
   const profiles = Object.values(db.profiles);
   const missed = Object.entries(S.wrongLog).sort((a, b) => b[1] - a[1]).slice(0, 12).map(([k, n]) => { const it = itemOf(k); return it ? { it, n } : null; }).filter(Boolean);
-  return pageHeading('GÓC DÀNH CHO GIÁO VIÊN', 'Theo dõi tiến độ học', 'Dữ liệu chỉ lưu trong trình duyệt của thiết bị này, không gửi lên mạng.', '<button class="soft-btn" id="printReport">🖨️ In báo cáo</button>') +
+  return pageHeading('GÓC DÀNH CHO GIÁO VIÊN', 'Theo dõi tiến độ học', 'Hồ sơ chưa kết nối máy chủ sẽ chỉ lưu trong trình duyệt của thiết bị này.', '<button class="soft-btn" id="printReport">🖨️ In báo cáo</button>') +
+    '<section class="project-panel teacher-go"><h2>👩‍🏫 Trang giáo viên</h2><p>Quản lý lớp trên mọi máy, giao bài, sửa câu hỏi, tải tài liệu và gửi nhận xét. Đăng nhập bằng mật khẩu giáo viên.</p><a class="primary-btn teacher-go-btn" href="giao-vien/">Mở trang giáo viên →</a></section>' +
     ClassRoom.panel() + ClassPractice.questionPanel() + WordShelf.teacherPanel() + '<div class="teacher-layout">' +
     '<section class="teacher-panel span-2"><h2>👧👦 Học sinh trên máy này (' + profiles.length + ')</h2><div class="table-wrap"><table class="t-table"><thead><tr><th>Học sinh</th><th>Lớp</th><th>XP</th><th>Bài xong</th><th>Đúng</th><th>Chuỗi ngày</th><th>Học gần nhất</th><th></th></tr></thead><tbody>' +
     profiles.map(p => { const g = Number(p.grade), tl = ALL_TOPICS.filter(t => t.lop[0] <= g && g <= t.lop[1]); const d = tl.filter(t => p.topics[t.id] && p.topics[t.id].done).length;
@@ -707,6 +708,7 @@ function renderTeacher() {
     '</div>';
 }
 function bindTeacher() {
+  MayChu.bindTeacher();
   ClassRoom.bind();
   ClassPractice.bindBank();
   $('#printReport').onclick = () => window.print();
@@ -913,7 +915,7 @@ function vary(it) { // trộn dạng câu cho phong phú
   if (r < 0.2) return makeDungSai(it);
   if (r < 0.4 && canGhep(it)) return makeGhep(it);
   if (r < 0.5 && Number(S.grade) < 2 && canNgheChon(it)) return makeNgheChon(it);
-  return it;
+  return (typeof varyMore === 'function' && varyMore(it)) || it;
 }
 /* Câu sinh tự động (data/sinh-cau.js): mỗi lần lấy ra là một bản mới – tên bạn nhỏ, người thân, số đếm đổi ngẫu nhiên */
 function genItems(t, filter) { return (t.sinh || []).map((b, k) => Object.assign({}, b, { _t: t.id, _i: 'g' + k })).filter(b => !filter || filter(b)); }
@@ -935,7 +937,7 @@ function buildLesson(t, level) {
   if (level === 'de') list = [].concat(ds(1), chon.slice(0, 3), gh(1), loi.slice(0, 1), g < 2 ? listen(1) : []);
   else if (level === 'kho') list = [].concat(ds(2), chon, gh(2), loi, listen(g >= 2 ? nghe.length : 2));
   else list = [].concat(ds(1), chon.slice(0, 4), gh(1), loi.slice(0, 2), listen(1));
-  return list.filter(Boolean);
+  return typeof extendLesson === 'function' ? extendLesson(list.filter(Boolean), t, level) : list.filter(Boolean);
 }
 
 /* ============================== NHIỆM VỤ HÔM NAY ============================== */
@@ -958,6 +960,7 @@ function missionCard() {
 
 /* ============================== MÀN LÀM BÀI (TOÀN MÀN HÌNH) ============================== */
 const KIND_LABEL = { skip: 'LÀM BÀI VƯỢT CẤP', placement: 'KIỂM TRA TRÌNH ĐỘ', lesson: 'BÀI HỌC', challenge: 'THỬ THÁCH', boss: 'CÂY CHỮ THẦN', daily: 'THỬ THÁCH NGÀY', review: 'ÔN TỪ HAY NHẦM', hunt: 'THÁM TỬ SĂN LỖI', dictation: 'NGHE – VIẾT', speed: 'NHANH TAY', quick: 'LUYỆN NHANH' };
+const EXTRA_RENDER = {}; // dạng bài thêm (dang-bai.js)
 const TYPE_TAG = { chon: 'CHỌN CHỮ ĐÚNG', timLoi: 'TÌM CHỮ VIẾT SAI', ngheViet: 'NGHE – VIẾT', dungSai: 'ĐÚNG HAY SAI?', ghepChu: 'GHÉP CHỮ', ngheChon: 'NGHE RỒI CHỌN' };
 let Q = null, qTimer = null;
 function startQuiz(opts) {
@@ -1011,7 +1014,7 @@ function renderItem() {
   Q.answered = false; Q.evaluate = null;
   const it = Q.items[Q.i];
   if (it.loai === 'classQuestion') ClassPractice.show(it);
-  else ({ chon: renderChon, timLoi: renderLoi, ngheViet: renderNghe, dungSai: renderDungSai, ghepChu: renderGhep, ngheChon: renderNgheChon }[it.loai] || renderChon)(it);
+  else (EXTRA_RENDER[it.loai] || { chon: renderChon, timLoi: renderLoi, ngheViet: renderNghe, dungSai: renderDungSai, ghepChu: renderGhep, ngheChon: renderNgheChon }[it.loai] || renderChon)(it);
   $('#plCheck').onclick = doCheck;
   const hb = $('#plHint'); if (hb) hb.onclick = () => useHint(it);
 }
@@ -1225,8 +1228,9 @@ function record(it, right) {
   const t = Q.kind === 'placement' ? null : getTopic(it._t); // kiểm tra trình độ không ghi sổ ôn
   if (t) {
     const ts = tstat(it._t); ts.attempts++; if (right) ts.correct++;
-    const key = it._t + ':' + it._i;
-    if (!right) { S.wrongLog[key] = (S.wrongLog[key] || 0) + 1; S.review[key] = { box: 0, at: Date.now() }; }
+    const fixed = typeof it._i === 'number' && t.baiTap[it._i] ? t.baiTap[it._i]._k : undefined;
+    const key = it._t + ':' + (fixed === undefined ? it._i : fixed);
+    if (!right && it._i != null) { S.wrongLog[key] = (S.wrongLog[key] || 0) + 1; S.review[key] = { box: 0, at: Date.now() }; }
     else if (S.review[key] && S.review[key].at < Q.startedAt) { // chỉ tính khi ôn ở lượt sau
       S.review[key].box++; S.review[key].at = Date.now();
       if (S.review[key].box >= 2) { delete S.review[key]; S.reviewed++; toast('🎉 Em đã thuộc từ “' + itemWord(itemOf(key)) + '”!'); }
@@ -1243,7 +1247,7 @@ function bumpDay() {
   S.bestStreak = Math.max(S.bestStreak, S.streak);
 }
 function saveHistory(kind, topic, title, correct, total) {
-  S.history.unshift({ d: dayKey(), grade: S.grade, kind, topic, title, correct, total, acc: pct(correct,total) });
+  S.history.unshift({ d: dayKey(), at: Date.now(), grade: S.grade, kind, topic, title, correct, total, acc: pct(correct,total) });
 }
 function finishQuiz() {
   clearInterval(qTimer);
@@ -1281,11 +1285,14 @@ function finishQuiz() {
   const prizes = total ? StreakRoom.award() : [];
   if (flowers) extra.push('🌸 +' + flowers + ' bông hoa cho khu vườn');
   if (total) saveHistory(q.kind, q.topicId || q.nodeId || '', q.title, q.correct, total);
+  const award = typeof QuaTang === 'undefined' ? null : QuaTang.earn(S, {
+    kind: q.kind, correct: q.correct, total, finished: !failed && q.log.length === total
+  });
   const fresh = checkBadges(); save();
   const afterStage = gardenStage(S.xp);
   const gated = q.kind === 'lesson' || q.kind === 'skip';
   const good = !failed && (q.kind === 'speed' ? q.correct >= 5 : gated ? passed : acc >= 60);
-  if (good) { sfx('win'); confetti(); }
+  if (good) { sfx('win'); if (!award) confetti(); }
   const next = q.kind === 'lesson' && passed ? nextTopic() : null;
   const head = q.kind === 'speed' ? (q.correct + ' điểm') : (q.correct + ' / ' + total + ' câu đúng');
   const title = failed ? (q.timeUp ? '⏰ Hết giờ rồi!' : '💧 Cây khát nước rồi!') : q.kind === 'speed' ? (good ? 'Nhanh quá!' : 'Lần sau sẽ nhanh hơn!')
@@ -1322,6 +1329,7 @@ function finishQuiz() {
   if (upTier) $('#upTier').onclick = () => showIntro(getTopic(q.topicId), upTier);
   const gc = $('#getCert'); if (gc) gc.onclick = () => showCertificate({ kind: 'island', grade: S.grade });
   onModalClose = render;
+  if (award) QuaTang.attach(award);
 }
 
 /* ============================== CÁC TRÒ CHƠI ============================== */

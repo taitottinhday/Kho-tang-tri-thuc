@@ -5,28 +5,28 @@ const ClassPractice = (() => {
     listen: 'Nghe viết từ ngữ', order: 'Xếp tiếng thành cụm từ', sort: 'Chọn nhóm chính tả' };
   const pictures = { '1f414': 'gà', '1f407': 'thỏ', '1f986': 'vịt', '1f422': 'rùa', '1f43f': 'sóc', '1f33b': 'hoa hướng dương', '1f34e': 'táo', '1f4da': 'sách' };
   const samples = [
-    ['choice','c-k-q','Em dùng gì để cắt giấy?','cái kéo',['cái kéo','cái céo','cái quéo']],
-    ['choice','d-gi-r','Chọn cụm từ viết đúng.','giữ gìn',['giữ gìn','dữ dìn','rữ rìn']],
-    ['choice','hoi-nga','Chọn cụm từ viết đúng để điền vào câu “Em luôn … giúp bạn.”','sẵn sàng',['sẵn sàng','sẳn sàng']],
-    ['picture','g-gh','Nhìn tranh và chọn tên viết đúng.','con gà',['con gà','con ghà'],'1f414'],
-    ['picture','d-gi-r','Nhìn tranh và chọn tên viết đúng.','con rùa',['con rùa','con dùa','con giùa'],'1f422'],
-    ['picture','s-x','Nhìn tranh và chọn tên viết đúng.','con sóc',['con sóc','con xóc'],'1f43f'],
-    ['fill','s-x','Các bạn chơi ngoài ___ân trường.','s'],
-    ['fill','l-n','Bé đội ___ón khi ra nắng.','n'],
-    ['fill','ch-tr','Bạn Lan ___ăm chỉ học bài.','ch'],
-    ['fill','hoi-nga','Mẹ luôn ___ sàng giúp đỡ mọi người.','sẵn'],
-    ['listen','c-k-q','Nghe rồi viết lại cụm từ.','con kiến'],
-    ['listen','ch-tr','Nghe rồi viết lại cụm từ.','trăng tròn'],
-    ['listen','s-x','Nghe rồi viết lại cụm từ.','xinh xắn'],
-    ['listen','d-gi-r','Nghe rồi viết lại cụm từ.','gia đình'],
-    ['listen','l-n','Nghe rồi viết lại cụm từ.','lá non'],
-    ['listen','hoi-nga','Nghe rồi viết lại cụm từ.','dễ thương'],
-    ['order','ch-tr','Xếp các tiếng thành cụm từ chỉ hoạt động dưới nước.','chèo thuyền'],
-    ['order','s-x','Xếp các tiếng thành cụm từ chỉ nơi học sinh chơi giờ ra chơi.','sân trường'],
-    ['order','l-n','Xếp các tiếng thành cụm từ chỉ bộ phận của cây.','lá cây'],
-    ['sort','d-gi-r','“Dịu dàng” có hai tiếng bắt đầu bằng chữ nào?','d',['d','gi','r']],
-    ['sort','hoi-nga','Tiếng “nhẫn” trong “kiên nhẫn” mang dấu nào?','ngã',['hỏi','ngã','nặng']],
-    ['sort','s-x','“Xinh xắn” có hai tiếng bắt đầu bằng chữ nào?','x',['s','x']]
+    ['choice','l1-08','Em dùng gì để cắt giấy?','cái kéo',['cái kéo','cái céo','cái quéo']],
+    ['choice','l3-02','Chọn cụm từ viết đúng.','giữ gìn',['giữ gìn','dữ dìn','rữ rìn']],
+    ['choice','l2-04','Chọn cụm từ viết đúng để điền vào câu “Em luôn … giúp bạn.”','sẵn sàng',['sẵn sàng','sẳn sàng']],
+    ['picture','l2-05','Nhìn tranh và chọn tên viết đúng.','con gà',['con gà','con ghà'],'1f414'],
+    ['picture','l1-13','Nhìn tranh và chọn tên viết đúng.','con rùa',['con rùa','con dùa','con giùa'],'1f422'],
+    ['picture','l2-03','Nhìn tranh và chọn tên viết đúng.','con sóc',['con sóc','con xóc'],'1f43f'],
+    ['fill','l2-03','Các bạn chơi ngoài ___ân trường.','s'],
+    ['fill','l2-10','Bé đội ___ón khi ra nắng.','n'],
+    ['fill','l2-01','Bạn Lan ___ăm chỉ học bài.','ch'],
+    ['fill','l2-04','Mẹ luôn ___ sàng giúp đỡ mọi người.','sẵn'],
+    ['listen','l1-08','Nghe rồi viết lại cụm từ.','con kiến'],
+    ['listen','l2-01','Nghe rồi viết lại cụm từ.','trăng tròn'],
+    ['listen','l2-03','Nghe rồi viết lại cụm từ.','xinh xắn'],
+    ['listen','l3-02','Nghe rồi viết lại cụm từ.','gia đình'],
+    ['listen','l2-10','Nghe rồi viết lại cụm từ.','lá non'],
+    ['listen','l2-04','Nghe rồi viết lại cụm từ.','dễ thương'],
+    ['order','l2-01','Xếp các tiếng thành cụm từ chỉ hoạt động dưới nước.','chèo thuyền'],
+    ['order','l2-03','Xếp các tiếng thành cụm từ chỉ nơi học sinh chơi giờ ra chơi.','sân trường'],
+    ['order','l2-10','Xếp các tiếng thành cụm từ chỉ bộ phận của cây.','lá cây'],
+    ['sort','l3-02','“Dịu dàng” có hai tiếng bắt đầu bằng chữ nào?','d',['d','gi','r']],
+    ['sort','l2-04','Tiếng “nhẫn” trong “kiên nhẫn” mang dấu nào?','ngã',['hỏi','ngã','nặng']],
+    ['sort','l2-03','“Xinh xắn” có hai tiếng bắt đầu bằng chữ nào?','x',['s','x']]
   ];
   const seed = samples.map(([type, topic, prompt, answer, choices, image], i) => ({
     id: 'm' + i, type, topic, prompt, answer, choices, image,
@@ -45,7 +45,7 @@ const ClassPractice = (() => {
     if (isPick(type) && (choices.length < 2 || choices.length > 4 || choices.length !== new Set(choices).size || !choices.includes(answer) || choices.some(c => c.length > 70))) throw Error('Nhập 2–4 lựa chọn khác nhau, gồm cả đáp án đúng.');
     if (type === 'fill' && (prompt.match(/___/g) || []).length !== 1) throw Error('Câu điền chữ cần đúng một chỗ trống viết bằng ___.');
     if (type === 'order' && (answer.split(' ').length < 2 || answer.split(' ').length > 8 || new Set(answer.split(' ')).size < 2)) throw Error('Đáp án xếp tiếng cần 2–8 tiếng, trong đó có ít nhất hai tiếng khác nhau.');
-    if (type === 'picture' && !Object.hasOwn(pictures, image) && !(alt && image.length <= 160000 && /^data:image\/(?:webp|png|jpeg);base64,[A-Za-z0-9+/=]+$/.test(image))) throw Error('Chọn hình có sẵn hoặc tải ảnh lên và nhập mô tả ảnh.');
+    if (type === 'picture' && !Object.hasOwn(pictures, image) && !(alt && image.length <= 410000 && /^data:image\/(?:webp|png|jpeg);base64,[A-Za-z0-9+/=]+$/.test(image))) throw Error('Chọn hình có sẵn hoặc tải ảnh lên và nhập mô tả ảnh.');
     return { type, topic: topic.id, grades, prompt, answer, note, choices, image: type === 'picture' ? image : '', alt, active: q.active !== false };
   }
   let cachedQuestions, cachedSource;
@@ -86,11 +86,16 @@ const ClassPractice = (() => {
   const topicOpts = (topics,value) => topics.map(t => option(t.id,t.ten,t.id === value)).join('');
   function page() {
     return pageHeading('ÔN LUYỆN · LỚP ' + S.grade, 'Luyện theo chủ đề', 'Chọn lỗi chính tả em muốn luyện rồi chọn cách làm bài.') +
+      '<div class="practice-link"><span>Thầy cô có thể chia sẻ phiếu học tập và tài liệu cho lớp.</span><button class="soft-btn" data-view="docs">📚 Tài liệu của thầy cô</button></div>' +
       '<form id="practiceFilter" class="project-panel lesson-filter"><label>Chủ đề<select id="practiceTopic">' + option('all','Mọi chủ đề') + topicOpts(myTopics()) +
       '</select></label><label>Dạng bài<select id="practiceType">' + option('all','Trộn nhiều dạng') + typeOpts() +
       '</select></label><p id="practiceInfo" aria-live="polite"></p><button class="primary-btn big">Bắt đầu luyện →</button></form>';
   }
   function bindPractice() {
+    if (!window.__classQuestionsLoaded) {
+      window.__classQuestionsLoaded = true;
+      MayChu.loadQuestions().then(() => { if (currentView === 'practice') render(); });
+    }
     const form = $('#practiceFilter');
     form.onchange = () => {
       const type = $('#practiceType').value;
@@ -158,6 +163,7 @@ const ClassPractice = (() => {
     db.classQuestions = previous.filter(q => !ids.has(q.id)).concat(rows);
     try { localStorage.setItem(STORE_KEY,JSON.stringify(db)); }
     catch (error) { db.classQuestions = old; throw Error('Bộ nhớ trình duyệt đã đầy. Hãy thử ảnh nhỏ hơn.'); }
+    MayChu.saveQuestions(rows);
     updateChrome();
   }
   const uid = () => 'q' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2,10);

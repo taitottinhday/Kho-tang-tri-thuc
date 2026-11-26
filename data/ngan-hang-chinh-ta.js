@@ -202,7 +202,7 @@
         c("Cơn ___ó thổi mát rượi.", "gi", "d", "r"),
         c("Con thuyền xuôi ___òng sông.", "d", "gi", "r"),
         c("Bài này thật ___ễ dàng.", "d", "gi", "r"),
-        loi("Ngày tết, phố phường dộn ràng.", "dộn", "rộn"),
+        loi("Ngày Tết, phố phường dộn ràng.", "dộn", "rộn"),
         loi("Mẹ dạy em dữ gìn đồ dùng.", "dữ", "giữ"),
         loi("Bố mua một dỏ cam.", "dỏ", "giỏ"),
         nghe("Mẹ dịu dàng ru bé ngủ."),

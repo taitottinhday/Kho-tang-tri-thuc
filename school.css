@@ -41,6 +41,51 @@
 .class-type{font-weight:800;margin:0 0 8px}
 .practice-tokens{display:flex;justify-content:center;flex-wrap:wrap;gap:8px;margin:13px 0}
 #practiceOrder{display:block;padding:10px;background:#fff2db;color:#553920;border-radius:10px;text-align:center}
+.cloud-panel{border:2px solid #a6c9dc;background:linear-gradient(145deg,#fff,#f4fbff);color:#263958}
+.cloud-head,.cloud-class,.cloud-actions,.cloud-detail-head,.cloud-student-head,.cloud-doc,.cloud-doc-actions{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.cloud-head>div,.cloud-class>div,.cloud-student-head>div,.cloud-doc>div:first-child{min-width:0;flex:1}
+.cloud-head h2{font-size:clamp(20px,4vw,25px)}
+.cloud-head p{display:grid;gap:3px}
+.cloud-ok,.cloud-file{display:block;font-weight:850}
+.cloud-ok{color:#17643b}.cloud-file{color:#85511a}
+.cloud-login,.cloud-join,.cloud-note-form,.cloud-doc-form{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:end;gap:9px;margin:8px 0}
+.cloud-login label,.cloud-join label,.cloud-note-form label,.cloud-doc-form label{display:grid;gap:5px;margin:0;font-weight:750}
+.cloud-login input,.cloud-join input,.cloud-note-form textarea,.cloud-doc-form :is(input,select,textarea){width:100%;max-width:100%;min-height:42px;padding:8px 10px;border:1px solid #8ca1b9;border-radius:10px;background:#fff;color:#243755;font:inherit}
+.cloud-login p,.cloud-doc-form p{grid-column:1/-1;margin:0;overflow-wrap:anywhere}
+.cloud-class{justify-content:flex-start;padding:10px 0;border-bottom:1px solid #dce5f0}
+.cloud-class>div{display:grid;flex:1 1 130px;gap:3px}.cloud-class>div span{font-size:1.2rem;font-weight:900;letter-spacing:.12em;overflow-wrap:anywhere}
+.cloud-join{flex:1 1 260px;grid-template-columns:minmax(0,1fr) auto;margin:0}
+.cloud-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;margin:13px 0}
+.cloud-tabs button{min-height:42px;padding:8px 5px;border:1px solid #9eb3c9;border-radius:12px;background:#edf5fc;color:#293c58;font:inherit;font-weight:850;cursor:pointer}
+.cloud-tabs button[aria-selected="true"]{background:#245e82;color:#fff;border-color:#245e82}
+.cloud-tab-body{min-width:0;overflow-wrap:anywhere}
+.cloud-actions{justify-content:flex-start;margin:5px 0 10px}.cloud-actions p{flex:1 1 180px;margin:0}
+.cloud-import{padding:12px;margin:10px 0;background:#f0f6ff;border-radius:12px}
+.cloud-import h3,.cloud-tab-body h3{margin:3px 0 10px}
+.cloud-import label{display:grid;gap:6px;font-weight:750}
+.cloud-students,.cloud-question-list,.cloud-doc-list{display:grid;gap:7px}
+.cloud-student,.cloud-question,.cloud-doc{padding:10px 0;border-top:1px solid #dce5f0}
+.cloud-student-head,.cloud-question,.cloud-doc{align-items:center}
+.cloud-student small,.cloud-question small,.cloud-doc small,.cloud-doc span{display:block;color:#465d75;line-height:1.45;margin-top:3px}
+.cloud-detail{margin-top:12px;padding:12px;background:#eef6fc;color:#243755;border-radius:14px}
+.cloud-detail h3{margin:3px 0}.cloud-detail summary{min-height:40px;padding:8px 0;font-weight:800;cursor:pointer}
+.cloud-note-form,.cloud-doc-form{grid-template-columns:1fr;margin:10px 0}
+.cloud-note-form button,.cloud-doc-form button{justify-self:start}
+.cloud-doc-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.cloud-doc-actions{flex:none;justify-content:flex-end}
+.cloud-panel :is(button,.soft-btn,.primary-btn),.practice-link button{min-height:42px}
+.docs-view{max-width:940px;margin:0 auto}.docs-view .page-heading{margin-bottom:12px}
+.docs-view .cloud-doc{align-items:flex-start}
+.docs-view .cloud-doc-actions{flex:none}
+@media(max-width:430px){
+  .cloud-login,.cloud-join{grid-template-columns:1fr}
+  .cloud-login button,.cloud-join button{justify-self:start}
+  .cloud-doc-fields{grid-template-columns:1fr}
+  .cloud-doc{align-items:flex-start}
+  .cloud-doc-actions{width:100%;justify-content:flex-start}
+  .cloud-student-head{align-items:flex-start}
+  .cloud-panel{padding:12px}
+}
 .streak-stage{display:flex;align-items:center;gap:clamp(14px,4vw,36px);padding:clamp(14px,3vw,26px);margin-bottom:18px;
   background:radial-gradient(ellipse at 18% 80%,#ffe398,#fff0df 51%,#fff9ed);color:#583320;border:1px solid #e2aa7a;border-radius:24px}
 .streak-stage h2{font-size:clamp(21px,4vw,35px);line-height:1.15;margin:0}
@@ -64,4 +109,15 @@ body.calm :is(.streak-mascot,.streak-pill>span){animation:none!important}
 @media(prefers-reduced-motion:reduce){.streak-mascot,.streak-pill>span{animation:none!important}}
 @media(max-width:410px){
   .lesson-filter{grid-template-columns:1fr}
+}
+/* Trên điện thoại hẹp, tiêu đề kĩ năng và nhãn trạng thái dùng hai hàng để còn đủ chiều rộng đọc. */
+@media(max-width:380px){
+  .pf-card .skill-top{align-items:flex-start;flex-direction:column;gap:4px}
+  .pf-card .skill-top>b{min-width:0;max-width:100%;white-space:normal;overflow-wrap:anywhere}
+}
+/* Nền lễ dùng ba cột ở điện thoại hẹp; nhãn “Khai giảng” luôn nằm trên một dòng. */
+@media(max-width:420px){
+  html.cd-painted body .cd-pick .cd-chips{grid-template-columns:repeat(3,minmax(0,1fr))!important}
+  html.cd-painted body .cd-pick .cd-chip{white-space:nowrap}
+  html.cd-painted body .cd-pick .cd-chip>b{font-size:.7rem!important;white-space:nowrap;letter-spacing:-.2px}
 }

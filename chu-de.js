@@ -3,9 +3,10 @@
    • Giáng sinh – tuyết rơi, cây thông (noel.js)
    • Tết – tranh cả nhà quây quần bên nồi bánh chưng, ngọn lửa bập bùng, đèn lồng phát sáng, hoa đào – hoa mai rơi, pháo hoa
    • Trung thu – trăng rằm, đèn ông sao phát sáng, đom đóm, đèn lồng bay lên
-   • Khai giảng – nắng, mây trôi, máy bay giấy, bóng bay, ngôi trường cờ đỏ bay
-   • 20/11 – cánh hoa rơi, bó hoa lay, ánh nắng tri ân thầy cô
-   • Thiếu nhi / Hè – bong bóng xà phòng, sóng biển, quả bóng nảy
+   • Khai giảng – sân trường, mây trôi, máy bay giấy
+   • 20/11 – tranh tri ân thầy cô, cánh hoa và ánh nắng hiên thư viện
+   • Thiếu nhi – hội thả diều, bong bóng và mặt biển lấp lánh
+   • Vườn xanh – thỏ đọc sách bên suối, bướm và đom đóm
    Tự động theo ngày (Cài đặt → Cảnh nền); “Giảm chuyển động” → mọi thứ đứng yên.
    Cách nối với phần Noel cũ: mọi mùa đều dùng bộ áo “html.noel” (một bầu trời liền mạch cho mọi trang) nhưng đổi bảng màu
    bằng html[data-season=…]; riêng tuyết, cây thông, dây đèn, mũ Noel, Lịch Noel chỉ chạy khi mùa là Noel (noelOn()). */
@@ -15,11 +16,12 @@
     noel:      { icon: '🎄', name: 'Giáng sinh', meta: '#b31c35', hint: 'Tuyết rơi, cây thông' },
     tet:       { icon: '🧧', name: 'Tết',        meta: '#8f1620', hint: 'Cả nhà quây quần bên lửa', art: 'assets/le-hoi-0.webp', fx: 'petal', ax: .55 },
     trungthu:  { icon: '🌕', name: 'Trung thu',  meta: '#3a1d6b', hint: 'Trăng rằm, đèn ông sao', art: 'assets/le-hoi-1.webp', fx: 'firefly', ax: .5 },
-    khaigiang: { icon: '🏫', name: 'Khai giảng', meta: '#2679d0', hint: 'Cờ đỏ, bóng bay, mây trôi', fx: 'balloon' },
-    nhagiao:   { icon: '💐', name: '20/11',      meta: '#b83b78', hint: 'Hoa tri ân thầy cô', fx: 'rose' },
-    thieunhi:  { icon: '🎈', name: 'Thiếu nhi',  meta: '#0e93ad', hint: 'Biển xanh, bong bóng', fx: 'bubble' }
+    khaigiang: { icon: '🏫', name: 'Khai giảng', meta: '#24567a', nightMeta: '#0f2748', art: 'assets/canh-khai-giang.webp', fx: 'balloon' },
+    nhagiao:   { icon: '💐', name: '20/11',      meta: '#673b66', nightMeta: '#4a1330', art: 'assets/canh-nha-giao.webp', fx: 'rose' },
+    thieunhi:  { icon: '🎈', name: 'Thiếu nhi',  meta: '#146773', nightMeta: '#07384a', art: 'assets/canh-thieu-nhi.webp', fx: 'bubble', mobileX: .31 },
+    none:      { icon: '🌱', name: 'Vườn xanh', meta: '#235b41', nightMeta: '#112a20', art: 'assets/canh-vuon-xanh.webp', fx: 'firefly', mobileX: .26 }
   };
-  const ORDER = ['noel', 'tet', 'trungthu', 'khaigiang', 'nhagiao', 'thieunhi'];
+  const ORDER = ['noel', 'tet', 'trungthu', 'khaigiang', 'nhagiao', 'thieunhi', 'none'];
   const IMG = { w: 1120, h: 747 };
   const today = () => window.NOEL_TODAY ? new Date(window.NOEL_TODAY) : new Date();
   const calm = () => document.body.classList.contains('calm') || (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
@@ -46,39 +48,18 @@
   window.SEASONS = SEASONS;
   window.noelOn = () => seasonId() === 'noel';        // phần “Noel” cũ (tuyết, lịch, người tuyết…) chỉ chạy đúng mùa Noel
   window.seasonMeta = () => (SEASONS[seasonId()] || {}).meta || '';
+  window.seasonNightMeta = () => SEASONS[seasonId()].nightMeta || '';
   window.seasonIcon = () => (SEASONS[seasonId()] || {}).icon || '🌱';
 
-  /* ---------- Hình dựng sẵn (SVG) ---------- */
-  const cloud = (cls, top, dur, delay, sc) => '<svg class="cd-cloud ' + cls + '" style="top:' + top + 'vh;animation-duration:' + dur + 's;animation-delay:' + delay + 's;--sc:' + sc + '" viewBox="0 0 120 60" aria-hidden="true"><path d="M20 50a16 16 0 0 1 2-32 22 22 0 0 1 42-6 18 18 0 0 1 30 10 14 14 0 0 1 6 28z" fill="#fff" opacity=".95"/></svg>';
-  const sunSVG = '<svg class="cd-sun" viewBox="-100 -100 200 200" aria-hidden="true"><g class="cd-rays">' + Array.from({ length: 12 }, (_, i) => '<path transform="rotate(' + i * 30 + ')" d="M-7 -60 L0 -92 L7 -60Z" fill="#ffe07a"/>').join('') + '</g><circle r="46" fill="#ffd54a"/><circle r="46" fill="url(#cdsun)"/><circle cx="-16" cy="-6" r="4.5" fill="#7a4b12"/><circle cx="16" cy="-6" r="4.5" fill="#7a4b12"/><path d="M-14 12 Q0 26 14 12" fill="none" stroke="#7a4b12" stroke-width="4" stroke-linecap="round"/><circle cx="-28" cy="8" r="7" fill="#ff9a7a" opacity=".55"/><circle cx="28" cy="8" r="7" fill="#ff9a7a" opacity=".55"/><defs><radialGradient id="cdsun"><stop offset=".6" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#ffb300" stop-opacity=".45"/></radialGradient></defs></svg>';
-  const plane = '<svg class="cd-plane" viewBox="0 0 60 40" aria-hidden="true"><path d="M2 20 L58 2 L40 38 L30 24Z" fill="#fff" stroke="#b9d7f5" stroke-width="2" stroke-linejoin="round"/><path d="M30 24 L58 2" stroke="#9cc3ea" stroke-width="2"/></svg>';
-  const gull = (x, y, d) => '<svg class="cd-gull" style="left:' + x + '%;top:' + y + 'vh;animation-delay:' + d + 's" viewBox="0 0 40 20" aria-hidden="true"><path d="M2 14 Q10 0 20 12 Q30 0 38 14" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"/></svg>';
-  const kid = (x, y, skin, hair, shirt, bag, dly) => '<g transform="translate(' + x + ' ' + y + ')"><g class="cd-kid" style="animation-delay:' + dly + 's"><rect x="-13" y="-6" width="26" height="30" rx="9" fill="' + bag + '"/><rect x="-9" y="-2" width="18" height="26" rx="7" fill="' + shirt + '"/><circle cy="-16" r="11" fill="' + skin + '"/><path d="M-11 -17 Q-10 -29 0 -28 Q11 -29 11 -17 Q4 -23 -11 -17Z" fill="' + hair + '"/><circle cx="-4" cy="-15" r="1.7" fill="#3a2418"/><circle cx="4" cy="-15" r="1.7" fill="#3a2418"/><path d="M-3 -10 Q0 -7 3 -10" fill="none" stroke="#3a2418" stroke-width="1.5" stroke-linecap="round"/><rect x="-8" y="22" width="6" height="14" rx="3" fill="#35508a"/><rect x="2" y="22" width="6" height="14" rx="3" fill="#35508a"/></g></g>';
-  const flower = (x, y, r, c, d) => '<g transform="translate(' + x + ' ' + y + ')"><g class="cd-flower" style="animation-delay:' + d + 's">' + [0, 72, 144, 216, 288].map(a => '<ellipse rx="' + r * .5 + '" ry="' + r * .72 + '" cy="' + -r * .55 + '" transform="rotate(' + a + ')" fill="' + c + '"/>').join('') + '<circle r="' + r * .34 + '" fill="#ffd54a"/></g></g>';
-  const bouquet = (x, flip, sc) => '<g transform="translate(' + x + ' ' + 220 * (1 - (sc || 1)) + ') scale(' + (flip ? -1 : 1) * (sc || 1) + ' ' + (sc || 1) + ')"><path d="M-6 220 Q0 150 -34 100 M0 220 Q2 140 4 78 M6 220 Q12 150 44 104" stroke="#2f9e5b" stroke-width="5" fill="none" stroke-linecap="round"/><path d="M-26 210 L26 210 L16 160 L-16 160Z" fill="#ffd9e6"/><path d="M-12 164 Q0 150 12 164" fill="#ffbfd5"/>' +
-    flower(-34, 96, 26, '#ff7aa8', 0) + flower(4, 70, 30, '#ffb3c8', .6) + flower(44, 100, 25, '#ffd54a', 1.2) + flower(-8, 120, 20, '#ffffff', 1.8) + flower(24, 128, 19, '#ff7aa8', .3) + '</g>';
-
-  const SCENES = {
-    khaigiang: '<svg viewBox="0 0 1200 230" preserveAspectRatio="xMidYMax slice" aria-hidden="true"><path d="M0 150 Q200 110 420 140 T820 130 T1200 120 V230 H0Z" fill="#7fd36e"/><path d="M0 185 Q300 150 620 178 T1200 168 V230 H0Z" fill="#5cc25a"/>' +
-      '<g transform="translate(470 40)"><rect x="0" y="62" width="260" height="110" rx="6" fill="#ffe9ad"/><rect x="-14" y="46" width="288" height="26" rx="8" fill="#d6453b"/><path d="M60 46 L130 4 L200 46Z" fill="#c1372e"/><rect x="108" y="108" width="44" height="64" rx="6" fill="#8a5a2b"/><rect x="26" y="88" width="40" height="34" rx="5" fill="#8fd3ff"/><rect x="194" y="88" width="40" height="34" rx="5" fill="#8fd3ff"/><circle cx="130" cy="30" r="9" fill="#fff"/></g>' +
-      '<g transform="translate(396 30)"><rect x="-2" y="0" width="5" height="170" rx="2" fill="#9a6a3a"/><g class="cd-flag"><path d="M3 4 H64 V40 H3Z" fill="#e0242c"/><path d="M33 12 l3.4 10.4 h11 l-9 6.6 3.4 10.4 -8.8 -6.4 -8.8 6.4 3.4 -10.4 -9 -6.6 h11z" fill="#ffd400" transform="translate(-1 -3) scale(.9)"/></g></g>' +
-      '<g transform="translate(110 150)"><rect x="-6" y="30" width="12" height="46" fill="#8a5a2b"/><circle cx="0" cy="12" r="44" fill="#3fae5a"/><circle cx="-26" cy="30" r="26" fill="#4cc069"/><circle cx="28" cy="28" r="28" fill="#47b862"/></g>' +
-      '<g transform="translate(1090 150)"><rect x="-6" y="30" width="12" height="46" fill="#8a5a2b"/><circle cx="0" cy="12" r="44" fill="#3fae5a"/><circle cx="-26" cy="30" r="26" fill="#4cc069"/><circle cx="28" cy="28" r="28" fill="#47b862"/></g>' +
-      kid(820, 170, '#ffd9b3', '#3a2418', '#ff7a8a', '#3b82f6', 0) + kid(862, 172, '#f6c79b', '#2a1a12', '#ffd166', '#ef4444', .35) + kid(300, 172, '#ffe0c2', '#5a3a22', '#7bd88f', '#a855f7', .6) + '</svg>',
-    nhagiao: '<svg viewBox="0 0 1200 230" preserveAspectRatio="xMidYMax slice" aria-hidden="true"><path d="M0 150 Q300 120 600 148 T1200 136 V230 H0Z" fill="#ffd9c7"/><path d="M0 188 Q300 160 640 184 T1200 176 V230 H0Z" fill="#ffc2b2"/>' +
-      bouquet(120, false) + bouquet(1080, true) + bouquet(300, true, .7) + bouquet(900, false, .7) +
-      '<g transform="translate(540 100)"><rect x="-10" y="56" width="140" height="22" rx="5" fill="#e05a6d"/><rect x="0" y="36" width="124" height="22" rx="5" fill="#5aa7e8"/><rect x="8" y="16" width="108" height="22" rx="5" fill="#ffd166"/><rect x="14" y="20" width="96" height="3" fill="#fff" opacity=".6"/><circle cx="62" cy="2" r="16" fill="#e8484f"/><path d="M62 -14 q-2 -10 8 -12" stroke="#4a8f3a" stroke-width="4" fill="none" stroke-linecap="round"/><ellipse cx="72" cy="-18" rx="9" ry="5" fill="#5cb85c" transform="rotate(-25 72 -18)"/></g></svg>',
-    thieunhi: '<svg viewBox="0 0 1200 230" preserveAspectRatio="xMidYMax slice" aria-hidden="true"><g class="cd-wave w1"><path d="M-200 118 q50 -22 100 0 t100 0 t100 0 t100 0 t100 0 t100 0 t100 0 t100 0 t100 0 t100 0 t100 0 t100 0 t100 0 t100 0 V230 H-200Z" fill="#37c4dc"/></g><g class="cd-wave w2"><path d="M-200 136 q50 22 100 0 t100 0 t100 0 t100 0 t100 0 t100 0 t100 0 t100 0 t100 0 t100 0 t100 0 t100 0 t100 0 t100 0 V230 H-200Z" fill="#1fa8c9"/></g>' +
-      '<path d="M0 180 Q300 150 620 176 T1200 166 V230 H0Z" fill="#ffe3a1"/><path d="M0 205 Q300 188 700 202 T1200 196 V230 H0Z" fill="#ffd27a"/>' +
-      '<g transform="translate(130 80)"><path d="M0 130 Q10 60 -6 6" stroke="#8a5a2b" stroke-width="12" fill="none" stroke-linecap="round"/><g fill="#2fae5d"><path d="M-6 6 Q-50 -6 -76 30 Q-40 8 -6 6Z"/><path d="M-6 6 Q-40 -30 -62 -2 Q-30 -12 -6 6Z"/><path d="M-6 6 Q30 -34 62 -8 Q26 -12 -6 6Z"/><path d="M-6 6 Q40 -2 70 30 Q34 6 -6 6Z"/><path d="M-6 6 Q-8 -36 8 -50 Q6 -20 -6 6Z"/></g></g>' +
-      '<g transform="translate(1040 120)"><rect x="-3" y="-4" width="6" height="90" fill="#a37a52"/><path d="M-70 -2 Q0 -62 70 -2Z" fill="#ff5d73"/><path d="M-35 -2 Q-12 -40 0 -2 Q12 -40 35 -2Z" fill="#fff" opacity=".85"/></g>' +
-      '<g transform="translate(700 150)"><rect x="-44" y="22" width="88" height="40" rx="4" fill="#f2c26b"/><rect x="-60" y="2" width="30" height="60" rx="3" fill="#f2c26b"/><rect x="30" y="2" width="30" height="60" rx="3" fill="#f2c26b"/><path d="M-62 2 l15 -18 l15 18Z M28 2 l15 -18 l15 18Z" fill="#f2c26b"/><rect x="-8" y="38" width="16" height="24" rx="8" fill="#b88a45"/><rect x="42" y="-30" width="3" height="46" fill="#8a5a2b"/><path d="M45 -30 h26 l-8 8 8 8 h-26z" fill="#ff5d73"/></g>' +
-      '<g transform="translate(900 168)"><g class="cd-ball"><circle r="20" fill="#fff"/><path d="M0 -20 A20 20 0 0 1 17 -10 L0 0Z" fill="#ff5d73"/><path d="M17 -10 A20 20 0 0 1 14 14 L0 0Z" fill="#ffd54a"/><path d="M14 14 A20 20 0 0 1 -14 14 L0 0Z" fill="#37a6e8"/><path d="M-14 14 A20 20 0 0 1 -20 0 L0 0Z" fill="#46c77a"/></g></g></svg>'
-  };
-  const SKIES = {
-    khaigiang: () => sunSVG + cloud('c1', 9, 110, -20, 1.2) + cloud('c2', 22, 150, -90, .8) + cloud('c3', 35, 130, -50, 1) + plane,
-    nhagiao: () => '<div class="cd-beams"></div><div class="cd-sparkles">' + Array.from({ length: 14 }, (_, i) => '<i style="left:' + (7 + (i * 53) % 88) + '%;top:' + (6 + (i * 37) % 60) + '%;animation-delay:' + (i % 7) * .4 + 's"></i>').join('') + '</div>',
-    thieunhi: () => sunSVG + cloud('c1', 10, 120, -30, 1.1) + cloud('c2', 26, 160, -100, .8) + gull(18, 20, 0) + gull(32, 14, 1.2) + gull(60, 28, .6)
+  // Trang trí nổi và chuyển động chậm, trên cùng một lớp với tranh nền.
+  const cloud = (y, period, delay, scale) => '<span class="cd-cloud-bank" style="--cloud-y:' + y +
+    '%;--cloud-period:' + period + 's;--cloud-delay:' + delay + 's;--cloud-scale:' + scale + '"></span>';
+  const plane = '<span class="cd-paper-plane"><i></i></span>';
+  const accents = {
+    khaigiang: () => cloud(11, 95, -21, 1) + cloud(19, 128, -66, .7) + plane,
+    thieunhi: () => '<div class="cd-surface-light"></div>',
+    nhagiao: () => '<div class="cd-veranda-light"></div>',
+    none: () => '<div class="cd-canopy-light"></div>'
   };
 
   /* ---------- Điểm sáng đặt đúng chỗ trên tranh (toạ độ theo tỉ lệ ảnh gốc 1120×747, ảnh phủ kín màn hình) ---------- */
@@ -87,7 +68,9 @@
     trungthu: [['moon', .63, .145, .17], ['lamp', .605, .36, .1], ['lamp', .24, .45, .07], ['lamp', .425, .66, .07], ['lamp', .235, .16, .07], ['lamp', .14, .33, .05], ['lamp', .1, .42, .04], ['water', .78, .66, .2]]
   };
   function artGeom(id) {
-    const W = innerWidth, H = innerHeight, s = Math.max(W / IMG.w, H / IMG.h), ax = SEASONS[id].ax == null ? .5 : SEASONS[id].ax;
+    const W = innerWidth, H = innerHeight, s = Math.max(W / IMG.w, H / IMG.h);
+    const scene = SEASONS[id];
+    const ax = (W < 640 ? scene.mobileX : null) ?? scene.ax ?? .5;
     const ox = (W - IMG.w * s) * ax, oy = (H - IMG.h * s) * .6;
     return { s, px: fx => ox + fx * IMG.w * s, py: fy => oy + fy * IMG.h * s, pos: (ax * 100) + '% 60%' };
   }
@@ -101,11 +84,11 @@
       el.style.cssText += ';left:' + (g.px(fx) - r) + 'px;top:' + (g.py(fy) - r) + 'px;width:' + r * 2 + 'px;height:' + r * 2 + 'px';
       el.hidden = g.px(fx) < -r || g.px(fx) > innerWidth + r;
     });
-    fireAt = { x: g.px(.5), y: g.py(.77) };
+    if (id === 'tet') fireAt = { x: g.px(.5), y: g.py(.77) };
   }
 
   /* ---------- Tầng hiệu ứng (canvas): cánh hoa, bóng bay, bong bóng, đom đóm, đèn trời, pháo hoa, tia lửa ---------- */
-  let cv = null, ctx = null, W = 0, H = 0, raf = 0, last = 0, parts = [], bursts = [], nextBurst = 0, fx = '', curId = '', fireAt = null;
+  let cv = null, ctx = null, W = 0, H = 0, raf = 0, last = 0, parts = [], bursts = [], nextBurst = 0, curId = '', fireAt = null;
   const R = (a, b) => a + Math.random() * (b - a);
   const PAL = { petal: ['#ff8fb3', '#ffb3c8', '#ffd23f', '#ffe27a', '#ff6f91'], rose: ['#ff7aa8', '#ffc2d6', '#ffe27a', '#ffffff', '#ff9ec0'], balloon: ['#ff5d73', '#ffd54a', '#46c77a', '#3b9cff', '#b66cff', '#ff9a3c'] };
   function sizeCanvas() {
@@ -119,6 +102,13 @@
     if (kind === 'bubble') { p.r = R(8, 26); p.y = anyY ? R(0, H) : H + 40; p.vy = -R(.3, .9); p.a = R(.5, .9); p.hue = Math.floor(R(170, 330)); }
     if (kind === 'lantern') { p.r = R(14, 20); p.y = anyY ? R(H * .3, H) : H + 40; p.vy = -R(.25, .55); p.x = R(0, W); p.a = .9; }
     if (kind === 'firefly') { p.r = R(2, 3.6); p.y = R(H * .4, H); p.vy = 0; p.vx = R(-.3, .3); p.ph = R(0, 6.3); p.a = 1; }
+    if (kind === 'kite' || kind === 'butterfly') {
+      p.r = kind === 'kite' ? R(12, 21) : R(6, 11);
+      p.y = kind === 'kite' ? R(H * .12, H * .34) : R(H * .42, H * .94);
+      p.x = Math.random() < .5 ? R(W * .05, W * .26) : R(W * .74, W * .95);
+      p.c = kind === 'kite' ? '#ffc866' : (Math.random() < .5 ? '#f4be74' : '#aee7e3');
+      p.vx = R(-.18, .18); p.a = .82;
+    }
     return p;
   }
   function ellipse(x, y, rx, ry, rot, col) { ctx.save(); ctx.translate(x, y); ctx.rotate(rot); ctx.beginPath(); ctx.ellipse(0, 0, rx, ry, 0, 0, 6.3); ctx.fillStyle = col; ctx.fill(); ctx.restore(); }
@@ -150,6 +140,25 @@
       const tw = .45 + .55 * Math.abs(Math.sin(p.ph)), g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.r * 5);
       g.addColorStop(0, 'rgba(230,255,140,' + tw + ')'); g.addColorStop(.3, 'rgba(200,255,100,' + tw * .45 + ')'); g.addColorStop(1, 'rgba(200,255,100,0)');
       ctx.fillStyle = g; ctx.fillRect(p.x - p.r * 5, p.y - p.r * 5, p.r * 10, p.r * 10);
+    } else if (p.kind === 'kite') {
+      ctx.save(); ctx.translate(p.x,p.y); ctx.rotate(Math.sin(p.w) * .25);
+      const r = p.r;
+      ctx.beginPath(); ctx.moveTo(0, r); ctx.quadraticCurveTo(-r * .8, r * 1.65, r * .1, r * 2.3);
+      ctx.quadraticCurveTo(r * .75, r * 2.8, -r * .2, r * 3.3);
+      ctx.strokeStyle = '#fff1c4'; ctx.lineWidth = 1.6; ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0,-r); ctx.lineTo(r * .78,0); ctx.lineTo(0,r); ctx.lineTo(-r * .78,0);
+      ctx.closePath(); ctx.fillStyle = p.c; ctx.fill();
+      ctx.beginPath(); ctx.moveTo(0,-r); ctx.lineTo(r * .78,0); ctx.lineTo(0,r);
+      ctx.closePath(); ctx.fillStyle = '#e56e60'; ctx.fill();
+      ctx.restore();
+    } else if (p.kind === 'butterfly') {
+      ctx.save(); ctx.translate(p.x,p.y); ctx.rotate(Math.sin(p.w) * .26);
+      const wing = Math.max(.18, Math.abs(Math.sin(p.w * 12)));
+      for (const side of [-1,1]) {
+        ellipse(side * p.r * .7 * wing,-p.r * .24,p.r * .65 * wing,p.r * .72,side * .3,p.c);
+        ellipse(side * p.r * .48 * wing,p.r * .48,p.r * .46 * wing,p.r * .4,side * -.25,p.c);
+      }
+      ellipse(0,p.r * .13,1.25,p.r * .72,0,'#56432c'); ctx.restore();
     } else if (p.kind === 'ember') {
       const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.r * 2.6); g.addColorStop(0, 'rgba(255,240,170,' + p.a + ')'); g.addColorStop(.4, 'rgba(255,150,40,' + p.a * .7 + ')'); g.addColorStop(1, 'rgba(255,90,20,0)');
       ctx.fillStyle = g; ctx.fillRect(p.x - p.r * 2.6, p.y - p.r * 2.6, p.r * 5.2, p.r * 5.2);
@@ -160,6 +169,11 @@
     if (p.kind === 'petal' || p.kind === 'rose') { p.y += p.vy * k; p.x += Math.sin(p.w) * .7 * k; if (p.y > H + 20) Object.assign(p, mk(p.kind)); }
     else if (p.kind === 'balloon' || p.kind === 'bubble' || p.kind === 'lantern') { p.y += p.vy * k; p.x += Math.sin(p.w) * .5 * k; if (p.y < -60) Object.assign(p, mk(p.kind)); }
     else if (p.kind === 'firefly') { p.ph += .05 * k; p.x += (p.vx + Math.sin(p.w * 2) * .4) * k; p.y += Math.cos(p.w * 1.7) * .35 * k; if (p.x < -10) p.x = W + 8; if (p.x > W + 10) p.x = -8; }
+    else if (p.kind === 'kite' || p.kind === 'butterfly') {
+      p.x += (p.vx + Math.sin(p.w) * .48) * k; p.y += Math.cos(p.w) * .46 * k;
+      if (p.x < -35 || p.x > W + 35) Object.assign(p,mk(p.kind,true));
+      p.y = Math.max(20,Math.min(H - 35,p.y));
+    }
     else if (p.kind === 'ember') { p.y += p.vy * k; p.x += p.vx * k + Math.sin(p.w) * .3 * k; p.a -= .011 * k; p.r *= .997; }
   }
   function burst() { // pháo hoa Tết
@@ -186,15 +200,19 @@
     ctx.globalAlpha = 1;
   }
   function startFx(kind, id) {
-    stopFx(); fx = kind; curId = id; if (!kind) return;
+    stopFx(); curId = id; if (!kind) return;
     cv = document.createElement('canvas'); cv.className = 'noel-snow cd-fx'; cv.setAttribute('aria-hidden', 'true'); document.body.appendChild(cv); sizeCanvas();
-    const N = { petal: 26, rose: 30, balloon: 9, bubble: 20, firefly: 22 }[kind] || 20;
-    parts = Array.from({ length: Math.round(N * Math.min(1, Math.max(.55, W * H / 700000))) }, () => mk(kind, true));
+    const ambient = Boolean(accents[id]);
+    if (ambient) cv.classList.add('cd-ambient-fx');
+    const count = { petal: 26, rose: 22, balloon: 6, bubble: 16, firefly: 22 }[kind] || 20;
+    parts = Array.from({ length: Math.round(count * Math.min(1, Math.max(.55, W * H / 700000))) }, () => mk(kind, true));
     if (id === 'trungthu') for (let i = 0; i < 4; i++) parts.push(mk('lantern', true));
+    if (id === 'thieunhi') for (let i = 0; i < 2; i++) parts.push(mk('kite',true));
+    if (id === 'none') for (let i = 0; i < 4; i++) parts.push(mk('butterfly',true));
     nextBurst = 2500; last = 0;
     if (calm()) draw(); else raf = requestAnimationFrame(tick);
   }
-  function stopFx() { cancelAnimationFrame(raf); raf = 0; parts = []; bursts = []; if (cv) { cv.remove(); cv = null; ctx = null; } fx = ''; }
+  function stopFx() { cancelAnimationFrame(raf); raf = 0; parts = []; bursts = []; if (cv) { cv.remove(); cv = null; ctx = null; } }
   addEventListener('resize', () => { if (cv) { sizeCanvas(); parts.forEach(p => { if (p.x > W) p.x = R(0, W); }); if (!raf) draw(); } if (curId && SEASONS[curId] && SEASONS[curId].art) layoutArt(curId); });
 
   /* ---------- Dựng / gỡ cảnh ---------- */
@@ -203,42 +221,64 @@
     removeScene();
     const S0 = SEASONS[id]; if (!S0 || id === 'noel') return;
     const sky = document.createElement('div'); sky.className = 'cd-sky cd-' + id; sky.setAttribute('aria-hidden', 'true');
-    if (S0.art) { sky.style.setProperty('--art', 'url(' + S0.art + ')'); sky.innerHTML = '<div class="cd-art"></div>' + glowHTML(id); }
-    else sky.innerHTML = (SKIES[id] ? SKIES[id]() : '');
+    sky.style.setProperty('--art', 'url(' + S0.art + ')');
+    sky.innerHTML = '<div class="cd-art"></div>' + glowHTML(id) + (accents[id]?.() || '');
     document.body.insertBefore(sky, document.body.firstChild);
-    if (SCENES[id]) { const sc = document.createElement('div'); sc.className = 'cd-scene cd-' + id; sc.setAttribute('aria-hidden', 'true'); sc.innerHTML = SCENES[id]; document.body.insertBefore(sc, document.body.firstChild); }
     layoutArt(id);
   }
-  function removeScene() { document.querySelectorAll('.cd-sky,.cd-scene').forEach(e => e.remove()); fireAt = null; }
+  function removeScene() { document.querySelector('.cd-sky')?.remove(); fireAt = null; }
 
   /* ---------- Thẻ đổi cảnh nền (Trang học + Cài đặt) ---------- */
   function chips(cur, withAuto) {
     const auto = db.settings.season == null || db.settings.season === 'auto';
-    const items = ORDER.map(id => [id, SEASONS[id].icon, SEASONS[id].name]).concat([['none', '🌱', 'Vườn xanh']]);
+    const items = ORDER.map(id => [id, SEASONS[id].icon, SEASONS[id].name]);
     if (withAuto) items.unshift(['auto', '🗓️', 'Tự động']);
-    return items.map(([id, ic, nm]) => '<button class="cd-chip' + ((id === 'auto' ? auto : (!auto && id === cur)) ? ' on' : '') + '" data-season-pick="' + id + '" aria-pressed="' + (id === 'auto' ? auto : (!auto && id === cur)) + '"><span class="cd-ic">' + ic + '</span><b>' + nm + '</b></button>').join('');
+    return items.map(([id, ic, nm]) => {
+      const selected = id === 'auto' ? auto : !auto && id === cur;
+      const preview = accents[id] ? '<span class="cd-preview" aria-hidden="true"></span>' : '<span class="cd-ic" aria-hidden="true">' + ic + '</span>';
+      return '<button class="cd-chip' + (selected ? ' on' : '') + '" data-season-pick="' + id + '" aria-pressed="' + selected + '">' +
+        preview + '<b>' + nm + '</b></button>';
+    }).join('');
   }
   function pickCard() {
     const cur = seasonId(), nm = (SEASONS[cur] || { name: 'Vườn xanh' }).name;
-    return '<section class="cd-pick" aria-label="Đổi cảnh nền"><div class="cd-pick-head"><h2>🎨 Đổi cảnh nền</h2><p>Chạm một biểu tượng để đổi nền: đang là <b>' + nm + '</b></p></div><div class="cd-chips">' + chips(cur, true) + '</div></section>';
+    const look = accents[cur] ? '<button class="cd-look-btn" type="button" data-cd-look>Ngắm cảnh</button>' : '';
+    return '<section class="cd-pick" aria-label="Đổi cảnh nền"><div class="cd-pick-head"><h2>🎨 Đổi cảnh nền</h2><p>Đang dùng <b>' + nm + '</b></p>' +
+      look + '</div><div class="cd-chips">' + chips(cur, true) + '</div></section>';
   }
   function pickSeason(id) {
+    const restoreFocus = document.activeElement?.dataset.seasonPick === id;
     db.settings.season = id; if (id !== 'auto') db.settings.noel = 'auto'; save();
     if (typeof sfx === 'function') sfx('tap'); render();
+    if (restoreFocus) document.querySelector('[data-season-pick="' + id + '"]')?.focus({ preventScroll:true });
     const nm = id === 'auto' ? 'Tự động theo ngày' : (SEASONS[id] ? SEASONS[id].name : 'Vườn xanh'); if (typeof toast === 'function') toast((id === 'auto' ? '🗓️ ' : (SEASONS[id] ? SEASONS[id].icon : '🌱') + ' ') + 'Cảnh nền: ' + nm);
   }
-  function bindPick(root) { root.querySelectorAll('[data-season-pick]').forEach(b => b.onclick = () => pickSeason(b.dataset.seasonPick)); }
+  function bindPick(root) {
+    root.querySelectorAll('[data-season-pick]').forEach(b => b.onclick = () => pickSeason(b.dataset.seasonPick));
+    const look = root.querySelector('[data-cd-look]');
+    if (!look) return;
+    look.onclick = () => {
+      openModal(SEASONS[seasonId()].name, '', '', 'cd-look-card');
+      document.querySelector('.cd-look-card .modal-close').focus();
+      onModalClose = () => look.focus({ preventScroll:true });
+    };
+  }
 
   function apply(view) {
-    const id = seasonId(), skin = id !== 'none', root = document.documentElement;
-    root.classList.toggle('noel', skin);
-    if (skin) root.dataset.season = id; else delete root.dataset.season;
+    const id = seasonId(), root = document.documentElement;
+    root.classList.add('noel'); // Dùng chung lớp đặt màu và xếp chồng của các cảnh.
+    root.classList.toggle('cd-painted', Boolean(accents[id]));
+    root.dataset.season = id;
     const logo = document.getElementById('brandLogo');
-    if (logo) { const ic = skin ? SEASONS[id].icon : '🌱'; if (logo.dataset.ic !== ic) { logo.dataset.ic = ic; logo.textContent = ic; } }
+    if (logo) { const ic = SEASONS[id].icon; if (logo.dataset.ic !== ic) { logo.dataset.ic = ic; logo.textContent = ic; } }
     const meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) { if (!meta.dataset.base) meta.dataset.base = meta.content; meta.content = skin ? (SEASONS[id].meta) : meta.dataset.base; }
-    if (curId !== id || (!document.querySelector('.cd-sky') && !document.querySelector('.cd-scene') && SEASONS[id] && id !== 'noel' && !SEASONS[id].fxOnly)) {
-      if (id !== 'noel' && skin) { buildScene(id); startFx(SEASONS[id].fx, id); } else { removeScene(); stopFx(); curId = id; }
+    if (meta) {
+      if (!meta.dataset.base) meta.dataset.base = meta.content;
+      const scene = SEASONS[id];
+      meta.content = root.dataset.theme === 'night' && scene.nightMeta ? scene.nightMeta : scene.meta;
+    }
+    if (curId !== id || (id !== 'noel' && !document.querySelector('.cd-sky'))) {
+      if (id !== 'noel') { buildScene(id); startFx(SEASONS[id].fx, id); } else { removeScene(); stopFx(); curId = id; }
     }
     const v = view || currentView;
     if (v === 'home' && !document.querySelector('.cd-pick')) {
@@ -255,10 +295,12 @@
     }
   }
   if (typeof AFTER_RENDER !== 'undefined') AFTER_RENDER.push(apply);
-  new MutationObserver(() => {
+  function syncMotion() {
     if (!cv) return; const c = calm();
     if (c) { cancelAnimationFrame(raf); raf = 0; draw(); } else if (!raf) { last = 0; raf = requestAnimationFrame(tick); }
-  }).observe(document.body, { attributes: true, attributeFilter: ['class'] });
+  }
+  new MutationObserver(syncMotion).observe(document.body, { attributes: true, attributeFilter: ['class'] });
+  window.matchMedia('(prefers-reduced-motion: reduce)').addEventListener('change', syncMotion);
   window.applySeason = apply;
   apply(currentView);
   if (typeof applyNoel === 'function') applyNoel(currentView);

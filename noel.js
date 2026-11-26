@@ -236,7 +236,7 @@
   /* ---------- Bật / tắt ---------- */
   function applyNoel(view) {
     const on = noelOn();
-    document.documentElement.classList.toggle('noel', window.seasonId ? seasonId() !== 'none' : on); // bộ áo chung cho mọi mùa (chu-de.js); riêng tuyết/cây thông/Lịch Noel chỉ chạy khi on
+    document.documentElement.classList.toggle('noel', Boolean(window.seasonId) || on); // Bộ áo chung của các cảnh. Tuyết chỉ chạy vào Noel.
     noelWords(on); syncMeta();
     if (!on) { stopSnow(); stopSleigh(); const sc = document.querySelector('.noel-scene'); if (sc) sc.remove(); const li = document.querySelector('.noel-lights'); if (li) li.remove(); return; }
     ensureScene(); ensureLights(); startSnow();
@@ -254,7 +254,8 @@
     const meta = document.querySelector('meta[name="theme-color"]'); if (!meta) return;
     if (!meta.dataset.base) meta.dataset.base = meta.content;
     const sm = window.seasonMeta && seasonMeta();
-    meta.content = document.documentElement.classList.contains('noel') ? (document.documentElement.dataset.theme === 'night' ? '#3b0c1a' : (sm || '#b31c35')) : meta.dataset.base;
+    const nightMeta = window.seasonNightMeta?.() || '#3b0c1a';
+    meta.content = document.documentElement.classList.contains('noel') ? (document.documentElement.dataset.theme === 'night' ? nightMeta : (sm || '#b31c35')) : meta.dataset.base;
   }
   // Công tắc “Giảm chuyển động” / “Ngày – Đêm” trong Cài đặt đổi class ngay mà không vẽ lại trang → tuyết, xe tuần lộc
   // và màu thanh trạng thái phải theo kịp ngay lập tức

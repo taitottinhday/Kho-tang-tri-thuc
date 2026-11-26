@@ -53,3 +53,35 @@ body:has(.sidebar.mobile-open) .voyage-dock{visibility:hidden}
 
 /* Phản hồi khi làm bài: chip “+10 XP” không bao giờ gãy dòng */
 .pl-gain{white-space:nowrap;flex:none}
+/* Cài đặt → Lớp học của em (đợt 16) */
+.class-join{display:flex;gap:10px;flex-wrap:wrap;margin-top:8px}
+.class-join input{flex:1 1 160px;min-width:0;min-height:46px;padding:8px 12px;border:2px solid #cfe0d6;border-radius:14px;font:700 1.25rem/1 ui-monospace,Consolas,monospace;letter-spacing:.2em;text-transform:uppercase;background:#fff;color:#1d2b25}
+.class-join .primary-btn{flex:0 0 auto}
+.class-err{color:#b3261e;min-height:1.2em;margin:6px 0 0;font-weight:600}
+.class-code{font-family:ui-monospace,Consolas,monospace;letter-spacing:.12em;background:#e3f2ea;color:#16513b;padding:1px 8px;border-radius:8px}
+.set-hint{margin:4px 0 0}
+
+/* Bài thầy cô giao (đợt 18) + lối vào trang giáo viên */
+.nd-tasks{margin:0 0 16px;padding:14px 16px;border-radius:22px;background:#fff;border:3px solid #ffc94d;box-shadow:0 4px 0 rgba(150,90,0,.25);color:#2b2233}
+.nd-tasks h2{margin:0 0 10px;font-size:1.15rem;display:flex;align-items:center;gap:8px;flex-wrap:wrap;color:#7a3a05}
+.nd-tasks h2 span{display:inline-grid;place-items:center;min-width:26px;height:26px;padding:0 6px;border-radius:99px;background:#e23b4e;color:#fff;font-size:.85rem}
+.nd-tasks ul{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.nd-task{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 12px;border-radius:14px;background:#fff8e8}
+.nd-task.done{background:#eef8f0}
+.nd-ico{font-size:24px;line-height:1}
+.nd-info{flex:1 1 170px;min-width:0;display:grid}
+.nd-info b{font-size:1rem;color:#2b2233}.nd-info small{font-size:.88rem;color:#6a5a55}
+.nd-task button{flex:none;min-height:42px;white-space:nowrap}
+html[data-theme=night] .nd-tasks{background:#2c1422;border-color:#c99a32;color:#ffe8ee}
+html[data-theme=night] .nd-tasks h2{color:#ffd78a}
+html[data-theme=night] .nd-task{background:#3a1b2c}
+html[data-theme=night] .nd-info b{color:#ffe8ee}
+html[data-theme=night] .nd-info small{color:#d9bfca}
+.teacher-go-btn{display:inline-flex;align-items:center;text-decoration:none;min-height:46px}
+/* Bộ sưu tập quà: nút “Ngó thử / Xem” một hàng, không bị bóp */
+.qt-item .soft-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap;width:auto;min-width:112px;max-width:100%;padding-inline:10px}
+.qt-item .soft-btn .emo{width:1.2em;height:1.2em;flex:none}
+/* Luyện theo chủ đề: ô chọn không được đẩy nhau / tràn khỏi màn hình (tên bài dài) */
+.lesson-filter>label{min-width:0}
+.lesson-filter select,.lesson-filter input{width:100%;min-width:0;max-width:100%}
+@media(max-width:640px){.lesson-filter{grid-template-columns:minmax(0,1fr)}}

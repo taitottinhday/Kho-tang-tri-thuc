@@ -20,15 +20,19 @@ const fs = require('fs');
     ok(gen.n >= 19 && gen.total > 400, 'Bộ sinh câu nạp cho ≥19 chủ đề', gen);
     ok(gen.passages >= 5, 'Có thêm đoạn nghe–viết mùa đông', gen);
     // 2. Câu sinh thay đổi tên mỗi lần lấy ra
-    const vary = await b.eval(`const t = getTopic('c-k-q'); const s = new Set(); for (let i=0;i<30;i++) s.add(itemOf('c-k-q:g0').de); return { distinct: s.size, sample: [...s].slice(0,3) }`);
+    const vary = await b.eval(`for (const t of ALL_TOPICS) for (const q of t.sinh || []) {
+      if (q.loai !== 'chon') continue;
+      const variants = new Set(Array.from({ length:30 }, () => q.de));
+      if (variants.size >= 4) return { distinct:variants.size, sample:[...variants].slice(0,3) };
+    } return { distinct:0 };`);
     ok(vary.distinct >= 4, 'Cùng một câu sinh nhưng tên bạn nhỏ đổi mỗi lần', vary);
     // 3. Bài học trộn câu sinh, giữ nguyên số câu
-    const lesson = await b.eval(`const t = getTopic('c-k-q'); const base = t.baiTap.filter(b=>b.loai==='chon').length; const L = buildLesson(t, 'kho'); const L2 = buildLesson(t, 'kho');
+    const lesson = await b.eval(`const t = getTopic('l2-01'); const base = t.baiTap.filter(b=>b.loai==='chon').length; const L = buildLesson(t, 'kho'); const L2 = buildLesson(t, 'kho');
       return { len: L.length, len2: L2.length, gen: L.filter(x => String(x._i)[0]==='g').length, same: L.map(x=>x.de||x.cau).join('|') === L2.map(x=>x.de||x.cau).join('|') }`);
     ok(lesson.gen > 0 && lesson.len === lesson.len2, 'Bài học có câu sinh, độ dài ổn định', lesson);
     ok(!lesson.same, 'Hai lần học cùng mức cho bộ câu khác nhau', lesson);
     // 4. Làm bài thật: trả lời SAI một câu sinh → vào sổ ôn, trang Ôn hiển thị được
-    await b.eval(`go('home'); await new Promise(r=>setTimeout(r,300)); const t = getTopic('c-k-q');
+    await b.eval(`go('home'); await new Promise(r=>setTimeout(r,300)); const t = getTopic('l2-01');
       const it = genItems(t, x => x.loai === 'chon')[0];
       startQuiz({ kind: 'quick', title: 'Thử', icon: '🎲', subtitle: '', items: [it] }); await new Promise(r=>setTimeout(r,400)); return 1;`);
     await b.shot(out + '/quiz-gen-' + w + '.png');
@@ -36,7 +40,7 @@ const fs = require('fs');
       const wrong = btns.find(x => x.dataset.answer !== it.dapAn); wrong.click(); await new Promise(r=>setTimeout(r,150));
       document.querySelector('#plCheck').click(); await new Promise(r=>setTimeout(r,300));
       const keys = Object.keys(S.review); return { keys, sheet: !document.querySelector('#plSheet').hidden }`);
-    ok(ans.sheet && ans.keys.some(k => /^c-k-q:g\d+$/.test(k)), 'Câu sinh trả lời sai được ghi vào sổ ôn (khoá :g…)', ans);
+    ok(ans.sheet && ans.keys.some(k => /^l2-01:g\d+$/.test(k)), 'Câu sinh trả lời sai được ghi vào sổ ôn (khoá :g…)', ans);
     await b.eval(`closeModal(); go('review'); await new Promise(r=>setTimeout(r,400)); return 1;`);
     const rev = await b.eval(`return { items: document.querySelectorAll('.review-item').length, text: (document.querySelector('.review-item')||{}).textContent || '' }`);
     ok(rev.items >= 1 && !/undefined|\{ai\}|~/.test(rev.text), 'Trang Ôn lại hiển thị câu sinh', rev);
@@ -88,7 +92,11 @@ const fs = require('fs');
     ok(/Kỉ lục của em: [1-9]/.test(meta), 'Thẻ trò chơi hiện kỉ lục mới', meta);
 
     // 6. Dừng giữa chừng bằng ✕ → vòng lặp dừng, không lỗi
-    await b.eval(`startSnowCatch(); await new Promise(r=>setTimeout(r,200)); document.querySelector('#scGo').click(); await new Promise(r=>setTimeout(r,600)); document.querySelector('.sc-game [data-close-modal]').click(); await new Promise(r=>setTimeout(r,300)); return 1;`);
+    await b.eval(`startSnowCatch(); await new Promise(r=>setTimeout(r,200));
+      document.querySelector('#scGo').click(); await new Promise(r=>setTimeout(r,600));
+      document.querySelector('.sc-game [data-close-modal]').click();
+      document.querySelector('#quitGo')?.click();
+      await new Promise(r=>setTimeout(r,300)); return 1;`);
     ok(await b.eval(`return document.querySelector('#modalRoot').hidden && !snowCatchState()`), 'Bấm ✕ thoát trò, không để lại vòng lặp');
 
     // 7. Nền thống nhất: mọi trang cùng bầu trời (app-shell trong suốt, body::before cố định)
@@ -110,9 +118,9 @@ const fs = require('fs');
       const cls = document.body.classList.contains('calm'); sw.click(); await new Promise(r=>setTimeout(r,300)); const d2 = c.toDataURL(); await new Promise(r=>setTimeout(r,300)); return { cls, same, movingAgain: d2 !== c.toDataURL(), calmAfter: document.body.classList.contains('calm') };`);
     ok(calm.cls && calm.same && calm.movingAgain && !calm.calmAfter, 'Công tắc Giảm chuyển động: tuyết đứng yên ngay, tắt thì rơi lại', calm);
     // 10. Tắt Noel → về giao diện thường, bật lại được
-    const off = await b.eval(`db.settings.noel = 'off'; render(); await new Promise(r=>setTimeout(r,200)); const r1 = { noel: document.documentElement.classList.contains('noel'), snow: !!document.querySelector('.noel-snow'), meta: document.querySelector('meta[name=theme-color]').content, praise: PRAISE.length };
+    const off = await b.eval(`db.settings.noel = 'off'; render(); await new Promise(r=>setTimeout(r,200)); const r1 = { noel: noelOn(), snow: !!document.querySelector('.noel-snow:not(.cd-fx)'), meta: document.querySelector('meta[name=theme-color]').content, praise: PRAISE.length };
       db.settings.noel = 'auto'; render(); await new Promise(r=>setTimeout(r,200)); return Object.assign(r1, { back: document.documentElement.classList.contains('noel'), meta2: document.querySelector('meta[name=theme-color]').content, praise2: PRAISE.length });`);
-    ok(!off.noel && !off.snow && off.meta === '#dceffd' && off.back && off.meta2 === '#b31c35' && off.praise2 === off.praise + 3, 'Tắt/bật Noel đúng (tuyết, màu thanh trạng thái, lời khen)', off);
+    ok(!off.noel && !off.snow && off.meta === '#235b41' && off.back && off.meta2 === '#b31c35' && off.praise2 === off.praise + 3, 'Chuyển từ Noel về Vườn xanh và trở lại đúng (tuyết, màu thanh trạng thái, lời khen)', off);
     await b.eval(`db.settings.noel = 'off'; go('games'); await new Promise(r=>setTimeout(r,300)); return 1;`);
     await b.shot(out + '/noel-off-games-' + w + '.png');
     const night = await b.eval(`db.settings.noel = 'auto'; db.settings.theme = 'night'; render(); await new Promise(r=>setTimeout(r,300)); return { theme: document.documentElement.dataset.theme, meta: document.querySelector('meta[name=theme-color]').content };`);

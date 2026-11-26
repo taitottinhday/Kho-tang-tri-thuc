@@ -23,6 +23,7 @@
   const all = selector => Array.from(doc().querySelectorAll(selector));
   const visible = node => !!(node && node.getClientRects().length);
   function click(selector) {
+    if (el('dialog.qt') && !selector.startsWith('dialog.qt')) frame.contentWindow.eval('QuaTang.close()'); // quà che cả màn: bé phải đóng quà trước
     const node = el(selector);
     if (!visible(node) || node.disabled) throw new Error('Unavailable control ' + selector);
     node.click();
@@ -104,6 +105,22 @@
         const box = el('#dictIn');
         box.value = wrong ? 'sai' : el('#reveal').textContent.normalize('NFD');
         box.dispatchEvent(new Event('input'));
+      } else if (it.loai === 'phanLoai') {
+        it.words.forEach((w, k) => { click('[data-w="' + k + '"]'); const t = it.baskets.indexOf(w.b); click('[data-b="' + (wrong ? (t + 1) % it.baskets.length : t) + '"]'); });
+      } else if (it.loai === 'noiTu') {
+        it.pairs.forEach((p, k) => { click('[data-l="' + k + '"]'); const t = it.right.indexOf(p[1]); click('[data-r="' + (wrong ? (t + 1) % it.right.length : t) + '"]'); });
+      } else if (it.loai === 'goChu') {
+        const box = el('#dbType'); box.value = wrong ? 'zz' : it.dapAn; box.dispatchEvent(new Event('input'));
+      } else if (it.loai === 'suaLoi') {
+        const box = el('#dbFix'); box.value = wrong ? 'zz' : it.tuDung.normalize('NFD'); box.dispatchEvent(new Event('input'));
+      } else if (it.loai === 'nhinTranh') {
+        all('[data-answer]').find(c => (c.dataset.answer !== it.word) === wrong).click();
+      } else if (it.loai === 'chonCau') {
+        all('[data-answer]').find(c => (c.dataset.answer !== it.good) === wrong).click();
+      } else if (it.loai === 'sapXep') {
+        (wrong ? it.order : it.words.map((_, k) => k)).forEach(k => click('[data-k="' + k + '"]'));
+      } else if (it.loai === 'chonNhieu') {
+        it.chips.forEach((c, k) => { if (c.ok !== wrong) click('[data-c="' + k + '"]'); });
       } else throw new Error('Unknown question type ' + it.loai);
       click('#plCheck');
       check('Immediate feedback ' + turn, visible(el('#plSheet')) && !!el('.pl-sheet.' + (wrong ? 'bad' : 'good')));
@@ -328,7 +345,7 @@
     click('#questionNew');
     el('#questionType').value = 'fill';
     el('#questionType').dispatchEvent(new Event('change'));
-    el('#questionTopic').value = 's-x';
+    el('#questionTopic').value = 'l2-03';
     el('#questionPrompt').value = 'Em thích quả ___oài.';
     el('#questionAnswer').value = 'x';
     el('#questionNote').value = 'Xoài viết với x.';
@@ -336,7 +353,7 @@
     check('Teacher authors fill question', el('#bankEntries').textContent.includes('Em thích quả'));
     const importStatus = el('#questionStatus');
     const questions = new DataTransfer();
-    questions.items.add(new File([JSON.stringify([{type:'sort', grades:[2], topic:'s-x',
+    questions.items.add(new File([JSON.stringify([{type:'sort', grades:[2], topic:'l2-03',
       prompt:'Nhập kho thử', answer:'s', choices:['s','x']}])], 'test.json', {type:'application/json'}));
     el('#questionImport').files = questions.files;
     el('#questionImport').dispatchEvent(new Event('change'));
@@ -351,7 +368,7 @@
     check('Learner sees teacher note', el('.teacher-notes').textContent.includes('luyện thêm'));
     nav('games');
     click('[data-view=practice].primary-btn');
-    el('#practiceTopic').value = 's-x';
+    el('#practiceTopic').value = 'l2-03';
     el('#practiceType').value = 'fill';
     el('#practiceType').dispatchEvent(new Event('change',{bubbles:true}));
     click('#practiceFilter button');
@@ -368,7 +385,7 @@
     }
     check('Published question connects to learner', customSeen && fits() && visible(el('.lesson-complete')));
     click('#home');
-    for (const [type, topic] of [['picture','s-x'], ['order','s-x'], ['sort','s-x'], ['listen','ch-tr']]) {
+    for (const [type, topic] of [['picture','l2-03'], ['order','l2-03'], ['sort','l2-03'], ['listen','l2-01']]) {
       nav('games');
       click('[data-view=practice].primary-btn');
       el('#practiceTopic').value = topic;

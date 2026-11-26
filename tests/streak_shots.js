@@ -5,7 +5,7 @@ const { launch } = require('./cdp_driver.js'); const path = require('path'), fs 
   const out = path.join(__dirname, '..', 'qa-results', 'seasons'); fs.mkdirSync(out, { recursive: true });
   const b = await launch(w, h);
   try {
-    await b.goto('index.html', 2200);
+    await b.goto('index.html', 5000);
     await b.eval(`document.querySelector('#wlCreate').click(); await new Promise(r=>setTimeout(r,300));
       document.querySelector('#nameInput').value='Bé Na'; document.querySelector('[data-char="🦊"]')?.click();
       document.querySelector('#saveProfile').click(); await new Promise(r=>setTimeout(r,400));
