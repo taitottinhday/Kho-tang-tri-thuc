@@ -135,11 +135,47 @@ function tone(freq, start, dur, type, vol) {
   o.connect(g); g.connect(audioCtx.destination);
   o.start(audioCtx.currentTime + start); o.stop(audioCtx.currentTime + start + dur + 0.05);
 }
+/* iPhone/iPad (Safari, và mọi trình duyệt trên iOS) chặt hơn máy tính:
+   • chỉ cho phát âm thanh sau một cú chạm THẬT – touchend/click (pointerdown, touchstart không tính);
+   • Web Audio bị tắt tiếng khi gạt nút im lặng bên hông máy, trừ khi phiên âm thanh là “playback”;
+   • lần speechSynthesis.speak() đầu tiên phải nằm ngay trong cú chạm;
+   • chuyển ứng dụng / khoá màn hình thì bộ âm thanh bị “interrupted”, phải resume ở cú chạm sau.
+   → Mở khoá ở mọi cú chạm (rất nhẹ), báo cho nhạc nền biết khi đã mở khoá. */
+const IS_IOS = /iP(hone|ad|od)/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
+const SILENT_WAV = 'data:audio/wav;base64,UklGRkQDAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YSADAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgA==';
+let audioUnlocked = false, silentEl = null;
+const audioUnlockCbs = [];
+function getAudioCtx() {
+  if (!audioCtx) { const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return null; audioCtx = new AC(); }
+  return audioCtx;
+}
+function onAudioUnlock(cb) { if (audioUnlocked) cb(); else audioUnlockCbs.push(cb); }
+function unlockAudio() {
+  try { if (navigator.audioSession && navigator.audioSession.type !== 'playback') navigator.audioSession.type = 'playback'; } catch (e) { /* Safari < 16.4 */ }
+  const c = getAudioCtx();
+  if (c) {
+    if (c.state !== 'running') { try { c.resume(); } catch (e) {} }
+    try { const b = c.createBuffer(1, 1, 22050), src = c.createBufferSource(); src.buffer = b; src.connect(c.destination); src.start(0); } catch (e) {}
+  }
+  if (IS_IOS && !navigator.audioSession) {
+    // iOS cũ: phát một đoạn im lặng bằng thẻ <audio> để máy chuyển sang chế độ phát (nút im lặng không chặn nữa)
+    try { if (!silentEl) { silentEl = new Audio(SILENT_WAV); silentEl.setAttribute('playsinline', ''); silentEl.loop = true; silentEl.volume = 0.01; } if (silentEl.paused) { const pr = silentEl.play(); if (pr && pr.catch) pr.catch(() => {}); } } catch (e) {}
+  }
+  if (audioUnlocked) return;
+  audioUnlocked = true;
+  if (IS_IOS && 'speechSynthesis' in window) {
+    // “mồi” giọng đọc ngay trong cú chạm đầu tiên – sau đó web đọc được cả khi không có cú chạm
+    try { const u = new SpeechSynthesisUtterance(' '); u.volume = 0; u.lang = 'vi-VN'; speechSynthesis.speak(u); } catch (e) {}
+  }
+  audioUnlockCbs.splice(0).forEach(f => { try { f(); } catch (e) {} });
+}
+['touchend', 'click', 'keydown'].forEach(ev => document.addEventListener(ev, unlockAudio, { capture: true, passive: true }));
+document.addEventListener('visibilitychange', () => { if (!document.hidden && audioCtx && audioCtx.state !== 'running') { try { audioCtx.resume(); } catch (e) {} } });
 function sfx(kind) {
   if (!db.settings.sound) return;
   try {
-    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
-    if (audioCtx.state === 'suspended') audioCtx.resume();
+    if (!getAudioCtx()) return;
+    if (audioCtx.state !== 'running') audioCtx.resume();
     if (kind === 'good') { tone(660, 0, 0.15, 'triangle'); tone(990, 0.1, 0.25, 'triangle'); }
     else if (kind === 'bad') { tone(300, 0, 0.18, 'sine', 0.12); tone(220, 0.14, 0.25, 'sine', 0.1); }
     else if (kind === 'win') { [523, 659, 784, 1047].forEach((f, i) => tone(f, i * 0.12, 0.3, 'triangle')); }
@@ -200,22 +236,26 @@ function speak(text, rate, retried) {
   }
   if (!('speechSynthesis' in window)) { toast('Trình duyệt này không đọc được thành tiếng 😢'); return; }
   if (!viVoice) findVoice();
-  if (!viVoice) {
+  if (!viVoice && !IS_IOS) {
     // Danh sách giọng có thể chưa tải xong ở lần bấm đầu: chờ một nhịp rồi thử lại đúng 1 lần
     if (!voicesReady && !retried) { setTimeout(() => speak(text, rate, true), 500); return; }
     noVoiceHelp(); return;
   }
   const synth = speechSynthesis;
-  synth.cancel();
+  const busy = synth.speaking || synth.pending;
+  if (busy) synth.cancel();
   const u = new SpeechSynthesisUtterance(plain(text));
-  u.voice = viVoice; u.lang = viVoice.lang || 'vi-VN';
+  if (viVoice) u.voice = viVoice; u.lang = (viVoice && viVoice.lang) || 'vi-VN';
   u.volume = Math.min(1, Math.max(0.15, db.settings.sfxVol == null ? 1 : db.settings.sfxVol + 0.2)); // giọng đọc luôn đủ nghe
   u.rate = Math.max(0.45, (rate || 0.85) * SPEECH_PACE * (db.settings.rate || 1)); // đọc chậm, rõ cho học sinh nhỏ
   // 'not-allowed' = trình duyệt chặn đọc khi chưa có cú chạm của người dùng → em chỉ cần bấm 🔊, không cần báo lỗi
   u.onerror = e => { if (!['interrupted', 'canceled', 'not-allowed'].includes(e.error)) toast('Chưa phát được giọng đọc (' + e.error + '). Em bấm 🔊 lại nhé.'); };
-  // Chrome đôi khi “nuốt” câu nói nếu speak() ngay sau cancel(): chờ một nhịp ngắn
-  setTimeout(() => { synth.resume(); synth.speak(u); }, 60);
+  speakQueue.push(u); if (speakQueue.length > 4) speakQueue.shift(); // giữ tham chiếu: Safari hay “quên” câu nói bị dọn rác
+  // Máy rảnh → đọc ngay (giữ được cú chạm, iPhone cần). Đang đọc dở → Chrome hay “nuốt” câu nếu speak() ngay sau cancel(): chờ một nhịp
+  if (!busy) { synth.resume(); synth.speak(u); }
+  else setTimeout(() => { synth.resume(); synth.speak(u); }, 60);
 }
+const speakQueue = [];
 function stopSpeak() { if ('speechSynthesis' in window) speechSynthesis.cancel(); }
 
 /* ============================== HIỆU ỨNG ============================== */

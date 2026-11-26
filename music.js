@@ -11,7 +11,7 @@ const Music = (() => {
   const PENTA = [60, 62, 64, 67, 69, 72, 74, 76];                          // Đô ngũ cung
   const freq = m => 440 * Math.pow(2, (m - 69) / 12);
   let master = null, timer = null, nextTime = 0, step = 0, duck = 1, wanted = false, lastNote = 64;
-  function ctx() { audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)(); return audioCtx; }
+  function ctx() { return getAudioCtx(); }
   function level() { return db.settings.music ? (db.settings.musicVol == null ? 0.3 : db.settings.musicVol) * 0.55 * duck : 0; }
   function build() {
     const c = ctx();
@@ -61,7 +61,7 @@ const Music = (() => {
     if (!db.settings.music || document.hidden) return;
     try {
       if (!master) build();
-      const c = ctx(); if (c.state === 'suspended') c.resume();
+      const c = ctx(); if (c.state !== 'running') c.resume();
       if (!timer) { nextTime = c.currentTime + 0.15; timer = setInterval(tick, 150); }
       apply();
     } catch (e) { /* trình duyệt không hỗ trợ WebAudio */ }
@@ -69,9 +69,8 @@ const Music = (() => {
   function stop() { if (master) master.gain.setTargetAtTime(0, ctx().currentTime, 0.25); clearInterval(timer); timer = null; }
   const playing = () => !!timer && db.settings.music;
   // Lần chạm/bấm phím đầu tiên mới bắt đầu nhạc
-  const firstTouch = () => { start(); document.removeEventListener('pointerdown', firstTouch); document.removeEventListener('keydown', firstTouch); };
-  document.addEventListener('pointerdown', firstTouch);
-  document.addEventListener('keydown', firstTouch);
+  // (iPhone/iPad chỉ tính touchend/click là cú chạm thật → dùng onAudioUnlock của app.js)
+  onAudioUnlock(start);
   document.addEventListener('visibilitychange', () => { if (document.hidden) stop(); else if (wanted) start(); });
   return { start, stop, apply, playing };
 })();

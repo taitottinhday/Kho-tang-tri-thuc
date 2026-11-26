@@ -85,15 +85,17 @@
       const all = speechSynthesis.getVoices();
       log('Trình duyệt: ' + browser + ' · ' + all.length + ' giọng, trong đó ' + viVoices.length + ' giọng tiếng Việt' + (viVoice ? ' · dùng: ' + viVoice.name : ''));
       if (!db.settings.sound) log('⚠️ Âm thanh của web đang TẮT (nút 🔇 ở góc trên) – vẫn thử đọc để kiểm tra.');
-      if (!viVoice) log('⚠️ Không có giọng tiếng Việt – trình duyệt sẽ đọc bằng giọng mặc định hoặc im lặng. Hãy mở bằng Microsoft Edge.');
+      if (!viVoice) log(IS_IOS ? '⚠️ Chưa thấy giọng tiếng Việt trong danh sách – iPhone vẫn thử đọc bằng giọng tiếng Việt của máy. Nếu im lặng: Cài đặt → Trợ năng → Nội dung được đọc → Giọng nói → Tiếng Việt → tải giọng Linh.' : '⚠️ Không có giọng tiếng Việt – trình duyệt sẽ đọc bằng giọng mặc định hoặc im lặng. Hãy mở bằng Microsoft Edge.');
+      if (IS_IOS) log('📱 iPhone/iPad: gạt nút im lặng bên hông máy sang có tiếng và bấm nút tăng âm lượng. Đã bật chế độ phát: ' + (navigator.audioSession ? navigator.audioSession.type : 'thẻ audio im lặng'));
       let started = false;
       const u = new SpeechSynthesisUtterance('Xin chào các em, đây là giọng đọc tiếng Việt.');
       u.lang = 'vi-VN'; if (viVoice) u.voice = viVoice; u.rate = 0.85 * SPEECH_PACE; u.volume = 1;
       u.onstart = () => { started = true; log('▶️ Trình duyệt bắt đầu đọc…'); };
       u.onend = () => log('✅ Trình duyệt báo đã đọc xong. Nếu vẫn không nghe thấy: kiểm tra âm lượng máy, loa/tai nghe đang chọn, hoặc tab bị tắt tiếng (chuột phải vào tab).');
       u.onerror = e => log('❌ Lỗi giọng đọc: ' + e.error);
-      speechSynthesis.cancel();
-      setTimeout(() => { speechSynthesis.resume(); speechSynthesis.speak(u); }, 60);
+      speakQueue.push(u);
+      if (speechSynthesis.speaking || speechSynthesis.pending) { speechSynthesis.cancel(); setTimeout(() => { speechSynthesis.resume(); speechSynthesis.speak(u); }, 60); }
+      else { speechSynthesis.resume(); speechSynthesis.speak(u); } // đọc ngay trong cú chạm (iPhone cần)
       setTimeout(() => { if (!started) log('⏳ Sau 4 giây trình duyệt vẫn chưa đọc – bộ đọc của trình duyệt bị kẹt. Hãy tải lại trang (Ctrl + F5) hoặc mở bằng Edge.'); }, 4000);
     };
   }
