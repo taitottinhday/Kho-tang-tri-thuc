@@ -123,13 +123,25 @@ async function runStore(kind, env, dataDir, cleanup = async () => {}) {
       check((await put({ hidden:['1'], edits:{ 0:{ loai:'ngheViet', cau:'Chim sẻ hót vang' } }, added:[{ id:'gv-abcd1', loai:'chon', de:'Bé đọc ___ách.', dapAn:'s', luaChon:['s','x'] }] })).response.status === 200, kind + ': lưu phần chỉnh bài');
       const pub = (await call('/api/lessons')).body.edits['l2-03'];
       check(pub && pub.added.length === 1 && pub.hidden[0] === '1' && pub.edits['0'].cau === 'Chim sẻ hót vang.', kind + ': học sinh tải được phần chỉnh');
+      check((await put({ hidden:['2'], previous:null })).response.status === 409, kind + ': từ chối lưu đè từ bản bài đã cũ');
       await put({});
       check(!(await call('/api/lessons')).body.edits['l2-03'], kind + ': trả bài về ban đầu thì xoá phần chỉnh');
+      const writes = await Promise.all(['l2-01','l2-02'].map((id, i) => call('/api/lessons/' + id, {
+        method:'PUT', headers:{ ...bearer, 'content-type':'application/json' }, body:JSON.stringify({ hidden:[String(i)] })
+      })));
+      const concurrent = (await call('/api/lessons')).body.edits;
+      check(writes.every(r => r.response.status === 200) && concurrent['l2-01'].hidden[0] === '0' && concurrent['l2-02'].hidden[0] === '1', kind + ': lưu đồng thời hai bài giữ đủ hai thay đổi');
       const made = await post('/api/assignments',{ classCodes:[c], topic:'l2-03', due:'2026-12-01', note:'Làm nhé' },bearer);
       check(made.response.status === 201 && made.body.assignments.length === 1, kind + ': giao bài');
       check((await call('/api/assignments')).response.status === 401, kind + ': xem mọi bài giao cần đăng nhập');
       check((await call('/api/assignments?classCode=' + c)).body.assignments.length === 1, kind + ': máy học sinh xem bài của lớp mình');
       check((await post('/api/sync',{ classCode:c, profile:prof })).body.assignments.length === 1, kind + ': đồng bộ trả về bài được giao');
+      const assignmentId = made.body.assignments[0].id;
+      const [newer, older] = [{ ...all[149], at:3000, assignmentId }, { ...all[149], at:2000, assignmentId }];
+      await Promise.all([newer, older].map(h => post('/api/sync',{ classCode:c, profile:{ ...prof, attempts:h.at, history:[h] } })));
+      const updated = (await call('/api/students?classCode=' + c,{ headers:bearer })).body.students[0];
+      const submitted = updated.history;
+      check(made.body.assignments[0].explicitSubmission && submitted[0].assignmentId === assignmentId && submitted[0].at === newer.at && submitted[1].at === older.at && updated.attempts === newer.at, kind + ': mã bài và điểm tổng vẫn đúng khi lượt cũ gửi muộn');
       check((await post('/api/assignments',{ classCodes:['ZZZZZZ'], topic:'l2-03' },bearer)).response.status === 404, kind + ': giao cho lớp không có → 404');
       check((await call('/api/assignments/' + made.body.assignments[0].id,{ method:'DELETE',headers:bearer })).response.status === 200, kind + ': thu hồi bài');
     }

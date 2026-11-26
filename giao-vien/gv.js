@@ -29,6 +29,7 @@
   let status = { storage: 'file' };
   let cache = { classes: null, students: null, docs: null, questions: null };
   let studentFilter = { cls: '', q: '', sort: 'name' };
+  let stopStudentWatch;
 
   /* ---------------- API ---------------- */
   async function api(url, opt = {}) {
@@ -87,11 +88,12 @@
     } catch (err) { $('#loginErr').textContent = err.message; }
     finally { btn.disabled = false; }
   };
-  function logout(expired) { token = ''; sessionStorage.removeItem(TOKEN_KEY); cache = { classes: null, students: null, docs: null, questions: null }; showLogin(); if (expired) $('#loginErr').textContent = 'Phiên đăng nhập đã hết hạn. Thầy cô đăng nhập lại nhé.'; }
+  function logout(expired) { stopStudentWatch?.(); token = ''; sessionStorage.removeItem(TOKEN_KEY); cache = { classes: null, students: null, docs: null, questions: null }; showLogin(); if (expired) $('#loginErr').textContent = 'Phiên đăng nhập đã hết hạn. Thầy cô đăng nhập lại nhé.'; }
   $('#logout').onclick = () => logout(false);
 
   /* ---------------- Điều hướng ---------------- */
   function route() {
+    stopStudentWatch?.();
     const [first, sub] = location.hash.slice(1).split('/');
     const page = PAGES[first] ? first : 'tong-quan';
     $$('#nav a').forEach(a => a.classList.toggle('on', a.dataset.nav === (page === 'cau-do' ? 'bai-hoc' : page)));
@@ -104,6 +106,26 @@
   }
   addEventListener('hashchange', () => { if (!$('#app').hidden) route(); });
   const storageWarn = () => status.storage === 'postgres' ? '' : '<div class="warnbox">⚠️ Dữ liệu đang <b>lưu tạm</b> và có thể mất. Thầy cô báo người cài đặt web bật nơi lưu trữ lâu dài.</div>';
+  function watchStudents(anchor, initial, redraw) {
+    stopStudentWatch?.();
+    let busy = false, stopped = false;
+    const fingerprint = rows => JSON.stringify(rows.map(({ updatedAt, ...row }) => row));
+    let snapshot = fingerprint(initial);
+    async function refresh(showError = false) {
+      if (busy || stopped || !anchor.isConnected || !token) return;
+      busy = true;
+      try {
+        const rows = await load('students', true), next = fingerprint(rows);
+        if (!stopped && anchor.isConnected && next !== snapshot) { snapshot = next; redraw(rows); }
+      } catch (err) { if (showError) fail(err); }
+      finally { busy = false; }
+    }
+    function resume() { if (!document.hidden) refresh(); }
+    const timer = setInterval(resume, 5000);
+    document.addEventListener('visibilitychange', resume);
+    stopStudentWatch = () => { stopped = true; clearInterval(timer); document.removeEventListener('visibilitychange', resume); stopStudentWatch = null; };
+    return () => refresh(true);
+  }
 
   /* ---------------- Học sinh: số liệu ---------------- */
   function summary(s) {
@@ -197,11 +219,12 @@
 
   /* ---------------- Trang: Học sinh ---------------- */
   async function pgStudents(v) {
-    const [classes, students] = await Promise.all([load('classes'), load('students', true)]);
+    const [classes, initial] = await Promise.all([load('classes', true), load('students', true)]);
+    let students = initial, updateDetail;
     v.innerHTML = storageWarn() + '<div class="toolbar"><label class="field"><span>Lớp</span><select id="sfCls"><option value="">Tất cả các lớp</option>' + classes.map(c => '<option value="' + esc(c.code) + '"' + (studentFilter.cls === c.code ? ' selected' : '') + '>' + esc(c.name || c.code) + '</option>').join('') + '</select></label>' +
       '<label class="field"><span>Tìm tên</span><input id="sfQ" type="search" value="' + esc(studentFilter.q) + '" placeholder="Nhập tên học sinh"></label>' +
       '<label class="field"><span>Sắp xếp</span><select id="sfSort"><option value="name">Theo tên</option><option value="acc">Đúng ít → nhiều</option><option value="idle">Lâu chưa học</option><option value="xp">XP cao → thấp</option></select></label>' +
-      '<button class="btn" id="sfCsv">⬇️ Xuất Excel (CSV)</button></div><div id="sfList"></div>';
+      '<button class="btn" id="sfCsv">⬇️ Xuất Excel (CSV)</button><button class="btn" id="sfRefresh">↻ Làm mới</button></div><p class="hint">Kết quả tự cập nhật khi học sinh gửi bài.</p><div id="sfList"></div>';
     $('#sfSort').value = studentFilter.sort;
     const draw = () => {
       studentFilter = { cls: $('#sfCls').value, q: $('#sfQ').value, sort: $('#sfSort').value };
@@ -214,9 +237,10 @@
           '<td class="hide-sm">' + esc(className(s.classCode)) + '</td><td><div class="bar" title="' + m.done + '/' + m.total + '"><i style="width:' + pct(m.done, m.total) + '%"></i></div><small>' + m.done + '/' + m.total + ' bài</small></td>' +
           '<td class="num"><span class="pill ' + (m.acc >= 80 ? 'ok' : m.acc >= 60 ? '' : s.attempts ? 'bad' : '') + '">' + (s.attempts ? m.acc + '%' : '—') + '</span></td><td class="num hide-sm">🔥 ' + (s.streak || 0) + '</td><td class="num hide-sm">' + (s.xp || 0) + '</td><td>' + lastLabel(s.lastDay) + '</td></tr>'; }).join('') + '</tbody></table></div>'
         : '<div class="empty">' + (students.length ? 'Không có học sinh phù hợp.' : 'Chưa có học sinh nào kết nối. Tạo lớp ở mục <a href="#lop">Lớp học</a> và cho học sinh nhập mã lớp.') + '</div>';
-      $$('[data-open]', v).forEach(tr => { const open = () => { const [c, id] = tr.dataset.open.split('|'); studentDetail(students.find(s => s.classCode === c && s.id === id)); }; tr.onclick = open; tr.onkeydown = e => { if (e.key === 'Enter') open(); }; });
+      $$('[data-open]', v).forEach(tr => { const open = () => { const [c, id] = tr.dataset.open.split('|'); updateDetail = studentDetail(students.find(s => s.classCode === c && s.id === id)); }; tr.onclick = open; tr.onkeydown = e => { if (e.key === 'Enter') open(); }; });
     };
     $('#sfCls').onchange = $('#sfSort').onchange = draw; $('#sfQ').oninput = draw; draw();
+    $('#sfRefresh').onclick = watchStudents($('#sfList'), initial, rows => { students = rows; draw(); updateDetail?.(rows); });
     $('#sfCsv').onclick = () => {
       const q = v => '"' + (/^[=+\-@]/.test(String(v)) ? "'" : '') + String(v == null ? '' : v).replace(/"/g, '""') + '"';
       const rows = [['Lớp', 'Học sinh', 'Khối', 'Bài xong', 'Tổng bài', 'Đúng %', 'Số câu đã làm', 'Chuỗi ngày', 'XP', 'Học gần nhất']];
@@ -226,10 +250,21 @@
   }
   function studentDetail(s) {
     if (!s) return;
-    const m = summary(s), list = lessonsOf(Number(s.grade)), topics = s.topics || {};
+    const list = lessonsOf(Number(s.grade)), topics = s.topics || {};
+    const stats = student => {
+      const m = summary(student);
+      return [
+        [m.done + '/' + m.total, 'Bài đã xong'],
+        [student.attempts ? m.acc + '%' : '—', 'Trả lời đúng'],
+        [m.stars + ' ⭐', 'Sao'],
+        ['🔥 ' + (student.streak || 0), 'Chuỗi ngày (dài nhất ' + (student.bestStreak || student.streak || 0) + ')'],
+        [student.xp || 0, 'XP'],
+        [lastLabel(student.lastDay), 'Lần học gần nhất']
+      ].map(([value, label]) => '<div><b>' + esc(value) + '</b><span>' + esc(label) + '</span></div>').join('');
+    };
     const wrong = Object.entries(s.wrongLog || {}).sort((a, b) => b[1] - a[1]).slice(0, 12).map(([k, n]) => Object.assign(wordOf(k), { n }));
-    const d = dialog('<div class="detail-head"><span class="av">' + esc(s.avatar || '🙂') + '</span><div><h2 style="margin:0">' + esc(s.name) + '</h2><span class="muted">' + esc(className(s.classCode)) + ' · Lớp ' + esc(s.grade) + ' · cập nhật ' + fmtDate(s.updatedAt) + '</span></div><button class="btn sm" data-close style="margin-left:auto">Đóng ✕</button></div>' +
-      '<div class="kv"><div><b>' + m.done + '/' + m.total + '</b><span>Bài đã xong</span></div><div><b>' + (s.attempts ? m.acc + '%' : '—') + '</b><span>Trả lời đúng</span></div><div><b>' + m.stars + ' ⭐</b><span>Sao</span></div><div><b>🔥 ' + (s.streak || 0) + '</b><span>Chuỗi ngày (dài nhất ' + (s.bestStreak || s.streak || 0) + ')</span></div><div><b>' + (s.xp || 0) + '</b><span>XP</span></div><div><b>' + lastLabel(s.lastDay) + '</b><span>Lần học gần nhất</span></div></div>' +
+    const d = dialog('<div class="detail-head" data-student-detail><span class="av">' + esc(s.avatar || '🙂') + '</span><div><h2 style="margin:0">' + esc(s.name) + '</h2><span class="muted">' + esc(className(s.classCode)) + ' · Lớp ' + esc(s.grade) + ' · cập nhật ' + fmtDate(s.updatedAt) + '</span></div><button class="btn sm" data-close style="margin-left:auto">Đóng ✕</button></div>' +
+      '<div class="kv" id="hsStats">' + stats(s) + '</div>' +
       '<h3 style="margin:8px 0">📘 Tiến độ từng bài</h3><div class="lessons">' + list.map((t, i) => { const ts = topics[t.id]; return '<div class="lesson' + (ts && ts.attempts ? '' : ' none') + '"><span>' + (i + 1) + '. ' + esc(t.ten) + '</span><span class="st">' + (ts && ts.attempts ? '★'.repeat(ts.stars || 0) + '☆'.repeat(3 - (ts.stars || 0)) + ' ' + pct(ts.correct, ts.attempts) + '%' : '—') + '</span></div>'; }).join('') + '</div>' +
       '<h3 style="margin:16px 0 8px">❗ Từ hay viết sai</h3>' + (wrong.length ? '<ul class="list">' + wrong.map(w => '<li><span><b>' + esc(w.word) + '</b> <small class="muted">' + esc(w.lesson) + '</small></span><span class="pill bad">sai ' + w.n + ' lần</span></li>').join('') + '</ul>' : '<div class="empty">Chưa có từ sai.</div>') +
       '<h3 style="margin:16px 0 8px">🕒 Lịch sử luyện tập</h3><div class="tabs small" id="hsRange">' + [['7', '7 ngày'], ['30', '30 ngày'], ['0', 'Tất cả']].map(([k, n]) => '<button type="button" class="tab' + (k === '7' ? ' on' : '') + '" data-range="' + k + '">' + n + '</button>').join('') + '</div><p class="hint" id="hsSum"></p><div id="hsHistory"></div>' +
@@ -254,6 +289,18 @@
       d.close();
       if (!await confirmBox('Xoá ' + s.name + '?', 'Kết quả học của em trên máy chủ sẽ bị xoá. Nếu máy của em còn kết nối lớp, lần học sau sẽ gửi lại.', 'Xoá')) return;
       try { await api('/api/students/' + s.classCode + '/' + encodeURIComponent(s.id), { method: 'DELETE' }); cache.students = null; toast('Đã xoá.'); route(); } catch (err) { fail(err); }
+    };
+    const marker = $('[data-student-detail]', d);
+    return rows => {
+      if (!d.open || !marker.isConnected) return;
+      const fresh = rows.find(row => row.classCode === s.classCode && row.id === s.id);
+      if (!fresh) return;
+      const historyChanged = JSON.stringify(s.history) !== JSON.stringify(fresh.history);
+      const notesChanged = JSON.stringify(s.teacherNotes) !== JSON.stringify(fresh.teacherNotes);
+      s = fresh;
+      $('#hsStats').innerHTML = stats(s);
+      if (historyChanged) drawHistory();
+      if (notesChanged) $('#noteList').innerHTML = notesHtml(s.teacherNotes);
     };
   }
   const QUICK_NOTES = ['Em tiến bộ rõ, cô khen!', 'Em viết cẩn thận, rất tốt.', 'Em cần đọc kĩ câu trước khi chọn.', 'Em luyện thêm dấu hỏi, dấu ngã nhé.', 'Em chăm học đều mỗi ngày nhé!'];
@@ -389,7 +436,7 @@
       qa('Dùng máy chung ở trường', 'Làm xong nhớ bấm <b>Đăng xuất</b>. Web cũng tự đăng xuất sau 12 giờ. Muốn đổi mật khẩu, thầy cô nhờ người cài đặt web.') + '</section>';
   }
 
-  window.GV = { $, $$, esc, api, send, toast, fail, dialog, confirmBox, lessonsOf, lessonById, download, load, cache: () => cache, pct, className, daysAgo, storageWarn,
+  window.GV = { $, $$, esc, api, send, toast, fail, dialog, confirmBox, lessonsOf, lessonById, download, load, cache: () => cache, pct, className, daysAgo, storageWarn, watchStudents,
     register(name, title, page) { PAGES[name] = title; EXTRA[name] = page; } };
   addEventListener('DOMContentLoaded', boot);
 })();

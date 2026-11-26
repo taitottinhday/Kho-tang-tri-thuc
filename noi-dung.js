@@ -4,6 +4,7 @@
 'use strict';
 (function () {
   const EDIT_KEY = 'vuonchu.lessonEdits', TASK_KEY = 'vuonchu.assignments', CLASS_KEY = 'vuonchu.classCode';
+  const REFRESH_MS = 5000;
   const read = (k, d) => { try { const v = JSON.parse(localStorage.getItem(k) || 'null'); return v == null ? d : v; } catch (e) { return d; } };
   const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
   const classCode = () => { try { return localStorage.getItem(CLASS_KEY) || ''; } catch (e) { return ''; } };
@@ -29,16 +30,16 @@
         list.push(Object.assign(valid(changed) ? clean(changed) : Object.assign({}, b), { _k: i }));
       });
       (e.added || []).forEach(a => { if (valid(a) && !hidden.has(a.id)) list.push(Object.assign(clean(a), { _k: a.id, cuaThayCo: true })); });
-      if (list.some(b => b.loai === 'chon')) t.baiTap = list; else t.baiTap = list.concat(t.goc.map((b, i) => Object.assign({}, b, { _k: i })).filter(b => b.loai === 'chon').slice(0, 4)); // bài không được rỗng
+      t.baiTap = list;
       t.sinh = e.noGen ? [] : t.sinhGoc;
     });
   }
 
   /* Câu thầy cô thêm luôn có mặt trong bài học (tối đa 4 câu mỗi lượt, mức Khó lấy tất cả) */
   const baseBuild = buildLesson;
-  window.buildLesson = function (t, level) {
-    const list = baseBuild(t, level);
-    const own = t.baiTap.map((b, i) => Object.assign({}, b, { _t: t.id, _i: i })).filter(b => b.cuaThayCo && !(b.loai === 'ngheViet' && Number(S.grade) < 2));
+  window.buildLesson = function (t, level, grade = S.grade) {
+    const list = baseBuild(t, level, grade);
+    const own = t.baiTap.map((b, i) => Object.assign({}, b, { _t: t.id, _i: i })).filter(b => b.cuaThayCo && !(b.loai === 'ngheViet' && Number(grade) < 2));
     if (!own.length) return list;
     const rest = list.filter(it => !(typeof it._i === 'number' && t.baiTap[it._i] && t.baiTap[it._i].cuaThayCo && it.loai === t.baiTap[it._i].loai));
     const take = shuffle(own).slice(0, level === 'kho' ? own.length : 4);
@@ -47,8 +48,12 @@
   };
 
   /* ---------- bài thầy cô giao ---------- */
-  const tasks = () => classCode() ? read(TASK_KEY, []).filter(a => a.classCode === classCode()) : [];
-  const doneAt = a => (S.history || []).find(h => h.kind === 'lesson' && h.topic === a.topic && (h.at || 0) >= a.createdAt);
+  const tasks = () => classCode() && (typeof GUEST_MODE === 'undefined' || !GUEST_MODE) ? read(TASK_KEY, []).filter(a => a.classCode === classCode()) : [];
+  const doneAt = a => (S.history || []).reduce((best, h) => {
+    const matches = h.kind === 'lesson' && h.topic === a.topic && (h.assignmentId === a.id ||
+      (!a.explicitSubmission && !h.assignmentId && (h.at || 0) >= a.createdAt));
+    return matches && (!best || h.acc > best.acc) ? h : best;
+  }, null);
   const dueText = d => { if (!d) return ''; const [y, m, day] = d.split('-').map(Number); const left = Math.round((new Date(y, m - 1, day) - new Date(new Date().toDateString())) / 864e5); return left < 0 ? 'Đã quá hạn ' + day + '/' + m : left === 0 ? 'Hạn hôm nay' : left === 1 ? 'Hạn ngày mai' : 'Hạn ' + day + '/' + m; };
   function taskCard() {
     const list = tasks().map(a => ({ a, t: getTopic(a.topic), done: doneAt(a) })).filter(x => x.t && x.t.lop[0] <= 3);
@@ -56,38 +61,75 @@
     if (!list.length) return '';
     const row = x => '<li class="nd-task' + (x.done ? ' done' : '') + '"><span class="nd-ico" aria-hidden="true">' + (x.done ? '✅' : '📌') + '</span><div class="nd-info"><b>' + esc('Lớp ' + x.t.lop[0] + ' · ' + x.t.ten) + '</b>' +
       '<small>' + (x.done ? 'Em đã làm: đúng ' + x.done.acc + '%' : (dueText(x.a.due) || 'Thầy cô giao')) + (x.a.note ? ' · “' + esc(x.a.note) + '”' : '') + '</small></div>' +
-      '<button type="button" class="' + (x.done ? 'soft-btn' : 'primary-btn') + ' sm" data-task="' + esc(x.a.topic) + '">' + (x.done ? 'Làm lại' : 'Làm ngay') + '</button></li>';
+      '<button type="button" class="' + (x.done ? 'soft-btn' : 'primary-btn') + ' sm" data-task="' + esc(x.a.topic) + '" data-assignment="' + esc(x.a.id) + '">' + (x.done ? 'Làm lại' : 'Làm ngay') + '</button></li>';
     return '<section class="nd-tasks" aria-label="Bài thầy cô giao"><h2>📬 Bài thầy cô giao' + (todo.length ? ' <span>' + todo.length + '</span>' : '') + '</h2><ul>' + todo.concat(done).map(row).join('') + '</ul></section>';
   }
-  function openTask(topic) {
-    const t = getTopic(topic); if (!t) return;
-    if (!(t.lop[0] <= Number(S.grade) && Number(S.grade) <= t.lop[1])) { S.grade = String(t.lop[0]); save(); render(); }
-    showIntro(t);
+  async function openTask(button) {
+    button.disabled = true;
+    await refresh();
+    const a = tasks().find(task => task.id === button.dataset.assignment);
+    if (!a) { toast('Thầy cô đã thu hồi bài này.'); return; }
+    const t = getTopic(a.topic);
+    if (t) showIntro(t, null, a.id);
+    if (button.isConnected) button.disabled = false;
   }
+  let lastTaskHtml;
   function drawTasks(view) {
-    if ((view || currentView) !== 'home' || document.querySelector('.nd-tasks')) return;
-    const html = taskCard(), anchor = document.querySelector('.voyage-actions'); if (!html || !anchor) return;
+    if ((view || currentView) !== 'home') return;
+    const current = document.querySelector('.nd-tasks');
+    const html = taskCard(), anchor = document.querySelector('.voyage-actions');
+    if (!anchor || (current && lastTaskHtml === html)) return;
+    const focused = current?.contains(document.activeElement) ? document.activeElement.dataset.assignment : '';
+    current?.remove();
+    lastTaskHtml = html;
+    if (!html) return;
     anchor.insertAdjacentHTML('beforebegin', html);
-    document.querySelectorAll('[data-task]').forEach(b => b.onclick = () => openTask(b.dataset.task));
+    const section = document.querySelector('.nd-tasks');
+    section.querySelectorAll('[data-task]').forEach(b => {
+      b.onclick = () => openTask(b);
+      if (b.dataset.assignment === focused) b.focus({ preventScroll: true });
+    });
   }
-  AFTER_RENDER.push(drawTasks);
 
   /* ---------- tải từ máy chủ ---------- */
-  const idle = () => document.querySelector('#modalRoot').hidden && !document.body.classList.contains('welcome-open') && !/^(INPUT|TEXTAREA|SELECT)$/.test((document.activeElement || {}).tagName || '');
-  async function refresh() {
-    if (!online()) return;
-    let changed = false;
-    try {
-      const r = await fetch('api/lessons'); if (r.ok) { const e = (await r.json()).edits || {}; if (JSON.stringify(e) !== JSON.stringify(read(EDIT_KEY, {}))) { write(EDIT_KEY, e); applyEdits(e); changed = true; } }
-      const code = classCode();
-      if (code) { const q = await fetch('api/assignments?classCode=' + encodeURIComponent(code)); if (q.ok) { const a = (await q.json()).assignments || []; if (JSON.stringify(a) !== JSON.stringify(read(TASK_KEY, []))) { write(TASK_KEY, a); changed = true; } } }
-    } catch (e) { /* mất mạng: dùng bản đã nhớ */ }
-    if (changed && idle()) render();
+  let pendingEdits = read(EDIT_KEY, {}), appliedEdits, inFlight;
+  function applyPending() {
+    if (!Q && appliedEdits !== pendingEdits) {
+      applyEdits(pendingEdits);
+      appliedEdits = pendingEdits;
+    }
   }
-  applyEdits(read(EDIT_KEY, {}));
+  AFTER_RENDER.push(view => { applyPending(); drawTasks(view); });
+  async function load(path) {
+    try {
+      const r = await fetch(path, { cache: 'no-store', signal: AbortSignal.timeout?.(2500) });
+      return r.ok ? await r.json() : null;
+    } catch { return null; }
+  }
+  async function pull() {
+    const code = classCode();
+    const [lessons, assigned] = await Promise.all([
+      load('api/lessons'), code ? load('api/assignments?classCode=' + encodeURIComponent(code)) : null
+    ]);
+    if (lessons && JSON.stringify(lessons.edits) !== JSON.stringify(pendingEdits)) {
+      pendingEdits = lessons.edits || {};
+      write(EDIT_KEY, pendingEdits);
+    }
+    if (assigned && code === classCode() && JSON.stringify(assigned.assignments || []) !== JSON.stringify(read(TASK_KEY, []))) {
+      write(TASK_KEY, assigned.assignments || []);
+    }
+    applyPending();
+    drawTasks();
+  }
+  function refresh() {
+    if (!online()) return Promise.resolve();
+    if (!inFlight) inFlight = pull().finally(() => { inFlight = null; });
+    return inFlight;
+  }
+  applyPending();
   render();
   refresh();
-  setInterval(refresh, 90000);
+  setInterval(() => { if (!document.hidden) refresh(); }, REFRESH_MS);
   addEventListener('online', refresh);
   document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh(); });
   window.NoiDung = { applyEdits, refresh, tasks };

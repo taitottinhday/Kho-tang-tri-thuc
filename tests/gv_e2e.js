@@ -17,7 +17,8 @@ const fs = require('fs'), os = require('os'), path = require('path');
   const app = await buildServer({ env, dataDir: dir });
   const addr = await app.listen(0, '127.0.0.1');
   const base = 'http://127.0.0.1:' + addr.port + '/';
-  const b = await launch(w, h); let pass = 0, fail = 0;
+  const teacher = await launch(w, h);
+  let b = teacher, student, pass = 0, fail = 0;
   const ok = (c, n, x) => { c ? pass++ : fail++; console.log((c ? '  ✓ ' : '  ✗ ') + n + (c || !x ? '' : ' — ' + JSON.stringify(x).slice(0, 400))); };
   const wait = ms => b.sleep(ms);
   const fitsX = () => b.eval('return document.documentElement.scrollWidth <= ' + (w + 1) + ' && innerWidth <= ' + (w + 1));
@@ -67,7 +68,7 @@ const fs = require('fs'), os = require('os'), path = require('path');
     await go('bai-hoc');
     ok(await until(`document.querySelectorAll('.lesson-card').length === 10`), 'Bài học: lớp 2 có 10 bài');
     await b.eval(`document.querySelector('[data-g="3"]').click(); await new Promise(r=>setTimeout(r,300)); return 1`);
-    ok(await b.eval(`return document.querySelectorAll('.lesson-card').length === 24`), 'Chuyển lớp 3: 24 bài');
+    ok(await until(`document.querySelectorAll('.lesson-card').length === 24`), 'Chuyển lớp 3: 24 bài');
     ok(await fitsX(), 'Danh sách bài không tràn ngang'); await shot('4-bai-hoc');
     await go('bai-hoc/l2-03');
     ok(await until(`document.querySelectorAll('.q-item').length > 10`), 'Mở bài s/x thấy từng câu');
@@ -112,9 +113,9 @@ const fs = require('fs'), os = require('os'), path = require('path');
     ok(await until(`document.querySelector('#view').textContent.includes('Bài đã giao (1)')`), 'Giao bài s/x cho lớp 2A');
     ok(await fitsX(), 'Trang Giao bài không tràn ngang'); await shot('4e-giao-bai');
     await go('huong-dan'); ok(await b.eval(`return !/DATABASE_URL|TEACHER_PASSWORD|PostgreSQL|CSV UTF/.test(document.querySelector('#view').textContent)`), 'Trợ giúp viết bằng lời giáo viên'); ok(await fitsX(), 'Trợ giúp không tràn ngang');
-    const teacherToken = await b.eval(`return sessionStorage.getItem('vuonchu.teacherToken')`);
-
     // ===== Máy học sinh: nhập mã lớp, học bài =====
+    student = await launch(w, h);
+    b = student;
     await b.goto(base + 'index.html', 1500); ok(await until(`document.querySelector('#wlCreate')`, 20000), 'Trang học sinh tải xong');
     await b.eval(`document.querySelector('#wlCreate').click(); await new Promise(r=>setTimeout(r,300));
       document.querySelector('#nameInput').value='Bé Na'; document.querySelector('[data-char="🦊"]')?.click();
@@ -126,7 +127,7 @@ const fs = require('fs'), os = require('os'), path = require('path');
     await b.eval(`const i = document.querySelector('#classCodeIn'); i.value='${code.toLowerCase()}'; i.dispatchEvent(new Event('input')); document.querySelector('#classJoin').requestSubmit(); return 1`);
     ok(await until(`document.querySelector('.class-code') && document.querySelector('.class-code').textContent === '${code}'`), 'Nhập mã đúng (chữ thường cũng được) → đã kết nối');
     await b.eval(`document.querySelector('.class-join').scrollIntoView({block:'center'}); return 1`); await shot('5-hs-cai-dat');
-    await b.eval(`await NoiDung.refresh(); go('home'); return 1`); await wait(900);
+    await b.eval(`go('home'); return 1`); await wait(900);
     ok(await until(`document.querySelector('.nd-tasks') && /s\\/x/.test(document.querySelector('.nd-tasks').textContent) && document.querySelector('.nd-tasks').textContent.includes('Làm trước thứ Sáu')`), 'Trang học sinh hiện “Bài thầy cô giao”');
     ok(await fitsX(), 'Trang học có bài giao không tràn ngang'); await shot('5b-hs-bai-giao');
     const content = await b.eval(`const t = getTopic('l2-03'); const all = t.baiTap.map(x => x.de || x.cau); const L = []; for (let i=0;i<6;i++) buildLesson(t,'de').forEach(x => L.push(x));
@@ -142,7 +143,7 @@ const fs = require('fs'), os = require('os'), path = require('path');
     await b.eval(`closeModal(); return 1`);
 
 
-    await b.eval(`const t = getTopic('l2-03'); const items = t.baiTap.filter(x=>x.loai==='chon').slice(0,5).map((x,i)=>Object.assign({},x,{_t:t.id,_i:i})); startQuiz({kind:'lesson',title:t.ten,topicId:t.id,level:'vua',hints:0,items}); return 1`);
+    await b.eval(`const t = getTopic('l2-03'); const items = t.baiTap.filter(x=>x.loai==='chon').slice(0,5).map((x,i)=>Object.assign({},x,{_t:t.id,_i:i})); const assignmentId = document.querySelector('[data-task="l2-03"]').dataset.assignment; startQuiz({kind:'lesson',title:t.ten,topicId:t.id,assignmentId,level:'vua',hints:0,items}); return 1`);
     for (let i = 0; i < 5; i++) await b.eval(`await new Promise(r=>setTimeout(r,150)); const it = Q.items[Q.i]; const want = ${i === 2} ? it.luaChon.find(o=>o!==it.dapAn) : it.dapAn; document.querySelector('[data-answer="'+CSS.escape(want)+'"]').click(); document.querySelector('#plCheck').click(); await new Promise(r=>setTimeout(r,200)); document.querySelector('#plCont').click(); return 1`);
     await b.eval(`if (window.QuaTang) {} try { QuaTang.close(); } catch(e){} closeModal(); return 1`);
     await wait(2800);
@@ -152,10 +153,32 @@ const fs = require('fs'), os = require('os'), path = require('path');
     await shot('6-hs-tai-lieu');
     const seen = await b.eval(`await MayChu.loadQuestions(); return MayChu.remoteQuestions().map(q=>q.prompt)`);
     ok(seen.some(p => p.includes('Cô giáo soạn')) && !seen.some(p => p.includes('Bé đội')), 'Học sinh chỉ nhận câu đã công bố (câu nháp không lộ)', seen);
+    const puzzleId = await b.eval(`return MayChu.remoteQuestions().find(q=>q.prompt.includes('Cô giáo soạn')).id`);
+    await b.eval(`go('practice')`);
+    b = teacher;
+    await go('cau-do');
+    if (!await until(`document.querySelector('[data-qedit="${puzzleId}"]')`)) throw Error('Không tìm thấy câu đố đã xuất bản');
+    await b.eval(`document.querySelector('[data-qedit="${puzzleId}"]').click(); document.querySelector('#qfPub').checked = false; document.querySelector('#qf').requestSubmit()`);
+    ok(await until(`!document.querySelector('#dlg').open && document.querySelector('[data-qedit="${puzzleId}"]')?.closest('tr').textContent.includes('Bản nháp')`), 'Chuyển câu đã công bố về bản nháp');
+    b = student;
+    ok(await until(`!db.classQuestions.some(q=>q.id==='${puzzleId}')`, 12000), 'Trang luyện đang mở tự bỏ câu đã chuyển về nháp');
+
+    // ===== Góc thầy cô trên máy học sinh: phải đăng nhập thật (không còn cổng phép nhân) =====
+    await b.eval(`teacherOK = false; go('teacher'); return 1`); await wait(500);
+    ok(await b.eval(`return !!document.querySelector('#gateInput') && document.querySelector('#gateInput').type === 'password' && !document.querySelector('#classStudents, #questionNew, #classAdd') && currentView !== 'teacher' && !document.querySelector('.gate-q')`), 'Chưa đăng nhập: Góc thầy cô chỉ hiện ô mật khẩu, không lộ quản lý học sinh / câu hỏi', await b.eval(`return { v: currentView, t: !!document.querySelector('#classStudents'), p: [...document.querySelectorAll('.project-panel')].map(e=>e.textContent.slice(0,30)) }`));
+    await b.eval(`document.querySelector('#gateInput').value='sai-mat-khau'; document.querySelector('#gateForm').requestSubmit(); return 1`);
+    ok(await until(`/chưa đúng/i.test(document.querySelector('#gateErr').textContent) && !document.querySelector('.t-table')`), 'Sai mật khẩu → báo lỗi, vẫn bị chặn');
+    ok(await b.eval(`return teacherOK === false`), 'Sai mật khẩu: không được cấp quyền');
+    await b.eval(`document.querySelector('#gateInput').value='${env.TEACHER_PASSWORD}'; document.querySelector('#gateForm').requestSubmit(); return 1`);
+    ok(await until(`teacherOK === true && document.querySelector('.project-panel')`), 'Đúng mật khẩu → vào Góc thầy cô, thấy quản lý học sinh');
+    await b.eval(`teacherOK = false; go('home'); return 1`); await wait(300);
+    await b.eval(`go('teacher'); return 1`); await wait(400);
+    ok(await b.eval(`return !!document.querySelector('#gateInput') && !document.querySelector('.project-panel')`), 'Rời đi rồi quay lại: lại phải nhập mật khẩu');
+    await b.eval(`closeModal(); go('home'); return 1`);
 
     // ===== Giáo viên thấy kết quả, gửi nhận xét =====
-    await b.goto(base + 'giao-vien/#hoc-sinh', 1500);
-    await b.eval(`sessionStorage.setItem('vuonchu.teacherToken','${teacherToken}'); return 1`); await b.goto(base + 'giao-vien/#hoc-sinh', 1800);
+    b = teacher;
+    await go('hoc-sinh');
     ok(await until(`document.querySelector('tr[data-open]') && document.querySelector('tr[data-open]').textContent.includes('Bé Na')`), 'Danh sách học sinh có “Bé Na” sau khi học');
     ok(await fitsX(), 'Trang Học sinh không tràn ngang'); await shot('7-hoc-sinh');
     await b.eval(`document.querySelector('tr[data-open]').click(); await new Promise(r=>setTimeout(r,500)); return 1`);
@@ -178,15 +201,14 @@ const fs = require('fs'), os = require('os'), path = require('path');
     ok(await b.eval(`return !document.querySelector('#login').hidden && !sessionStorage.getItem('vuonchu.teacherToken')`), 'Đăng xuất xoá phiên');
 
     // ===== Nhận xét về máy học sinh =====
-    await b.goto(base + 'index.html', 4500);
-    await b.eval(`document.querySelector('[data-pick]')?.click(); await new Promise(r=>setTimeout(r,300)); save(); return 1`); await wait(3200);
+    b = student;
     await b.eval(`go('profile'); return 1`); await wait(800);
-    ok(await b.eval(`return document.body.innerText.includes('cố thêm câu khó')`), 'Học sinh nhận được nhận xét trong Hồ sơ');
+    ok(await until(`document.body.innerText.includes('cố thêm câu khó')`), 'Học sinh nhận được nhận xét trong Hồ sơ');
     // chưa đăng nhập không xem được dữ liệu học sinh
     ok(await b.eval(`return (await fetch('/api/students')).status === 401 && (await fetch('/api/classes')).status === 401`), 'Chưa đăng nhập: API học sinh và lớp học đều chặn 401');
-    ok(b.errors.length === 0, 'Không lỗi JS', b.errors);
+    ok(b.errors.length === 0 && teacher.errors.length === 0, 'Không lỗi JS', b.errors.concat(teacher.errors));
   } finally {
-    await b.close(); await app.close(); if (socket) { await socket.stop(); await pgdb.close(); } fs.rmSync(dir, { recursive: true, force: true });
+    await student?.close(); await teacher.close(); await app.close(); if (socket) { await socket.stop(); await pgdb.close(); } fs.rmSync(dir, { recursive: true, force: true });
   }
   console.log(`\n${pass} đạt, ${fail} lỗi (${w}px${process.env.PG ? ', PostgreSQL' : ', tệp'})`); process.exit(fail ? 1 : 0);
 })();

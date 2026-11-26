@@ -12,7 +12,17 @@
   let edits = {};
   const loadEdits = async () => { edits = (await api('/api/lessons')).edits || {}; return edits; };
   const editOf = id => { const e = edits[id] || {}; return { hidden: (e.hidden || []).slice(), edits: Object.assign({}, e.edits), added: (e.added || []).map(a => Object.assign({}, a)), noGen: !!e.noGen }; };
-  async function saveEdit(id, e) { const r = await send('/api/lessons/' + id, 'PUT', e); edits[id] = r.edit; return r.edit; }
+  const saving = new Set();
+  async function saveEdit(id, e) {
+    if (saving.has(id)) throw Error('Bài đang được lưu. Thầy cô đợi một chút nhé.');
+    saving.add(id);
+    try {
+      const r = await send('/api/lessons/' + id, 'PUT', { ...e, previous: edits[id] || null });
+      if (r.edit.hidden.length || Object.keys(r.edit.edits).length || r.edit.added.length || r.edit.noGen) edits[id] = r.edit;
+      else delete edits[id];
+      return r.edit;
+    } finally { saving.delete(id); }
+  }
   const newId = () => 'gv-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
   const numberOf = t => lessonsOf(t.lop[0]).indexOf(t) + 1;
   const nameOf = t => 'Lớp ' + t.lop[0] + ' – Bài ' + numberOf(t) + ': ' + t.ten;
@@ -27,17 +37,17 @@
 
   /* ---------------- Danh sách bài ---------------- */
   let gradeTab = 2;
-  async function pgLessons(v, sub) {
-    await loadEdits();
+  async function pgLessons(v, sub, reload = true) {
+    if (reload) await loadEdits();
     if (sub && lessonById(sub)) return pgOne(v, lessonById(sub));
     const count = t => { const e = editOf(t.id); return { total: t.baiTap.length - e.hidden.filter(k => /^\d+$/.test(k)).length + e.added.filter(a => !e.hidden.includes(a.id)).length, own: e.added.length, changed: Object.keys(e.edits).length, hidden: e.hidden.length }; };
     v.innerHTML = G.storageWarn() +
-      '<section class="card help-line"><div><b>Bấm vào một bài</b> để xem từng câu, sửa lại, ẩn câu không dùng hoặc thêm câu mới. Học sinh thấy thay đổi ngay lần mở web sau.</div>' +
+      '<section class="card help-line"><div><b>Bấm vào một bài</b> để xem từng câu, sửa lại, ẩn câu không dùng hoặc thêm câu mới. Khi có mạng, bài học cập nhật cho lượt làm tiếp theo của học sinh.</div>' +
       '<div class="actions"><button class="btn primary" id="xlImport">📥 Thêm nhiều câu từ Excel</button><a class="btn" href="#cau-do">🧩 Câu đố có hình, xếp tiếng…</a></div></section>' +
       '<div class="tabs" role="tablist">' + [1, 2, 3].map(g => '<button role="tab" aria-selected="' + (g === gradeTab) + '" class="tab' + (g === gradeTab ? ' on' : '') + '" data-g="' + g + '">Lớp ' + g + '</button>').join('') + '</div>' +
       '<div class="lesson-list">' + lessonsOf(gradeTab).map((t, i) => { const c = count(t); return '<a class="lesson-card" href="#bai-hoc/' + t.id + '"><span class="no">' + (i + 1) + '</span><span class="info"><b>' + esc(t.ten) + '</b><small>' + c.total + ' câu soạn sẵn' +
         (c.own ? ' · <em>' + c.own + ' câu thầy cô thêm</em>' : '') + (c.changed ? ' · ' + c.changed + ' câu đã sửa' : '') + (c.hidden ? ' · ' + c.hidden + ' câu đang ẩn' : '') + '</small></span><span class="go" aria-hidden="true">›</span></a>'; }).join('') + '</div>';
-    $$('[data-g]', v).forEach(b => b.onclick = () => { gradeTab = Number(b.dataset.g); pgLessons(v); });
+    $$('[data-g]', v).forEach(b => b.onclick = () => { gradeTab = Number(b.dataset.g); pgLessons(v, '', false); });
     $('#xlImport').onclick = () => importDialog(() => pgLessons(v));
   }
 
@@ -81,7 +91,7 @@
     let fields = '';
     if (loai === 'chon') {
       const wrong = q ? q.luaChon.filter(o => o !== q.dapAn) : [];
-      fields = '<label class="field"><span>1. Gõ câu hỏi, chỗ cần điền thay bằng ___</span><input id="fDe" maxlength="200" value="' + esc(q ? q.de : '') + '" placeholder="Ví dụ: Bé đội ___ón khi ra nắng."></label>' +
+      fields = '<label class="field"><span>1. Gõ câu và đánh dấu chỗ học sinh cần điền</span><input id="fDe" maxlength="200" value="' + esc(q ? q.de : '') + '" placeholder="Ví dụ: Bé đội ___ón khi ra nắng."></label>' +
         '<div><button type="button" class="btn sm" id="fBlank">➕ Chèn chỗ trống vào vị trí con trỏ</button></div>' +
         '<label class="field"><span>2. Đáp án đúng</span><input id="fDung" maxlength="40" value="' + esc(q ? q.dapAn : '') + '" placeholder="Ví dụ: n"></label>' +
         '<fieldset class="fs"><legend>3. Đáp án sai (ít nhất 1)</legend><div class="row">' + [0, 1, 2].map(i => '<input class="fSai" maxlength="40" aria-label="Đáp án sai ' + (i + 1) + '" value="' + esc(wrong[i] || '') + '" placeholder="' + (i === 0 ? 'Ví dụ: l' : 'Không bắt buộc') + '">').join('') + '</div></fieldset>';
@@ -98,7 +108,7 @@
       if (loai === 'chon') {
         const de = val('#fDe').replace(/_{2,}/g, '___'), dapAn = val('#fDung'), sai = $$('.fSai', d).map(i => i.value.normalize('NFC').trim()).filter(Boolean);
         if (!de) throw Error('Thầy cô gõ câu hỏi nhé.');
-        if (!de.includes('___')) throw Error('Câu hỏi chưa có chỗ trống ___ (bấm “Chèn chỗ trống”).');
+        if (!de.includes('___')) throw Error('Đặt con trỏ vào chỗ học sinh cần điền rồi bấm “Chèn chỗ trống”.');
         if (!dapAn) throw Error('Thầy cô gõ đáp án đúng.');
         if (!sai.length || sai.includes(dapAn)) throw Error('Cần ít nhất 1 đáp án sai, khác đáp án đúng.');
         return { loai, de, dapAn, luaChon: [dapAn].concat(sai) };
@@ -207,7 +217,11 @@
 
   /* ---------------- Giao bài ---------------- */
   const dayText = d => { if (!d) return 'Không đặt hạn'; const [y, m, day] = d.split('-').map(Number); return 'Hạn ' + day + '/' + m + '/' + y; };
-  const doneOf = (s, a) => (s.history || []).filter(h => h.kind === 'lesson' && h.topic === a.topic && (h.at || 0) >= a.createdAt).sort((x, y) => y.acc - x.acc)[0];
+  const doneOf = (s, a) => (s.history || []).reduce((best, h) => {
+    const matches = h.kind === 'lesson' && h.topic === a.topic && (h.assignmentId === a.id ||
+      (!a.explicitSubmission && !h.assignmentId && (h.at || 0) >= a.createdAt));
+    return matches && (!best || h.acc > best.acc) ? h : best;
+  }, null);
   async function pgAssign(v, sub) {
     const [classes, students] = await Promise.all([load('classes', true), load('students', true)]);
     const list = (await api('/api/assignments')).assignments || [];
@@ -220,20 +234,31 @@
       '<label class="field"><span>4. Lời dặn (không bắt buộc)</span><input id="asNote" maxlength="200" placeholder="Ví dụ: Em làm mức Vừa trước giờ học thứ Sáu nhé."></label><p class="form-err" id="asErr" role="alert"></p><div class="actions"><button class="btn primary">📌 Giao bài</button></div></form>' +
       '<p class="hint">Học sinh đã nhập mã lớp sẽ thấy bài ở đầu Trang học, mục <b>Bài thầy cô giao</b>.</p></section>'
       : '<div class="okbox">Trước tiên thầy cô <a href="#lop">tạo lớp</a> và cho học sinh nhập mã lớp, rồi quay lại giao bài.</div>') +
-      '<section class="card section"><h2>Bài đã giao (' + list.length + ')</h2>' + (list.length ? '<ul class="q-list">' + list.map(a => {
-        const t = lessonById(a.topic), kids = students.filter(s => s.classCode === a.classCode), done = kids.map(s => ({ s, h: doneOf(s, a) })), n = done.filter(x => x.h).length;
+      '<section class="card section"><div class="card-head"><h2>Bài đã giao (' + list.length + ')</h2><button type="button" class="btn sm" id="asRefresh">↻ Làm mới điểm</button></div><p class="hint">Điểm và số học sinh đã làm tự cập nhật. Mỗi bài hiện điểm cao nhất của từng em.</p><div id="asList"></div></section>';
+    const results = $('#asList', v);
+    function drawScores(rows) {
+      const expanded = new Set($$('details[open]', results).map(detail => detail.dataset.assignment));
+      results.innerHTML = list.length ? '<ul class="q-list">' + list.map(a => {
+        const t = lessonById(a.topic), kids = rows.filter(s => s.classCode === a.classCode), done = kids.map(s => ({ s, h: doneOf(s, a) })), n = done.filter(x => x.h).length;
         return '<li class="q-item"><div class="q-body"><b>' + esc(t ? nameOf(t) : a.topic) + '</b><br><span class="muted">' + esc(className(a.classCode)) + ' · ' + dayText(a.due) + (a.note ? ' · “' + esc(a.note) + '”' : '') + '</span>' +
           '<div class="bar wide" title="' + n + '/' + kids.length + '"><i style="width:' + pct(n, kids.length) + '%"></i></div><small><b>' + n + '/' + kids.length + '</b> em đã làm</small>' +
-          '<details><summary>Xem ai đã làm, ai chưa</summary><ul class="list">' + (kids.length ? done.sort((x, y) => (x.h ? 1 : 0) - (y.h ? 1 : 0)).map(x => '<li><span>' + esc(x.s.avatar || '') + ' ' + esc(x.s.name) + '</span>' + (x.h ? '<span class="pill ' + (x.h.acc >= 80 ? 'ok' : x.h.acc >= 60 ? '' : 'bad') + '">Đúng ' + x.h.acc + '%</span>' : '<span class="pill warn">Chưa làm</span>') + '</li>').join('') : '<li>Lớp chưa có học sinh kết nối.</li>') + '</ul></details></div>' +
+          '<details data-assignment="' + esc(a.id) + '"' + (expanded.has(a.id) ? ' open' : '') + '><summary>Xem ai đã làm, ai chưa</summary><ul class="list">' + (kids.length ? done.sort((x, y) => (x.h ? 1 : 0) - (y.h ? 1 : 0)).map(x => '<li><span>' + esc(x.s.avatar || '') + ' ' + esc(x.s.name) + '</span>' + (x.h ? '<span class="pill ' + (x.h.acc >= 80 ? 'ok' : x.h.acc >= 60 ? '' : 'bad') + '">Đúng ' + x.h.acc + '%' + (x.h.total ? ' · ' + x.h.correct + '/' + x.h.total : '') + '</span>' : '<span class="pill warn">Chưa làm</span>') + '</li>').join('') : '<li>Lớp chưa có học sinh kết nối.</li>') + '</ul></details></div>' +
           '<div class="q-act"><button class="btn sm danger" data-asdel="' + a.id + '">Thu hồi</button></div></li>';
-      }).join('') + '</ul>' : '<div class="empty">Chưa giao bài nào.</div>') + '</section>';
+      }).join('') + '</ul>' : '<div class="empty">Chưa giao bài nào.</div>';
+      $$('[data-asdel]', results).forEach(b => b.onclick = async () => { if (!await confirmBox('Thu hồi bài này?', 'Học sinh sẽ không còn thấy bài trong mục được giao. Kết quả đã làm vẫn được giữ.', 'Thu hồi')) return; try { await api('/api/assignments/' + b.dataset.asdel, { method: 'DELETE' }); toast('Đã thu hồi.'); pgAssign(v, sub); } catch (err) { fail(err); } });
+    }
+    drawScores(students);
+    $('#asRefresh', v).onclick = G.watchStudents(results, students, drawScores);
     if ($('#asForm')) $('#asForm').onsubmit = async e => {
       e.preventDefault();
       const classCodes = $$('[name=asClass]:checked', v).map(i => i.value);
       if (!classCodes.length) { $('#asErr').textContent = 'Thầy cô chọn ít nhất một lớp.'; return; }
-      try { await send('/api/assignments', 'POST', { classCodes, topic: $('#asTopic').value, due: $('#asDue').value, note: $('#asNote').value }); toast('Đã giao bài.'); if (sub) location.hash = 'giao-bai'; else pgAssign(v); } catch (err) { $('#asErr').textContent = err.message; }
+      const button = $('#asForm button', v);
+      button.disabled = true;
+      try { await send('/api/assignments', 'POST', { classCodes, topic: $('#asTopic').value, due: $('#asDue').value, note: $('#asNote').value }); toast('Đã giao bài.'); if (sub) location.hash = 'giao-bai'; else await pgAssign(v); }
+      catch (err) { $('#asErr').textContent = err.message; }
+      finally { button.disabled = false; }
     };
-    $$('[data-asdel]', v).forEach(b => b.onclick = async () => { if (!await confirmBox('Thu hồi bài này?', 'Học sinh sẽ không còn thấy bài trong mục được giao. Kết quả đã làm vẫn được giữ.', 'Thu hồi')) return; try { await api('/api/assignments/' + b.dataset.asdel, { method: 'DELETE' }); toast('Đã thu hồi.'); pgAssign(v, sub); } catch (err) { fail(err); } });
   }
 
   G.register('bai-hoc', 'Bài học', pgLessons);

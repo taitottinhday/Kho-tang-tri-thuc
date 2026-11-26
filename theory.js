@@ -61,7 +61,7 @@ function markWord(sentence, word, cls) {
   const s = esc(sentence), w = esc(word), i = s.indexOf(w);
   return i < 0 ? s : s.slice(0, i) + '<mark class="' + cls + '">' + w + '</mark>' + s.slice(i + w.length);
 }
-function openTheory(id, level) {
+function openTheory(id, level, assignmentId) {
   const t = getTopic(id); if (!t) return;
   const items = t.baiTap.map((b, i) => Object.assign({}, b, { _t: t.id, _i: i }));
   const chon = items.filter(b => b.loai === 'chon' && b.de.includes('___'));
@@ -108,7 +108,7 @@ function openTheory(id, level) {
   const ts = tstat(t.id);
   if (!ts.theory) { ts.theory = true; S.xp += 5; save(); toast('📖 +5 XP vì em đọc lý thuyết!'); }
   $('#thClose').onclick = () => closeModal();
-  $('#thIntro').onclick = () => showIntro(t, level);
-  $('#thPractice').onclick = () => { const k = level && tierOpen(ts, level) ? level : suggestTier(ts); startQuiz({ kind: 'lesson', title: t.ten, icon: t.bieuTuong, topicId: t.id, level: k, hints: TIERS[k].hints, items: buildLesson(t, k) }); };
+  $('#thIntro').onclick = () => showIntro(t, level, assignmentId);
+  $('#thPractice').onclick = e => { const k = level && tierOpen(ts, level) ? level : suggestTier(ts); beginLesson(e.currentTarget, t, k, assignmentId); };
   $$('.th-tick').forEach(c => c.onchange = () => { sfx('tap'); if ($$('.th-tick').every(x => x.checked)) toast('Sẵn sàng rồi! Bấm “Làm bài tập” nhé 💪'); });
 }

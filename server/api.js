@@ -132,7 +132,7 @@ function validateDocument(input) {
 
 const MAX_HISTORY = 3000;
 const timeStamp = v => Number.isFinite(Number(v)) && Number(v) > 0 && Number(v) < 1e14 ? Math.round(Number(v)) : 0;
-const entryKey = h => [h.at || 0, h.d, h.kind, h.topic, h.title, h.correct, h.total].join('|');
+const entryKey = h => [h.at || 0, h.d, h.kind, h.topic, h.title, h.correct, h.total, h.assignmentId || ''].join('|');
 /* Máy học sinh chỉ gửi 60 lượt gần nhất → máy chủ CỘNG DỒN để giữ trọn lịch sử cả học kỳ.
    Tìm phần gối nhau giữa danh sách mới (mới → cũ) và danh sách đã lưu; phần chưa có được thêm lên đầu. */
 function mergeHistory(stored, incoming) {
@@ -142,7 +142,12 @@ function mergeHistory(stored, incoming) {
   const add = [];
   for (const h of fresh) { const k = entryKey(h), n = have.get(k) || 0; if (n > 0) have.set(k, n - 1); else add.push(h); }
   // lượt không có mốc giờ (bản cũ) trùng nội dung chỉ được tính một lần
-  return add.concat(old).slice(0, MAX_HISTORY);
+  return add.concat(old).sort((a, b) => (b.at || 0) - (a.at || 0)).slice(0, MAX_HISTORY);
+}
+function mergeStudent(previous, incoming) {
+  const latest = history => (history || []).reduce((max, h) => Math.max(max, h.at || 0), 0);
+  const current = latest(previous?.history) > latest(incoming.history) ? previous : incoming;
+  return { ...current, teacherNotes: previous?.teacherNotes || [], history: mergeHistory(previous?.history, incoming.history) };
 }
 
 /* ---- Giáo viên sửa nội dung 51 bài: ẩn câu, sửa câu, thêm câu (3 kiểu câu quen thuộc) ---- */
@@ -208,7 +213,8 @@ function validateStudent(profile) {
   }
   const history = Array.isArray(profile.history) ? profile.history.slice(0, 60).map(h => ({ d: text(h?.d, 24), grade: Number(h?.grade) || grade,
     kind: text(h?.kind, 40), topic: goodTopic(h?.topic) ? h.topic : '', title: text(h?.title, 100), correct: clampCount(h?.correct),
-    total: clampCount(h?.total), acc: Math.max(0, Math.min(100, clampCount(h?.acc))), at: timeStamp(h?.at) })) : [];
+    total: clampCount(h?.total), acc: Math.max(0, Math.min(100, clampCount(h?.acc))), at: timeStamp(h?.at),
+    ...(/^a[0-9a-f]{12}$/.test(h?.assignmentId || '') ? { assignmentId: h.assignmentId } : {}) })) : [];
   const wrongLog = {};
   if (profile.wrongLog && typeof profile.wrongLog === 'object') for (const [key, value] of Object.entries(profile.wrongLog).slice(0, 50)) {
     if (key.length <= 140) wrongLog[key] = clampCount(value);
@@ -255,13 +261,37 @@ function pgStore(pool) {
     async setDocPublished(key, published) { const r = await pool.query('UPDATE class_documents SET published=$2 WHERE id=$1', [key, published]); return r.rowCount > 0; },
     async hasClass(code) { return (await pool.query('SELECT 1 FROM class_codes WHERE code=$1', [code])).rowCount > 0; },
     async getData(key) { const r = await pool.query('SELECT body FROM app_data WHERE key=$1', [key]); return r.rowCount ? r.rows[0].body : null; },
+    async updateData(key, initial, update) {
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        await client.query('INSERT INTO app_data(key,body) VALUES($1,$2::jsonb) ON CONFLICT DO NOTHING', [key, JSON.stringify(initial)]);
+        const { rows } = await client.query('SELECT body FROM app_data WHERE key=$1 FOR UPDATE', [key]);
+        const value = update(rows[0].body);
+        await client.query('UPDATE app_data SET body=$2::jsonb,updated_at=now() WHERE key=$1', [key, JSON.stringify(value)]);
+        await client.query('COMMIT');
+        return value;
+      } catch (err) {
+        await client.query('ROLLBACK');
+        throw err;
+      } finally { client.release(); }
+    },
     async setData(key, value) { await pool.query('INSERT INTO app_data(key,body,updated_at) VALUES($1,$2::jsonb,now()) ON CONFLICT(key) DO UPDATE SET body=$2::jsonb,updated_at=now()', [key, JSON.stringify(value)]); },
     async upsertStudent(code, p) {
-      const prev = await pool.query('SELECT body FROM class_students WHERE class_code=$1 AND profile_id=$2', [code,p.id]);
-      p.teacherNotes = prev.rows[0]?.body?.teacherNotes || [];
-      p.history = mergeHistory(prev.rows[0]?.body?.history, p.history);
-      await pool.query('INSERT INTO class_students(class_code,profile_id,body,updated_at) VALUES($1,$2,$3::jsonb,now()) ON CONFLICT(class_code,profile_id) DO UPDATE SET body=$3::jsonb,updated_at=now()', [code,p.id,JSON.stringify(p)]);
-      return p.teacherNotes;
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        await client.query('INSERT INTO class_students(class_code,profile_id,body) VALUES($1,$2,$3::jsonb) ON CONFLICT DO NOTHING', [code,p.id,JSON.stringify(p)]);
+        const { rows } = await client.query('SELECT body FROM class_students WHERE class_code=$1 AND profile_id=$2 FOR UPDATE', [code,p.id]);
+        const previous = rows[0].body;
+        const merged = mergeStudent(previous, p);
+        await client.query('UPDATE class_students SET body=$3::jsonb,updated_at=now() WHERE class_code=$1 AND profile_id=$2', [code,p.id,JSON.stringify(merged)]);
+        await client.query('COMMIT');
+        return merged.teacherNotes;
+      } catch (err) {
+        await client.query('ROLLBACK');
+        throw err;
+      } finally { client.release(); }
     },
     async listStudents(code) { const r = await pool.query('SELECT class_code,profile_id,body,updated_at FROM class_students WHERE ($1::text IS NULL OR class_code=$1) ORDER BY class_code, body->>\'name\'', [code || null]); return r.rows.map(x => ({ classCode: x.class_code.trim(), ...x.body, updatedAt: x.updated_at })); },
     async addNote(code, profileId, note) { const r = await pool.query(`UPDATE class_students SET body=jsonb_set(body,'{teacherNotes}', ($3::jsonb || COALESCE(body->'teacherNotes','[]'::jsonb)) - 50),updated_at=now() WHERE class_code=$1 AND profile_id=$2 RETURNING body`, [code,profileId,JSON.stringify([note])]); return r.rows[0]?.body || null; },
@@ -276,7 +306,7 @@ function fileStore(directory) {
   let data = { questions: [], docs: [], classes: [], students: [] };
   try { const saved = JSON.parse(fs.readFileSync(file, 'utf8')); data = { ...data, ...saved }; } catch {}
   let writes = Promise.resolve();
-  const persist = () => { const snapshot = JSON.stringify(data); writes = writes.then(async () => { const tmp = file + '.tmp'; await fs.promises.writeFile(tmp, snapshot); await fs.promises.rename(tmp, file); }); return writes; };
+  const persist = () => { const snapshot = JSON.stringify(data); writes = writes.catch(() => {}).then(async () => { const tmp = file + '.tmp'; await fs.promises.writeFile(tmp, snapshot); await fs.promises.rename(tmp, file); }); return writes; };
   return {
     kind: 'file',
     async listQuestions(all = false) { return data.questions.filter(q => all || q.active).map(q => ({ ...q })); },
@@ -294,8 +324,21 @@ function fileStore(directory) {
     async setDocPublished(key, published) { const d = data.docs.find(x => x.id === key); if (!d) return false; d.published = published; await persist(); return true; },
     async hasClass(code) { return data.classes.includes(code); },
     async getData(key) { const v = (data.kv || {})[key]; return v === undefined ? null : JSON.parse(JSON.stringify(v)); },
+    async updateData(key, initial, update) {
+      data.kv = data.kv || {};
+      const value = update(JSON.parse(JSON.stringify(data.kv[key] ?? initial)));
+      data.kv[key] = value;
+      await persist();
+      return value;
+    },
     async setData(key, value) { data.kv = data.kv || {}; data.kv[key] = value; await persist(); },
-    async upsertStudent(code, p) { const old = data.students.find(x => x.classCode === code && x.id === p.id); p.teacherNotes = old?.teacherNotes || []; p.history = mergeHistory(old?.history, p.history); p.updatedAt = new Date().toISOString(); const i = data.students.indexOf(old); if (i < 0) data.students.push({ classCode: code, ...p }); else data.students[i] = { classCode: code, ...p }; await persist(); return p.teacherNotes; },
+    async upsertStudent(code, p) {
+      const i = data.students.findIndex(x => x.classCode === code && x.id === p.id);
+      const merged = { ...mergeStudent(data.students[i], p), classCode: code, updatedAt: new Date().toISOString() };
+      if (i < 0) data.students.push(merged); else data.students[i] = merged;
+      await persist();
+      return merged.teacherNotes;
+    },
     async listStudents(code) { return data.students.filter(s => !code || s.classCode === code).map(s => ({ ...s })); },
     async addNote(code, profileId, note) { const s = data.students.find(x => x.classCode === code && x.id === profileId); if (!s) return null; s.teacherNotes = [note, ...(s.teacherNotes || [])].slice(0,50); await persist(); return s; },
     async deleteStudent(code, profileId) { const n = data.students.length; data.students = data.students.filter(s => !(s.classCode === code && s.id === profileId)); await persist(); return n !== data.students.length; },
@@ -418,14 +461,24 @@ function createApiHandler(store, env = process.env) {
         if (!auth(req,res)) return;
         const raw = JSON.parse((await readBody(req, 400000)).toString('utf8'));
         let edit; try { edit = lessonEdit(raw); } catch (e) { return json(res,400,{ error: e.message }); }
-        const all = (await store.getData('lessonEdits')) || {};
-        if (editIsEmpty(edit)) delete all[lessonMatch[1]]; else all[lessonMatch[1]] = edit;
-        await store.setData('lessonEdits', all); return json(res,200,{ edit });
+        await store.updateData('lessonEdits', {}, all => {
+          const id = lessonMatch[1];
+          if (Object.hasOwn(raw, 'previous') && !require('node:util').isDeepStrictEqual(raw.previous, all[id] || null)) {
+            throw Object.assign(Error('Bài này vừa được cập nhật ở nơi khác. Thầy cô mở lại bài để xem bản mới rồi lưu lại nhé.'), { status: 409 });
+          }
+          if (editIsEmpty(edit)) delete all[id]; else all[id] = edit;
+          return all;
+        });
+        return json(res,200,{ edit });
       }
       if (route === '/api/assignments' && req.method === 'GET') {
         const code = String(url.searchParams.get('classCode') || '').toUpperCase(), list = (await store.getData('assignments')) || [];
-        if (validToken(req) && !code) return json(res,200,{ assignments: list });
+        if (validToken(req) && !code) {
+          const classes = new Set((await store.listClasses()).map(c => c.code));
+          return json(res,200,{ assignments: list.filter(a => classes.has(a.classCode)) });
+        }
         if (!/^[A-HJ-NP-Z2-9]{6}$/.test(code)) return json(res,401,{ error: 'Thầy cô hãy đăng nhập để tiếp tục.' });
+        if (!await store.hasClass(code)) return json(res,200,{ assignments: [] });
         return json(res,200,{ assignments: list.filter(a => a.classCode === code) });
       }
       if (route === '/api/assignments' && req.method === 'POST') {
@@ -434,16 +487,19 @@ function createApiHandler(store, env = process.env) {
         const codes = [...new Set((Array.isArray(b.classCodes) ? b.classCodes : []).map(c => String(c).toUpperCase()))].slice(0, 30);
         if (!codes.length) return json(res,400,{ error:'Chọn ít nhất một lớp.' });
         for (const c of codes) if (!await store.hasClass(c)) return json(res,404,{ error:'Không tìm thấy lớp ' + c + '.' });
-        const now = Date.now(), made = codes.map(classCode => ({ id: 'a' + crypto.randomBytes(6).toString('hex'), classCode, ...info, createdAt: now }));
-        const list = (await store.getData('assignments')) || [];
-        await store.setData('assignments', made.concat(list).slice(0, 500)); return json(res,201,{ assignments: made });
+        const now = Date.now(), made = codes.map(classCode => ({ id: 'a' + crypto.randomBytes(6).toString('hex'), classCode, ...info, createdAt: now, explicitSubmission: true }));
+        await store.updateData('assignments', [], list => made.concat(list).slice(0, 500));
+        return json(res,201,{ assignments: made });
       }
       const assignMatch = route.match(/^\/api\/assignments\/([a-z0-9]{6,30})$/);
       if (assignMatch && req.method === 'DELETE') {
         if (!auth(req,res)) return;
-        const list = (await store.getData('assignments')) || [], rest = list.filter(a => a.id !== assignMatch[1]);
-        if (rest.length === list.length) return json(res,404,{ error:'Không tìm thấy bài đã giao.' });
-        await store.setData('assignments', rest); return json(res,200,{ deleted:true });
+        await store.updateData('assignments', [], list => {
+          const rest = list.filter(a => a.id !== assignMatch[1]);
+          if (rest.length === list.length) throw Object.assign(Error('Không tìm thấy bài đã giao.'), { status: 404 });
+          return rest;
+        });
+        return json(res,200,{ deleted:true });
       }
       if (route === '/api/sync' && req.method === 'POST') {
         const body = JSON.parse((await readBody(req,MAX_SYNC)).toString('utf8'));

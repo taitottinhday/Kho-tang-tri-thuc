@@ -28,6 +28,13 @@
     if (!visible(node) || node.disabled) throw new Error('Unavailable control ' + selector);
     node.click();
   }
+  async function waitForQuestion() {
+    for (let i = 0; i < 120; i++) {
+      if (visible(el('#plCheck'))) return;
+      await new Promise(resolve => setTimeout(resolve, 50));
+    }
+    throw Error('The question did not load');
+  }
   function nav(view) {
     const menu = el('#mobileMenu');
     if (visible(menu) && !el('#sidebar').classList.contains('mobile-open')) click('#mobileMenu');
@@ -81,6 +88,7 @@
     click('#thIntro');
     click('[data-level="de"]');
     click('#beginQuiz');
+    await waitForQuestion();
 
     // Màn làm bài (đợt 4): chọn → #plCheck → tấm #plSheet → #plCont.
     // Đáp án lấy từ câu đang hỏi (Q của app.js); mọi câu trả lời đều bấm qua giao diện.
@@ -209,9 +217,11 @@
     nav('badges');
     check('First lesson badge awarded', all('.badge-card.on').some(b => b.textContent.includes('Bước đầu tiên')));
     nav('teacher');
-    const factors = el('.gate-q').textContent.match(/\d+/g).map(Number);
-    el('#gateInput').value = String(factors[0] * factors[1]);
-    click('#gateOk');
+    check('Teacher corner asks for the teacher password, not a sum', visible(el('#gateInput')) && el('#gateInput').type === 'password' && !el('.gate-q'));
+    click('[data-close-modal]');
+    check('Closing the gate keeps the student out', !visible(el('.t-table')) && frame.contentWindow.eval('teacherOK') === false);
+    frame.contentWindow.eval('teacherOK = true'); // đã đăng nhập (kiểm thử không có máy chủ API)
+    nav('teacher');
     check('Teacher profile report', visible(el('.t-table')) && visible(el('#printReport')));
     check('Teacher page fits', fits());
     nav('shelf');
@@ -287,10 +297,8 @@
     // Câu sai cố ý ở Thử thách vẫn nằm trong sổ ôn bài học; thẻ từ đã sửa thì phải hết.
     check('Correct retry clears missed card', !el('.shelf-review') &&
           Number(el('#reviewNavCount').textContent) === frame.contentWindow.eval('Object.keys(S.review).length'));
+    frame.contentWindow.eval('teacherOK = true');
     nav('teacher');
-    const newFactors = el('.gate-q').textContent.match(/\d+/g).map(Number);
-    el('#gateInput').value = String(newFactors[0] * newFactors[1]);
-    click('#gateOk');
     check('Teacher sees full-round score and remediated misses', el('.managed-set details').textContent.includes('1/2') &&
           el('.managed-set details').textContent.includes('Đã viết đúng tất cả'));
     const restoredName = 'Sao lưu thử';
@@ -372,6 +380,7 @@
     el('#practiceType').value = 'fill';
     el('#practiceType').dispatchEvent(new Event('change',{bubbles:true}));
     click('#practiceFilter button');
+    await waitForQuestion();
     let practiced = 0, customSeen = false;
     while (el('#practiceAnswer') && practiced++ < 8) {
       const custom = el('.question-prompt').textContent.includes('quả');
@@ -392,6 +401,7 @@
       el('#practiceType').value = type;
       el('#practiceType').dispatchEvent(new Event('change',{bubbles:true}));
       click('#practiceFilter button');
+      await waitForQuestion();
       const part = browser.eval('Q.items[Q.i]');
       if (type === 'picture') {
         await el('.practice-image').decode();

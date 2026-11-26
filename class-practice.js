@@ -71,7 +71,10 @@ const ClassPractice = (() => {
   function eligible(topic, type = 'all') {
     return entries().filter(q => q.active && q.grades.includes(Number(S.grade)) && (topic === 'all' || q.topic === topic) && (type === 'all' || q.type === type));
   }
-  function play(topic, type) {
+  async function play(topic, type) {
+    const view = currentView, modal = $('#modalRoot').firstElementChild;
+    await Promise.all([MayChu.loadQuestions(), window.NoiDung?.refresh()]);
+    if (view !== currentView || modal !== $('#modalRoot').firstElementChild) return;
     const built = ['all','choice'].includes(type) ? gradeTopics(S.grade).filter(t => topic === 'all' || t.id === topic).flatMap(t =>
       t.baiTap.map((q, i) => ({ ...q, _t: t.id, _i: i })).filter(q => type === 'all' || q.loai === 'chon')) : [];
     const custom = shuffle(eligible(topic, type).map(item)).slice(0, 6);
@@ -92,21 +95,28 @@ const ClassPractice = (() => {
       '</select></label><p id="practiceInfo" aria-live="polite"></p><button class="primary-btn big">Bắt đầu luyện →</button></form>';
   }
   function bindPractice() {
-    if (!window.__classQuestionsLoaded) {
-      window.__classQuestionsLoaded = true;
-      MayChu.loadQuestions().then(() => { if (currentView === 'practice') render(); });
-    }
     const form = $('#practiceFilter');
     form.onchange = () => {
       const type = $('#practiceType').value;
       const count = eligible($('#practiceTopic').value, type).length;
       $('#practiceInfo').textContent = ['all','choice'].includes(type) ? 'Gồm câu mẫu theo chủ đề và câu đã được công bố trong kho giáo viên.' :
         count ? 'Có ' + count + ' câu thuộc dạng này.' : 'Chủ đề này chưa có câu thuộc dạng đã chọn.';
-      $('button', form).disabled = !count && !['all','choice'].includes(type);
     };
     form.onchange();
-    form.onsubmit = e => { e.preventDefault(); play($('#practiceTopic').value, $('#practiceType').value); };
+    form.onsubmit = async e => {
+      e.preventDefault();
+      const button = $('button', form);
+      button.disabled = true;
+      try { await play($('#practiceTopic').value, $('#practiceType').value); }
+      finally { if (form.isConnected) { button.disabled = false; form.onchange(); } }
+    };
+    MayChu.loadQuestions().then(() => { if (form.isConnected) form.onchange(); });
   }
+  setInterval(() => {
+    const form = $('#practiceFilter');
+    if (!form || document.hidden || !$('#modalRoot').hidden) return;
+    MayChu.loadQuestions().then(() => { if (form.isConnected) form.onchange(); });
+  }, 5000);
   function show(q) {
     const kind = q.type;
     const img = kind === 'picture' ? '<img class="practice-image" src="' + esc(pictures[q.image] ? 'assets/emoji/' + q.image + '.webp' : q.image) +

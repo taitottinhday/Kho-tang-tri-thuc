@@ -666,11 +666,24 @@ function checkBadges() {
 /* ============================== GÓC GIÁO VIÊN ============================== */
 function teacherGate() {
   if (typeof GUEST_MODE !== 'undefined' && GUEST_MODE) { toast('Hãy thoát chế độ học thử để mở Góc thầy cô.'); return; }
-  const a = 3 + Math.floor(Math.random() * 7), b = 3 + Math.floor(Math.random() * 7);
-  openModal('Dành cho thầy cô 👩‍🏫', 'Trả lời câu hỏi để vào góc giáo viên',
-    '<div class="gate"><p>Góc này dùng để xem tiến độ và cài đặt. Thầy cô hãy nhập kết quả phép tính:</p><div class="gate-q">' + a + ' × ' + b + ' = ?</div><input id="gateInput" class="dictation-input" inputmode="numeric" autocomplete="off" aria-label="Kết quả phép tính" /><div class="modal-actions"><button class="primary-btn" id="gateOk">Vào góc thầy cô</button></div></div>');
-  const ok = () => { if (Number($('#gateInput').value) === a * b) { teacherOK = true; closeModal(); go('teacher'); } else { sfx('bad'); toast('Chưa đúng, thầy cô thử lại nhé.'); } };
-  $('#gateOk').onclick = ok; $('#gateInput').onkeydown = e => { if (e.key === 'Enter') ok(); }; $('#gateInput').focus();
+  openModal('Dành cho thầy cô 👩‍🏫', 'Đăng nhập để vào góc giáo viên',
+    '<form class="gate" id="gateForm" autocomplete="off"><p>Góc này có thông tin học sinh và cài đặt lớp, <b>chỉ thầy cô được vào</b>. Em hãy quay lại bằng nút ✕ nhé.</p>' +
+    '<label for="gateInput">Mật khẩu giáo viên</label><input id="gateInput" type="password" class="dictation-input" autocomplete="current-password" aria-label="Mật khẩu giáo viên" />' +
+    '<p class="gate-err" id="gateErr" role="alert"></p><div class="modal-actions"><button class="primary-btn" id="gateOk">Đăng nhập</button> <button type="button" class="soft-btn" data-close-modal>Huỷ</button></div></form>');
+  const form = $('#gateForm');
+  form.onsubmit = async e => {
+    e.preventDefault();
+    const btn = $('#gateOk'), err = $('#gateErr'); btn.disabled = true; err.textContent = '';
+    try {
+      const r = await fetch('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: $('#gateInput').value }) });
+      const body = await r.json().catch(() => ({}));
+      if (!r.ok) throw Error(body.error || 'Chưa đăng nhập được.');
+      try { sessionStorage.setItem('vuonchu.teacherToken', body.token); } catch (x) {}
+      if (typeof MayChu !== 'undefined' && MayChu.setToken) MayChu.setToken(body.token);
+      teacherOK = true; closeModal(); go('teacher');
+    } catch (x) { sfx('bad'); err.textContent = x instanceof TypeError ? 'Chưa kết nối được máy chủ. Thầy cô kiểm tra mạng rồi thử lại.' : x.message; btn.disabled = false; $('#gateInput').select(); }
+  };
+  $('#gateInput').focus();
 }
 function renderTeacher() {
   const profiles = Object.values(db.profiles);
@@ -846,12 +859,13 @@ function startTopic(id) {
   showIntro(t);
 }
 /* Hộp “thông tin bài học”: số chặng · trạng thái · 3 mức sao · 2 lối vào Lý thuyết / Bài tập */
-function showIntro(t, level) {
-  const ts = tstat(t.id), num = String(myTopics().indexOf(t) + 1).padStart(2, '0');
+function showIntro(t, level, assignmentId) {
+  const grade = assignmentId ? t.lop[0] : S.grade;
+  const ts = tstat(t.id), num = String(gradeTopics(grade).indexOf(t) + 1).padStart(2, '0');
   level = level && tierOpen(ts, level) ? level : suggestTier(ts);
-  const g = Number(S.grade), n = buildLesson(t, level).length, tier = TIERS[level];
+  const g = Number(grade), n = buildLesson(t, level, grade).length, tier = TIERS[level];
   const status = ts.attempts ? 'Đã đạt ' + ts.stars + '★ · tốt nhất ' + ts.best + '%' : 'Chưa làm bài';
-  const body = '<div class="lp-head" style="--c:' + t.mau + '"><span class="lp-num">' + num + '</span><div class="lp-title"><small>LỚP ' + esc(S.grade) + ' · ' + esc(t.nhom.toUpperCase()) + '</small><h3>' + t.bieuTuong + ' ' + esc(t.ten) + '</h3></div>' + starsHtml(ts.stars) + '</div>' +
+  const body = '<div class="lp-head" style="--c:' + t.mau + '"><span class="lp-num">' + num + '</span><div class="lp-title"><small>LỚP ' + esc(grade) + ' · ' + esc(t.nhom.toUpperCase()) + '</small><h3>' + t.bieuTuong + ' ' + esc(t.ten) + '</h3></div>' + starsHtml(ts.stars) + '</div>' +
     '<div class="lp-status ' + (ts.attempts ? 'has' : '') + '"><b>' + status + '</b><span>' + (ts.theory ? '📖 Em đã đọc lý thuyết bài này.' : 'Đọc lý thuyết trước, rồi làm bài tập để nhận sao.') + '</span></div>' +
     '<div class="field-label">Chọn mức</div><div class="lp-tiers" role="group" aria-label="Chọn mức">' + Object.keys(TIERS).map(k => {
       const open = tierOpen(ts, k), got = ts.stars >= TIERS[k].stars;
@@ -860,15 +874,28 @@ function showIntro(t, level) {
     '<p class="lp-desc"><b>Mức ' + tier.name + ':</b> ' + tier.desc + '</p>' +
     '<div class="lp-enter"><button class="lp-btn theory" id="openTheory"><span aria-hidden="true">📖</span><b>Lý thuyết</b><small>Mẹo, ví dụ, lỗi thường gặp</small></button>' +
     '<button class="lp-btn practice" id="beginQuiz"><span aria-hidden="true">✏️</span><b>Bài tập</b><small>' + n + ' câu · mức ' + tier.name + (g >= 2 ? '' : ' · có nghe rồi chọn') + '</small></button></div>';
-  openModal('Bài ' + num + ' · ' + esc(t.ten), gardenName() + ' · Lớp ' + esc(S.grade), body);
+  openModal('Bài ' + num + ' · ' + esc(t.ten), (assignmentId ? 'Bài thầy cô giao' : gardenName(grade)) + ' · Lớp ' + esc(grade), body);
   $$('[data-level]').forEach(b => b.onclick = () => {
     const k = b.dataset.level;
     if (!tierOpen(ts, k)) { sfx('bad'); toast('Qua mức ' + (k === 'kho' ? 'Vừa' : 'Dễ') + ' trước để mở mức ' + TIERS[k].name + ' nhé! 🗝️'); return; }
-    sfx('tap'); showIntro(t, k);
+    sfx('tap'); showIntro(t, k, assignmentId);
   });
-  $('#openTheory').onclick = () => { if (typeof openTheory === 'function') openTheory(t.id, level); };
-  $('#beginQuiz').onclick = () => startQuiz({ kind: 'lesson', title: t.ten, icon: t.bieuTuong, topicId: t.id, level, hints: tier.hints, items: buildLesson(t, level) });
+  $('#openTheory').onclick = () => { if (typeof openTheory === 'function') openTheory(t.id, level, assignmentId); };
+  $('#beginQuiz').onclick = e => beginLesson(e.currentTarget, t, level, assignmentId);
   $('#beginQuiz').focus();
+}
+async function beginLesson(button, topic, level, assignmentId) {
+  button.disabled = true;
+  if (window.NoiDung) await NoiDung.refresh();
+  if (!button.isConnected) return;
+  button.disabled = false;
+  if (assignmentId && !NoiDung.tasks().some(a => a.id === assignmentId)) {
+    closeModal();
+    toast('Thầy cô đã thu hồi bài này.');
+    return;
+  }
+  const grade = assignmentId ? topic.lop[0] : S.grade;
+  startQuiz({ kind: 'lesson', title: topic.ten, icon: topic.bieuTuong, topicId: topic.id, assignmentId, lessonGrade: grade, level, hints: TIERS[level].hints, items: buildLesson(topic, level, grade) });
 }
 function startSkipTest() {
   const topics = myTopics();
@@ -926,10 +953,10 @@ function mixedItems(topics, n) {
   topics.forEach(t => { t.baiTap.forEach((b, i) => { if (b.loai !== 'ngheViet') pool.push(Object.assign({}, b, { _t: t.id, _i: i })); }); pool.push(...genItems(t)); });
   return shuffle(pool).slice(0, n).map(vary);
 }
-function buildLesson(t, level) {
+function buildLesson(t, level, grade = S.grade) {
   const items = t.baiTap.map((b, i) => Object.assign({}, b, { _t: t.id, _i: i }));
   const chon = mixGen(items.filter(b => b.loai === 'chon'), genItems(t, b => b.loai === 'chon')), loi = mixGen(items.filter(b => b.loai === 'timLoi'), genItems(t, b => b.loai === 'timLoi')), nghe = shuffle(items.filter(b => b.loai === 'ngheViet'));
-  const g = Number(S.grade), ghepSrc = chon.filter(canGhep), ncSrc = chon.filter(canNgheChon);
+  const g = Number(grade), ghepSrc = chon.filter(canGhep), ncSrc = chon.filter(canNgheChon);
   const ds = n => chon.slice(-n).map(makeDungSai);
   const gh = n => ghepSrc.slice(0, n).map(makeGhep);
   const listen = n => g >= 2 ? nghe.slice(0, n) : ncSrc.slice(-n).map(makeNgheChon);
@@ -1233,7 +1260,7 @@ function record(it, right) {
     if (!right && it._i != null) { S.wrongLog[key] = (S.wrongLog[key] || 0) + 1; S.review[key] = { box: 0, at: Date.now() }; }
     else if (S.review[key] && S.review[key].at < Q.startedAt) { // chỉ tính khi ôn ở lượt sau
       S.review[key].box++; S.review[key].at = Date.now();
-      if (S.review[key].box >= 2) { delete S.review[key]; S.reviewed++; toast('🎉 Em đã thuộc từ “' + itemWord(itemOf(key)) + '”!'); }
+      if (S.review[key].box >= 2) { delete S.review[key]; S.reviewed++; const item = itemOf(key); if (item) toast('🎉 Em đã thuộc từ “' + itemWord(item) + '”!'); }
     }
   }
   save();
@@ -1246,8 +1273,8 @@ function bumpDay() {
   S.streak = S.lastDay === dayKey(y) ? S.streak + 1 : 1; S.lastDay = today;
   S.bestStreak = Math.max(S.bestStreak, S.streak);
 }
-function saveHistory(kind, topic, title, correct, total) {
-  S.history.unshift({ d: dayKey(), at: Date.now(), grade: S.grade, kind, topic, title, correct, total, acc: pct(correct,total) });
+function saveHistory(kind, topic, title, correct, total, assignmentId, grade = S.grade) {
+  S.history.unshift({ d: dayKey(), at: Date.now(), grade, kind, topic, title, correct, total, acc: pct(correct,total), ...(assignmentId ? { assignmentId } : {}) });
 }
 function finishQuiz() {
   clearInterval(qTimer);
@@ -1284,7 +1311,8 @@ function finishQuiz() {
   S.xp += xp; S.flowers += flowers;
   const prizes = total ? StreakRoom.award() : [];
   if (flowers) extra.push('🌸 +' + flowers + ' bông hoa cho khu vườn');
-  if (total) saveHistory(q.kind, q.topicId || q.nodeId || '', q.title, q.correct, total);
+  if (total) saveHistory(q.kind, q.topicId || q.nodeId || '', q.title, q.correct, total,
+    !failed && q.log.length === total ? q.assignmentId : undefined, q.lessonGrade);
   const award = typeof QuaTang === 'undefined' ? null : QuaTang.earn(S, {
     kind: q.kind, correct: q.correct, total, finished: !failed && q.log.length === total
   });
@@ -1293,7 +1321,7 @@ function finishQuiz() {
   const gated = q.kind === 'lesson' || q.kind === 'skip';
   const good = !failed && (q.kind === 'speed' ? q.correct >= 5 : gated ? passed : acc >= 60);
   if (good) { sfx('win'); if (!award) confetti(); }
-  const next = q.kind === 'lesson' && passed ? nextTopic() : null;
+  const next = q.kind === 'lesson' && passed && !q.assignmentId ? nextTopic() : null;
   const head = q.kind === 'speed' ? (q.correct + ' điểm') : (q.correct + ' / ' + total + ' câu đúng');
   const title = failed ? (q.timeUp ? '⏰ Hết giờ rồi!' : '💧 Cây khát nước rồi!') : q.kind === 'speed' ? (good ? 'Nhanh quá!' : 'Lần sau sẽ nhanh hơn!')
     : q.kind === 'lesson' ? (passed ? (acc === 100 ? 'Tuyệt vời! Qua mức ' + tier.name + ' không sai câu nào!' : 'Qua màn mức ' + tier.name + '! 🎉') : 'Mình luyện thêm chút nữa nhé!')
@@ -1319,14 +1347,14 @@ function finishQuiz() {
   Q = null;
   $('#again').onclick = () => {
     if (q.kind === 'classPractice') { ClassPractice.play(...q.bankFilter); return; }
-    if (q.kind === 'lesson') { showIntro(getTopic(q.topicId), q.level); return; }
+    if (q.kind === 'lesson') { showIntro(getTopic(q.topicId), q.level, q.assignmentId); return; }
     if (q.kind === 'challenge' || q.kind === 'boss') { closeModal(); go('roadmap'); openNode(mapNodes.findIndex(n => n.id === q.nodeId)); return; }
     doAction(q.kind);
   };
   $('#home').onclick = () => { closeModal(); go('home'); };
   $('#toMap').onclick = () => { closeModal(); go('roadmap'); };
   if (next) $('#goNext').onclick = () => showIntro(next);
-  if (upTier) $('#upTier').onclick = () => showIntro(getTopic(q.topicId), upTier);
+  if (upTier) $('#upTier').onclick = () => showIntro(getTopic(q.topicId), upTier, q.assignmentId);
   const gc = $('#getCert'); if (gc) gc.onclick = () => showCertificate({ kind: 'island', grade: S.grade });
   onModalClose = render;
   if (award) QuaTang.attach(award);

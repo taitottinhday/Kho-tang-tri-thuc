@@ -22,7 +22,7 @@ const MayChu = (() => {
     if (!response.ok) throw Object.assign(Error(body?.error || 'Máy chủ chưa phản hồi. Thầy cô thử lại nhé.'), { status: response.status });
     return body;
   }
-  const post = (url, body) => request(url, { method:'POST', headers:{ 'Content-Type':'application/json' }, body:JSON.stringify(body) });
+  const post = (url, body, signal) => request(url, { method:'POST', headers:{ 'Content-Type':'application/json' }, body:JSON.stringify(body), signal });
   function statusLabel() {
     if (statusData.storage === 'postgres') return '<b class="cloud-ok">Đã nối PostgreSQL</b><span>Kho câu hỏi, tài liệu và hồ sơ sẽ dùng chung trên các thiết bị.</span>';
     return '<b class="cloud-file">Đang lưu tạm bằng tệp</b><span>Thầy hãy gắn PostgreSQL trong Railway để dữ liệu bền vững sau khi khởi động lại.</span>';
@@ -192,12 +192,24 @@ const MayChu = (() => {
     } catch (error) { body.innerHTML = '<p role="alert">' + escText(error.message) + '</p>'; }
   }
   async function connectClass(code, profiles) {
+    if (typeof GUEST_MODE !== 'undefined' && GUEST_MODE) throw Error('Em hãy mở hồ sơ của mình để kết nối lớp nhé.');
     const cleanCode = String(code || '').toUpperCase().replace(/\s/g,'');
     if (!/^[A-HJ-NP-Z2-9]{6}$/.test(cleanCode)) throw Error('Mã lớp gồm 6 kí tự, không dùng 0, O, 1 hoặc I.');
     const list = profiles || (typeof db !== 'undefined' ? Object.values(db.profiles || {}) : []);
     if (!list.length) throw Error('Chưa tìm thấy hồ sơ học sinh trên máy này.');
-    for (const profile of list) await sendProfile(cleanCode,profile);
+    const joined = [];
+    try {
+      for (const profile of list) {
+        const payload = { classCode: cleanCode, profile: profileSummary(profile) };
+        joined.push([payload, await post('/api/sync', payload, AbortSignal.timeout?.(5000))]);
+      }
+    } catch (error) {
+      if (!error.status) throw Error('Chưa kết nối được. Em kiểm tra mạng rồi nhập lại mã lớp nhé.');
+      throw error;
+    }
     localStorage.setItem(CLASS_KEY,cleanCode);
+    joined.forEach(([payload, result]) => acceptProfile(payload, result));
+    window.NoiDung?.refresh();
     return cleanCode;
   }
   function profileSummary(p) {
@@ -217,49 +229,69 @@ const MayChu = (() => {
     const queue = readQueue().filter(q => !(q.classCode === payload.classCode && q.profile?.id === payload.profile?.id)); queue.push(payload);
     localStorage.setItem(QUEUE_KEY,JSON.stringify(queue.slice(-50)));
   }
+  const activeSyncs = new Map();
+  const syncKey = (code, id) => code + ':' + id;
+  function forgetPayload(payload) {
+    const snapshot = JSON.stringify(payload);
+    localStorage.setItem(QUEUE_KEY, JSON.stringify(readQueue().filter(q => JSON.stringify(q) !== snapshot)));
+  }
+  function acceptProfile(payload, result) {
+    const key = syncKey(payload.classCode, payload.profile.id);
+    lastSyncedHistory.set(key, historyStamp(payload.profile));
+    const local = typeof db !== 'undefined' ? db.profiles?.[payload.profile.id] : null;
+    const notes = result.teacherNotes || [];
+    if (local && localStorage.getItem(CLASS_KEY) === payload.classCode && JSON.stringify(local.teacherNotes || []) !== JSON.stringify(notes)) {
+      local.teacherNotes = notes;
+      try { localStorage.setItem(STORE_KEY,JSON.stringify(db)); } catch {}
+      if (typeof currentView === 'string' && currentView === 'profile' && db.current === local.id) window.render?.();
+    }
+  }
+  async function transmit(payload) {
+    const result = await post('/api/sync',payload,AbortSignal.timeout?.(6000));
+    acceptProfile(payload, result);
+    forgetPayload(payload);
+    return result;
+  }
   async function sendProfile(code,p) {
     if (typeof GUEST_MODE !== 'undefined' && GUEST_MODE) return { skipped:true };
     const payload = { classCode:code,profile:profileSummary(p) };
+    queuePayload(payload);
+    return sendQueued(payload);
+  }
+  async function sendQueued(payload) {
+    const key = syncKey(payload.classCode, payload.profile.id);
+    if (activeSyncs.has(key)) return activeSyncs.get(key);
+    const work = transmit(payload);
+    activeSyncs.set(key, work);
     try {
-      const result = await post('/api/sync',payload);
-      p.teacherNotes = Array.isArray(result.teacherNotes) ? result.teacherNotes : [];
-      lastSyncedHistory.set(p.id,historyStamp(p));
-      if (typeof db !== 'undefined' && db.profiles?.[p.id]) {
-        try { localStorage.setItem(STORE_KEY,JSON.stringify(db)); } catch {}
-      }
-      if (typeof currentView === 'string' && currentView === 'profile') window.render?.();
-      localStorage.setItem(QUEUE_KEY,JSON.stringify(readQueue().filter(q => !(q.classCode === code && q.profile?.id === p.id))));
+      const result = await work;
+      if (readQueue().some(q => syncKey(q.classCode, q.profile.id) === key)) setTimeout(flushQueue, 100);
       return result;
     } catch (error) {
-      if (!error.status || error.status >= 500 || error.status === 429) { queuePayload(payload); return { queued:true }; }
+      if (!error.status || error.status >= 500 || error.status === 429) return { queued:true };
+      forgetPayload(payload);
       throw error;
-    }
+    } finally { activeSyncs.delete(key); }
   }
   async function flushQueue() {
     if (!navigator.onLine) return;
     const queue = readQueue(); if (!queue.length) return;
     for (const payload of queue) {
       try {
-        const result = await post('/api/sync',payload);
-        lastSyncedHistory.set(payload.profile.id,historyStamp(payload.profile));
-        const local = typeof db !== 'undefined' ? db.profiles?.[payload.profile.id] : null;
-        if (local && Array.isArray(result.teacherNotes)) {
-          local.teacherNotes = result.teacherNotes; try { localStorage.setItem(STORE_KEY,JSON.stringify(db)); } catch {}
-          if (typeof currentView === 'string' && currentView === 'profile') window.render?.();
-        }
-        const current = readQueue().filter(q => !(q.classCode === payload.classCode && q.profile?.id === payload.profile?.id));
-        localStorage.setItem(QUEUE_KEY,JSON.stringify(current));
-      } catch (error) { if (error.status && error.status !== 429 && error.status < 500) { localStorage.setItem(QUEUE_KEY,JSON.stringify(readQueue().filter(q => q.classCode !== payload.classCode || q.profile?.id !== payload.profile?.id))); } else break; }
+        await sendQueued(payload);
+      } catch { /* tiếp tục gửi hồ sơ khác */ }
     }
   }
   function historyStamp(p) { return JSON.stringify([p.history?.length || 0,p.history?.[0] || null]); }
   function scheduleSync() {
     clearTimeout(syncTimer);
     if (typeof GUEST_MODE !== 'undefined' && GUEST_MODE) return;
-    if (!localStorage.getItem(CLASS_KEY) || typeof db === 'undefined' || !db.profiles?.[db.current]) return;
+    const code = localStorage.getItem(CLASS_KEY);
+    if (!code || typeof db === 'undefined' || !db.profiles?.[db.current]) return;
     const profile = db.profiles[db.current];
-    if (lastSyncedHistory.get(profile.id) === historyStamp(profile)) return;
-    syncTimer = setTimeout(() => sendProfile(localStorage.getItem(CLASS_KEY),profile).catch(() => {}),1300);
+    if (lastSyncedHistory.get(syncKey(code, profile.id)) === historyStamp(profile)) return;
+    queuePayload({ classCode: code, profile: profileSummary(profile) });
+    syncTimer = setTimeout(flushQueue, 400);
   }
   function installSaveHook() {
     if (typeof window.save !== 'function' || window.save.__cloudHook) return;
@@ -267,14 +299,29 @@ const MayChu = (() => {
     const wrapped = function (...args) { const result = original.apply(this,args); scheduleSync(); return result; };
     wrapped.__cloudHook = true; window.save = wrapped;
   }
-  async function loadQuestions() {
+  let questionRequest;
+  function loadQuestions() {
+    if (!questionRequest) questionRequest = fetchQuestions().finally(() => { questionRequest = null; });
+    return questionRequest;
+  }
+  async function fetchQuestions() {
     try {
-      const result = await request('/api/questions'); serverQuestions = (result.questions || []).filter(q => q.active !== false); // học sinh chỉ dùng câu đã công bố
+      const result = await request('/api/questions', { cache: 'no-store', signal: AbortSignal.timeout?.(3000) });
+      serverQuestions = (result.questions || []).filter(q => q.active !== false);
       if (typeof db !== 'undefined') {
         const existing = Array.isArray(db.classQuestions) ? db.classQuestions : [];
-        const ids = new Set(serverQuestions.map(q => q.id));
-        db.classQuestions = existing.filter(q => !ids.has(q.id)).concat(serverQuestions);
-        try { localStorage.setItem(STORE_KEY,JSON.stringify(db)); } catch {}
+        const saved = localStorage.getItem('vuonchu.remoteQuestionIds');
+        const previous = saved === null ? existing.filter(q => /^q[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(q.id)).map(q => q.id) : JSON.parse(saved);
+        const remoteIds = serverQuestions.map(q => q.id);
+        const replace = new Set(previous.concat(remoteIds));
+        const combined = existing.filter(q => !replace.has(q.id)).concat(serverQuestions);
+        try {
+          if (saved !== JSON.stringify(remoteIds)) localStorage.setItem('vuonchu.remoteQuestionIds', JSON.stringify(remoteIds));
+          if (JSON.stringify(existing) !== JSON.stringify(combined)) {
+            db.classQuestions = combined;
+            localStorage.setItem(STORE_KEY,JSON.stringify(db));
+          }
+        } catch {}
       }
       return serverQuestions;
     } catch { return serverQuestions; }
@@ -312,14 +359,25 @@ const MayChu = (() => {
   }
   function docsPage() { return '<div class="docs-view"><div class="page-heading"><p class="eyebrow">THƯ VIỆN LỚP HỌC</p><h1>📚 Tài liệu của thầy cô</h1><p>Tài liệu luyện tập được thầy cô chia sẻ với lớp em.</p></div><section class="project-panel" id="publicDocs"><p>Đang tìm tài liệu…</p></section></div>'; }
   function bindDocs() { const body = document.querySelector('#publicDocs'); if (body) drawDocs(body,false).catch(() => { body.innerHTML = '<p>Mất kết nối. Em có thể thử lại sau nhé.</p>'; }); }
+  function refreshCurrentProfile() {
+    const code = localStorage.getItem(CLASS_KEY);
+    if (code && typeof db !== 'undefined' && db.profiles?.[db.current]) sendProfile(code,db.profiles[db.current]).catch(() => {});
+  }
   function init() {
     installSaveHook();
     window.addEventListener('online',flushQueue);
-    setInterval(() => { flushQueue(); const code = localStorage.getItem(CLASS_KEY); if (code && typeof db !== 'undefined' && db.profiles?.[db.current]) sendProfile(code,db.profiles[db.current]).catch(() => {}); },60000);
+    setInterval(() => { flushQueue(); refreshCurrentProfile(); },60000);
+    let viewingProfile = false;
+    AFTER_RENDER.push(view => {
+      if (view === 'profile' && !viewingProfile) refreshCurrentProfile();
+      viewingProfile = view === 'profile';
+    });
+    setInterval(() => { if (viewingProfile && !document.hidden && navigator.onLine) refreshCurrentProfile(); },5000);
     if (typeof registerView === 'function') registerView('docs','Tài liệu của thầy cô',docsPage,bindDocs);
     if (localStorage.getItem(CLASS_KEY)) setTimeout(() => flushQueue(),1000);
   }
   init();
-  return { teacherPanel,bindTeacher,connectClass,sendProfile,loadQuestions,remoteQuestions,saveQuestions,csvTemplate,publicDocs:docsPage,bindDocs };
+  function setToken(value) { token = value || ''; }
+  return { setToken,teacherPanel,bindTeacher,connectClass,sendProfile,loadQuestions,remoteQuestions,saveQuestions,csvTemplate,publicDocs:docsPage,bindDocs };
 })();
 window.MayChu = MayChu;
