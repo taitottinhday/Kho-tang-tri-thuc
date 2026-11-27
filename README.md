@@ -4,13 +4,22 @@
 
 ## Chạy trên máy
 
-Mở PowerShell tại thư mục dự án, sau đó chạy:
+Để dùng đầy đủ máy chủ lớp học, đăng nhập giáo viên và đấu trường nhiều thiết bị, mở PowerShell tại thư mục dự án rồi chạy một lần:
 
 ```powershell
-python -m http.server 8000 --bind 127.0.0.1
+npm.cmd install
 ```
 
-Mở `http://localhost:8000` trong trình duyệt. Có thể dừng máy chủ bằng `Ctrl+C`. App cũng có thể mở bằng `index.html`.
+Mỗi lần chạy trên Windows, đặt mật khẩu giáo viên cho phiên local rồi khởi động máy chủ:
+
+```powershell
+$env:TEACHER_PASSWORD = "mat-khau-demo-rieng"
+npm.cmd start
+```
+
+Mở `http://localhost:3000` trong trình duyệt. Để học sinh dùng điện thoại cùng Wi-Fi, lấy địa chỉ IPv4 của máy chạy web bằng `ipconfig` rồi mở `http://DIA-CHI-IP:3000` trên điện thoại; nếu Windows hỏi, cho phép Node.js qua mạng riêng. Dừng máy chủ bằng `Ctrl+C`.
+
+`python -m http.server` hoặc mở `index.html` chỉ phù hợp để xem giao diện tĩnh; đăng nhập giáo viên, đồng bộ lớp và đấu trường trực tiếp cần chạy `npm.cmd start`.
 
 ## Chức năng hiện có
 

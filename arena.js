@@ -19,11 +19,13 @@ function arenaSeg(key, vals, def, unit) {
 function startArena() {
   const topics = myTopics();
   const pickd = { arTeams: 2, arCount: 10, arTime: 20 };
+  let playMode = 'teams';
   const body = '<div class="arena-setup">' +
     '<p>Chiếu màn hình lên bảng. Mỗi câu, các đội giơ thẻ <b>A / B / C / D</b> (hoặc viết ra bảng con); thầy cô chọn những đội trả lời đúng.</p>' +
+    '<div class="field-label">Cách chơi</div><div class="arena-mode-toggle" role="group" aria-label="Cách chơi đấu trường"><button type="button" class="on" data-ar-mode="teams" aria-pressed="true"><span>🪧</span><b>Chơi chung trên bảng</b><small>Các đội giơ thẻ A/B/C/D</small></button><button type="button" data-ar-mode="online" aria-pressed="false"><span>📱</span><b>Mỗi bạn một thiết bị</b><small>Vào phòng bằng mã 6 kí tự</small></button></div><p id="arModeHint" class="arena-mode-hint">Thầy cô chiếu màn hình, lớp cùng thảo luận và cộng điểm cho đội trả lời đúng.</p>' +
     '<div class="field-label">Chủ đề</div><select id="arTopic" class="t-select" aria-label="Chủ đề"><option value="mix">🎲 Trộn tất cả bài lớp ' + esc(S.grade) + '</option>' +
     topics.map(t => '<option value="' + t.id + '">' + t.bieuTuong + ' ' + esc(t.ten) + '</option>').join('') + '</select>' +
-    '<div class="field-label">Số đội</div>' + arenaSeg('arTeams', [2, 3, 4], 2) +
+    '<div id="arTeamField"><div class="field-label">Số đội</div>' + arenaSeg('arTeams', [2, 3, 4], 2) + '</div>' +
     '<div class="field-label">Số câu</div>' + arenaSeg('arCount', [5, 10, 15], 10) +
     '<div class="field-label">Thời gian mỗi câu</div>' + arenaSeg('arTime', [15, 20, 30], 20, ' giây') +
     '<div class="arena-team-preview" id="arPreview"></div>' +
@@ -31,16 +33,30 @@ function startArena() {
     '<div class="modal-actions center"><button class="primary-btn big" id="arGo">🏁 Bắt đầu thi</button></div></div>';
   openModal('🏆 Đấu đội trên lớp', 'Chế độ trình chiếu · Lớp ' + esc(S.grade), body, 'wide');
   const preview = () => { $('#arPreview').innerHTML = ARENA_TEAMS.slice(0, pickd.arTeams).map(t => '<span style="--tc:' + t.c + '">' + t.icon + ' Đội ' + t.name + '</span>').join(''); };
+  $$('[data-ar-mode]').forEach(button => button.onclick = () => {
+    playMode = button.dataset.arMode; sfx('tap');
+    $$('[data-ar-mode]').forEach(other => { const selected = other === button; other.classList.toggle('on',selected); other.setAttribute('aria-pressed',String(selected)); });
+    $('#arTeamField').hidden = playMode === 'online'; $('#arPreview').hidden = playMode === 'online';
+    $('#arModeHint').textContent = playMode === 'online' ? 'Thầy cô đăng nhập, tạo phòng rồi chiếu mã để học sinh vào bằng máy đã kết nối với lớp.' : 'Thầy cô chiếu màn hình, lớp cùng thảo luận và cộng điểm cho đội trả lời đúng.';
+    $('#arGo').textContent = playMode === 'online' ? '🔗 Tạo phòng trực tuyến' : '🏁 Bắt đầu thi';
+  });
   $$('[data-ar]').forEach(b => b.onclick = () => {
     pickd[b.dataset.ar] = Number(b.dataset.v); sfx('tap');
     $$('[data-ar="' + b.dataset.ar + '"]').forEach(x => { x.classList.toggle('on', x === b); x.setAttribute('aria-checked', x === b); });
     preview();
   });
   preview();
-  $('#arGo').onclick = () => {
+  $('#arGo').onclick = async () => {
     const tid = $('#arTopic').value, src = tid === 'mix' ? topics : [getTopic(tid)];
     const pool = [];
     src.forEach(t => t.baiTap.forEach((b, i) => { if (b.loai === 'chon') pool.push(Object.assign({}, b, { _t: t.id, _i: i, _opts: shuffle(b.luaChon) })); }));
+    if (playMode === 'online') {
+      const title = tid === 'mix' ? 'Trộn bài lớp ' + S.grade : getTopic(tid).ten;
+      const button = $('#arGo'); button.disabled = true;
+      try { await LiveArena.host(shuffle(pool).slice(0,pickd.arCount),title,pickd.arTime); }
+      finally { if (button.isConnected) button.disabled = false; }
+      return;
+    }
     ARENA = { items: shuffle(pool).slice(0, pickd.arCount), i: 0, secs: pickd.arTime, phase: 'ask', picked: new Set(),
       teams: ARENA_TEAMS.slice(0, pickd.arTeams).map(t => Object.assign({ score: 0 }, t)),
       title: tid === 'mix' ? 'Trộn bài lớp ' + S.grade : getTopic(tid).ten };

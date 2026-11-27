@@ -501,6 +501,116 @@ function createApiHandler(store, env = process.env) {
         });
         return json(res,200,{ deleted:true });
       }
+      if (route === '/api/live-games' && req.method === 'POST') {
+        if (!auth(req,res)) return;
+        const body = JSON.parse((await readBody(req, 60000)).toString('utf8'));
+        const classCode = String(body.classCode || '').toUpperCase();
+        if (!/^[A-HJ-NP-Z2-9]{6}$/.test(classCode) || !await store.hasClass(classCode)) return json(res,404,{ error:'Không tìm thấy lớp này trên máy chủ.' });
+        const clean = value => String(value || '').normalize('NFC').trim().replace(/[\x00-\x1f]/g,' ').replace(/\s+/g,' ');
+        const items = Array.isArray(body.items) ? body.items.slice(0,15).map((item,index) => {
+          const prompt = clean(item?.prompt), answer = clean(item?.answer), rule = clean(item?.rule);
+          const choices = Array.isArray(item?.choices) ? [...new Set(item.choices.map(clean).filter(Boolean))] : [];
+          if (!prompt || prompt.length > 220 || !answer || answer.length > 80 || choices.length < 2 || choices.length > 4 || !choices.includes(answer) || choices.some(c => c.length > 80) || rule.length > 300) {
+            throw Object.assign(Error('Câu ' + (index + 1) + ' chưa hợp lệ. Mỗi câu cần đề, đáp án và 2–4 lựa chọn.'), { status:400 });
+          }
+          return { prompt, answer, choices, rule };
+        }) : [];
+        if (items.length < 3) return json(res,400,{ error:'Đấu trường cần ít nhất 3 câu hỏi.' });
+        const seconds = Math.floor(Math.max(10,Math.min(60,Number(body.seconds) || 20)));
+        const now = Date.now(), chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+        const rooms = await store.updateData('liveGames', [], list => {
+          const active = list.filter(room => room.expiresAt > now && room.phase !== 'complete');
+          let code;
+          do { code = Array.from({length:6}, () => chars[crypto.randomInt(chars.length)]).join(''); } while (active.some(room => room.code === code));
+          const room = { code, classCode, title:clean(body.title).slice(0,90) || 'Đấu trường chữ', items, seconds, phase:'waiting', round:0, revealedRound:null,
+            participants:[], createdAt:now, expiresAt:now + 2 * 60 * 60 * 1000 };
+          return [room,...active].slice(0,80);
+        });
+        const room = rooms[0];
+        return json(res,201,{ code:room.code, classCode, title:room.title, expiresAt:room.expiresAt });
+      }
+      const livePath = route.match(/^\/api\/live-games\/([A-HJ-NP-Z2-9]{6})(?:\/(join|answer|start|reveal|next|end))?$/);
+      if (livePath && req.method === 'GET' && !livePath[2]) {
+        const code = livePath[1], classCode = String(url.searchParams.get('classCode') || '').toUpperCase();
+        const profileId = String(url.searchParams.get('profileId') || ''), host = validToken(req);
+        let rooms = await store.getData('liveGames') || [], room = rooms.find(r => r.code === code);
+        if (!room || room.expiresAt <= Date.now()) return json(res,404,{ error:'Phòng chơi đã hết hạn hoặc không còn tồn tại.' });
+        if (host) {
+          if (room.classCode !== classCode) return json(res,403,{ error:'Phòng này thuộc lớp khác.' });
+        } else {
+          if (room.classCode !== classCode || !/^[\w-]{4,80}$/.test(profileId)) return json(res,403,{ error:'Hãy kết nối hồ sơ học sinh với đúng lớp trước.' });
+          const student = (await store.listStudents(classCode)).find(s => s.id === profileId);
+          if (!student || !room.participants.some(p => p.id === profileId)) return json(res,403,{ error:'Em cần vào phòng từ máy đã kết nối với lớp.' });
+        }
+        if (room.phase === 'question' && room.deadlineAt && room.deadlineAt <= Date.now()) {
+          await store.updateData('liveGames', [], list => list.map(r => r.code === code && r.phase === 'question' && r.round === room.round ? { ...r, phase:'reveal', revealedAt:Date.now(), revealedRound:r.round } : r));
+          rooms = await store.getData('liveGames') || []; room = rooms.find(r => r.code === code);
+        }
+        const revealed = room.phase === 'reveal' || (room.phase === 'complete' && room.revealedRound === room.round);
+        const questionVisible = room.phase === 'question' || room.phase === 'reveal' || revealed;
+        const question = questionVisible ? room.items[room.round] || null : null;
+        const participants = room.participants.map(p => ({ name:p.name, avatar:p.avatar || '🙂', score:p.score || 0,
+          answered:!!p.answers?.[room.round], ...(host && revealed ? { choice:p.answers?.[room.round]?.choice || '', correct:!!p.answers?.[room.round]?.correct } : {}) }));
+        const me = host ? null : room.participants.find(p => p.id === profileId);
+        const myAnswer = me?.answers?.[room.round] || null;
+        const rank = me ? room.participants.slice().sort((a,b) => (b.score || 0) - (a.score || 0)).findIndex(player => player.id === profileId) + 1 : null;
+        return json(res,200,{ code, classCode:room.classCode, title:room.title, phase:room.phase, round:room.round, total:room.items.length,
+          seconds:room.seconds, deadlineAt:room.deadlineAt || null, participants, answeredCount:room.participants.filter(p => p.answers?.[room.round]).length,
+          question:question ? { prompt:question.prompt, choices:question.choices, ...(revealed ? { answer:question.answer, rule:question.rule } : {}) } : null,
+          me:me ? { answer:myAnswer ? { choice:myAnswer.choice, ...(revealed ? { correct:myAnswer.correct } : {}) } : null, score:me.score || 0, ...(revealed ? { rank } : {}) } : null });
+      }
+      if (livePath && req.method === 'POST' && livePath[2]) {
+        const code = livePath[1], action = livePath[2], body = JSON.parse((await readBody(req,5000)).toString('utf8'));
+        const classCode = String(body.classCode || '').toUpperCase();
+        const profileId = String(body.profileId || '');
+        const isStudentAction = action === 'join' || action === 'answer';
+        let studentSnapshot = null;
+        if (!isStudentAction && !auth(req,res)) return;
+        if (isStudentAction) {
+          if (!/^[A-HJ-NP-Z2-9]{6}$/.test(classCode) || !/^[\w-]{4,80}$/.test(profileId)) return json(res,400,{ error:'Thiếu mã lớp hoặc hồ sơ học sinh.' });
+          if (!await store.hasClass(classCode)) return json(res,404,{ error:'Không tìm thấy lớp này.' });
+          studentSnapshot = (await store.listStudents(classCode)).find(s => s.id === profileId);
+          if (!studentSnapshot) return json(res,403,{ error:'Hồ sơ này chưa kết nối với lớp. Hãy mở Hồ sơ và đồng bộ lớp trước nhé.' });
+        }
+        const now = Date.now();
+        const rooms = await store.updateData('liveGames', [], list => list.map(room => {
+          if (room.code !== code) return room;
+          if (room.expiresAt <= now) throw Object.assign(Error('Phòng chơi đã hết hạn.'), { status:404 });
+          if (isStudentAction && room.classCode !== classCode) throw Object.assign(Error('Mã lớp không khớp với phòng chơi.'), { status:403 });
+          if (!isStudentAction && room.classCode !== classCode) throw Object.assign(Error('Phòng này thuộc lớp khác.'), { status:403 });
+          if (action === 'join') {
+            if (room.phase !== 'waiting') throw Object.assign(Error('Phòng đã bắt đầu. Em nhờ thầy cô tạo phòng mới nhé.'), { status:409 });
+            if (!room.participants.some(p => p.id === profileId)) {
+              if (room.participants.length >= 60) throw Object.assign(Error('Phòng đã đủ 60 bạn.'), { status:409 });
+              room = { ...room, participants:[...room.participants,{ id:profileId, name:studentSnapshot.name, avatar:studentSnapshot.avatar || '🙂', score:0, answers:{} }] };
+            }
+          } else if (action === 'answer') {
+            const round = Number(body.round), choice = String(body.choice || '');
+            const player = room.participants.find(p => p.id === profileId), question = room.items[room.round];
+            if (!player || room.phase !== 'question' || round !== room.round || room.deadlineAt <= now) throw Object.assign(Error('Lượt này đã đóng. Chờ thầy cô mở câu tiếp theo nhé.'), { status:409 });
+            if (player.answers?.[round]) throw Object.assign(Error('Đáp án của em đã được ghi nhận.'), { status:409 });
+            if (!question?.choices.includes(choice)) throw Object.assign(Error('Chọn một đáp án có trong câu hỏi.'), { status:400 });
+            const correct = choice === question.answer, answers = { ...(player.answers || {}), [round]:{ choice, correct, at:now } };
+            room = { ...room, participants:room.participants.map(p => p.id === profileId ? { ...p, answers, score:(p.score || 0) + (correct ? 10 : 0) } : p) };
+          } else if (action === 'start') {
+            if (room.phase !== 'waiting') throw Object.assign(Error('Phòng đã bắt đầu rồi.'), { status:409 });
+            if (!room.participants.length) throw Object.assign(Error('Chờ ít nhất một học sinh vào phòng rồi bắt đầu nhé.'), { status:409 });
+            room = { ...room, phase:'question', round:0, deadlineAt:now + room.seconds * 1000 };
+          } else if (action === 'reveal') {
+            if (room.phase !== 'question') throw Object.assign(Error('Chưa có câu hỏi đang mở.'), { status:409 });
+            room = { ...room, phase:'reveal', revealedAt:now, revealedRound:room.round };
+          } else if (action === 'next') {
+            if (room.phase !== 'reveal') throw Object.assign(Error('Hãy hiện đáp án trước khi chuyển câu.'), { status:409 });
+            if (room.round + 1 >= room.items.length) room = { ...room, phase:'complete', completedAt:now };
+            else room = { ...room, phase:'question', round:room.round + 1, deadlineAt:now + room.seconds * 1000 };
+          } else if (action === 'end') room = { ...room, phase:'complete', completedAt:now };
+          else throw Object.assign(Error('Thao tác phòng chơi chưa hợp lệ.'), { status:400 });
+          return room;
+        }));
+        const room = rooms.find(r => r.code === code);
+        if (!room) return json(res,404,{ error:'Không tìm thấy phòng chơi.' });
+        return json(res,200,{ ok:true, code, phase:room.phase, round:room.round });
+      }
       if (route === '/api/sync' && req.method === 'POST') {
         const body = JSON.parse((await readBody(req,MAX_SYNC)).toString('utf8'));
         const code = String(body.classCode || '').toUpperCase();

@@ -55,7 +55,7 @@ function newProfile(name, grade, avatar) {
   return {
     id: 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
     name: name || 'Bạn nhỏ', grade: schoolGrade(grade), avatar: avatar || '🐰',
-    xp: 0, streak: 0, lastDay: '', topics: {}, review: {}, wrongLog: {},
+    xp: 0, streak: 0, lastDay: '', topics: {}, review: {}, wrongLog: {}, storyProgress: {}, adaptiveDay: '',
     attempts: 0, correct: 0, combo: 0, bestCombo: 0,
     daily: { day: '', done: false }, badges: [], bestSpeed: 0,
     dictCorrect: 0, hunted: 0, reviewed: 0, history: [],
@@ -422,6 +422,7 @@ function renderHome() {
     voyageChoice('review', '🔁', 'Ôn câu sai', reviewN ? reviewN + ' mục đang chờ' : 'Chưa có câu sai') +
     voyageChoice('placement', '🎯', 'Kiểm tra trình độ', S.placement ? 'Lần trước: hợp lớp ' + S.placement.level : 'Gợi ý lớp phù hợp') +
     '</section>' +
+    (typeof StoryQuest !== 'undefined' ? StoryQuest.homeCards() : '') +
     '<section class="sea-chart" aria-label="Bản đồ quần đảo"><header><h2>Quần đảo Vườn Chữ</h2><span>Đảo của em: <i>Lớp ' + esc(S.grade) + '</i></span></header>' +
     '<div class="chart-water chart-primary"><img class="island-art" src="assets/quan-dao-tieu-hoc.webp" alt="" width="1536" height="430" />' +
     SCHOOL_GRADES.map(g => { const p = islandProgress(g);
@@ -612,6 +613,8 @@ function openGift(n, st) {
 
 /* ============================== TRÒ CHƠI ============================== */
 const GAMES = [
+  { action: 'adaptive', icon: '🕵️', title: 'Nhiệm vụ của riêng em', desc: 'Thỏ Lá chọn câu theo những nhóm chữ em đang cần luyện.', meta: '5 câu · có gợi ý theo lỗi' },
+  { action: 'stories', icon: '📖', title: 'Truyện mở khoá bằng chữ đúng', desc: 'Mỗi câu đúng mở thêm một khung truyện mới.', meta: '3 chương · có tranh động' },
   { action: 'daily', icon: '🎯', title: 'Thử thách mỗi ngày', desc: '5 câu trộn từ các bài em đã mở, ưu tiên từ em hay nhầm.', meta: '+20 XP mỗi ngày' },
   { action: 'speed', icon: '🚀', title: 'Nhanh tay', desc: 'Trong 60 giây, chọn đúng càng nhiều chữ càng tốt!', meta: 'Kỉ lục của em: ' },
   { action: 'snowcatch', icon: '❄️', title: 'Hứng tuyết chữ', desc: 'Bông tuyết mang chữ rơi xuống – chạm vào bông tuyết viết đúng để điền vào câu!', meta: 'Kỉ lục của em: ' },
@@ -619,7 +622,8 @@ const GAMES = [
   { action: 'dictation', icon: '🎧', title: 'Nghe – viết đoạn văn', desc: 'Nghe máy đọc từng câu trong đoạn văn rồi gõ lại.', meta: 'Có nghe chậm, nghe lại' },
   { action: 'review', icon: '🔁', title: 'Ôn từ hay nhầm', desc: 'Các câu em làm sai sẽ quay lại. Đúng 2 lần là thuộc!', meta: 'Ôn tập ngắt quãng' },
   { action: 'quick', icon: '🎲', title: 'Luyện nhanh', desc: '10 câu ngẫu nhiên đủ kiểu: đúng/sai, ghép chữ, chọn chữ, tìm lỗi.', meta: 'Trộn từ các bài em đã mở' },
-  { action: 'arena', icon: '🏆', title: 'Đấu đội trên lớp', desc: 'Thầy cô trình chiếu lên bảng, cả lớp chia 2–4 đội thi trả lời nhanh.', meta: 'Dành cho thầy cô · cả lớp cùng chơi' }
+  { action: 'arena', icon: '🏆', title: 'Đấu trường chữ', desc: 'Thầy cô mở phòng theo đội hoặc cho cả lớp thi trực tiếp bằng điện thoại.', meta: 'Giáo viên tạo phòng · có bảng điểm' },
+  { action: 'joinArena', icon: '🔢', title: 'Vào phòng đấu chữ', desc: 'Nhập mã 6 kí tự thầy cô chiếu để vào lượt thi của lớp.', meta: 'Cần kết nối hồ sơ với lớp' }
 ];
 function renderGames() {
   return pageHeading('HỌC MÀ CHƠI', 'Chọn một trò chơi', 'Chơi vui một chút, nhớ chữ thật lâu!') +
@@ -986,7 +990,7 @@ function missionCard() {
 }
 
 /* ============================== MÀN LÀM BÀI (TOÀN MÀN HÌNH) ============================== */
-const KIND_LABEL = { skip: 'LÀM BÀI VƯỢT CẤP', placement: 'KIỂM TRA TRÌNH ĐỘ', lesson: 'BÀI HỌC', challenge: 'THỬ THÁCH', boss: 'CÂY CHỮ THẦN', daily: 'THỬ THÁCH NGÀY', review: 'ÔN TỪ HAY NHẦM', hunt: 'THÁM TỬ SĂN LỖI', dictation: 'NGHE – VIẾT', speed: 'NHANH TAY', quick: 'LUYỆN NHANH' };
+const KIND_LABEL = { skip: 'LÀM BÀI VƯỢT CẤP', placement: 'KIỂM TRA TRÌNH ĐỘ', lesson: 'BÀI HỌC', challenge: 'THỬ THÁCH', boss: 'CÂY CHỮ THẦN', daily: 'THỬ THÁCH NGÀY', review: 'ÔN TỪ HAY NHẦM', hunt: 'THÁM TỬ SĂN LỖI', dictation: 'NGHE – VIẾT', speed: 'NHANH TAY', quick: 'LUYỆN NHANH', adaptive: 'NHIỆM VỤ CỦA RIÊNG EM', storybook: 'TRUYỆN TƯƠNG TÁC' };
 const EXTRA_RENDER = {}; // dạng bài thêm (dang-bai.js)
 const TYPE_TAG = { chon: 'CHỌN CHỮ ĐÚNG', timLoi: 'TÌM CHỮ VIẾT SAI', ngheViet: 'NGHE – VIẾT', dungSai: 'ĐÚNG HAY SAI?', ghepChu: 'GHÉP CHỮ', ngheChon: 'NGHE RỒI CHỌN' };
 let Q = null, qTimer = null;
@@ -1020,12 +1024,13 @@ function livesHtml() {
 }
 function playerShell(inner, it) {
   const total = Q.items.length, t = getTopic(it._t), speed = Q.kind === 'speed';
+  const storyFrame = Q.kind === 'storybook' && typeof StoryQuest !== 'undefined' ? StoryQuest.playerFrame(Q) : '';
   return '<div class="player" style="--c:' + (t ? t.mau : '#64b281') + '">' +
     '<div class="pl-top"><button class="pl-x" data-close-modal aria-label="Thoát bài">✕</button>' +
     '<div class="pl-bar" role="progressbar" aria-label="Tiến độ" aria-valuemin="0" aria-valuemax="' + total + '" aria-valuenow="' + Q.i + '"><span style="width:' + (speed ? 100 : pct(Q.i, total)) + '%"></span><b>' + (speed ? Q.correct + ' điểm' : (Q.i + 1) + ' / ' + total) + '</b></div>' +
     (Q.endAt ? '<div class="pl-time" id="plTime">⏱ ' + Math.max(0, Math.ceil((Q.endAt - Date.now()) / 1000)) + 's</div>' : '') + livesHtml() + '</div>' +
     '<div class="pl-banner"><span class="pl-banner-icon">' + (Q.icon || (t ? t.bieuTuong : '📘')) + '</span><div class="pl-banner-text"><small>' + (KIND_LABEL[Q.kind] || 'LUYỆN TẬP') + '</small><b>' + esc(Q.title) + '</b></div><span class="combo" id="combo">' + comboText() + '</span></div>' +
-    '<div class="pl-card" id="plCard"><div class="pl-tag-row"><span class="pl-tag">' + TYPE_TAG[it.loai] + '</span>' + (t && Q.kind !== 'lesson' ? '<span class="pl-topic">' + t.bieuTuong + ' ' + esc(t.ten) + '</span>' : '') +
+    storyFrame + '<div class="pl-card" id="plCard"><div class="pl-tag-row"><span class="pl-tag">' + TYPE_TAG[it.loai] + '</span>' + (t && Q.kind !== 'lesson' ? '<span class="pl-topic">' + t.bieuTuong + ' ' + esc(t.ten) + '</span>' : '') +
     (canHint(it) ? '<button class="pl-hint-btn" id="plHint" aria-label="Dùng gợi ý, còn ' + Q.hints + ' lần">💡 Gợi ý <b>' + Q.hints + '</b></button>' : '') + '</div>' + inner + '</div>' +
     '<div class="pl-foot" id="plFoot"><button class="pl-check" id="plCheck" disabled>Kiểm tra</button></div>' +
     '<div class="pl-sheet" id="plSheet" hidden role="status" aria-live="polite"></div></div>';
@@ -1091,15 +1096,16 @@ function doCheck() {
 }
 function showSheet(res) {
   const sh = $('#plSheet'), last = Q.i + 1 >= Q.items.length || (Q.lives != null && Q.lives <= 0);
+  const retryStory = Q.kind === 'storybook' && !res.right;
   sh.className = 'pl-sheet ' + (res.right ? 'good' : 'bad');
   sh.innerHTML = '<div class="pl-sheet-in"><div class="pl-sheet-head"><span class="pl-sheet-icon">' + (res.right ? '✓' : '✕') + '</span><b>' + (res.right ? pick(PRAISE) : pick(ENCOURAGE)) + '</b>' + (res.right && Q.kind !== 'placement' ? '<span class="pl-gain">+10 XP</span>' : '') + '<span class="fb-mascot" aria-hidden="true">' + (res.right ? '🥳' : '🤗') + '</span></div>' +
     (res.html ? '<div class="pl-sheet-body">' + res.html + '</div>' : '') +
-    '<button class="pl-cont" id="plCont">' + (Q.lives != null && Q.lives <= 0 ? 'Xem kết quả' : last ? 'Xem kết quả 🎉' : 'Tiếp tục') + '</button></div>';
+    '<button class="pl-cont" id="plCont">' + (retryStory ? 'Thử lại để mở cảnh ✨' : Q.lives != null && Q.lives <= 0 ? 'Xem kết quả' : last ? 'Xem kết quả 🎉' : 'Tiếp tục') + '</button></div>';
   sh.hidden = false; $('#plFoot').hidden = true;
   $('#plCont').onclick = nextItem; $('#plCont').focus();
   if (res.say) speak(res.say);
 }
-function nextItem() { if (!Q) return; if (Q.lives != null && Q.lives <= 0) { finishQuiz(); return; } Q.i++; renderItem(); }
+function nextItem() { if (!Q) return; if (Q.lives != null && Q.lives <= 0) { finishQuiz(); return; } if (Q.kind === 'storybook' && Q.log.length && !Q.log[Q.log.length - 1].right) { renderItem(); return; } Q.i++; renderItem(); }
 function ruleHint(it) { const t = getTopic(it._t); return t ? '<div class="pl-hint">💡 ' + md(it.giaiThich || t.quyTac[0]) + '</div>' : ''; }
 function subtitle() { return Q.kind === 'lesson' ? LEVELS[Q.level] : (Q.subtitle || 'Luyện tập'); }
 function optionsHtml(opts, attr) {
@@ -1306,15 +1312,20 @@ function finishQuiz() {
     if (q.kind === 'boss') S.bossWins++;
   }
   if (q.kind === 'daily' && !(S.daily.day === dayKey() && S.daily.done)) { xp += 20; S.daily = { day: dayKey(), done: true }; extra.push('🎯 Hoàn thành thử thách hôm nay: +20 XP'); }
+  if (q.kind === 'adaptive' && !failed && acc >= 60 && S.adaptiveDay !== dayKey()) { S.adaptiveDay = dayKey(); xp += 15; flowers += 1; extra.push('🕵️ Thám tử chữ hoàn thành nhiệm vụ đầu ngày: +15 XP'); }
+  if (q.kind === 'storybook' && typeof StoryQuest !== 'undefined') {
+    const firstClear = StoryQuest.complete(q.storyId, !failed && q.correct >= total);
+    if (firstClear) { xp += 25; flowers += 2; extra.push('📖 Mở chương truyện tiếp theo · nhận +2 bông hoa!'); }
+  }
   if (q.kind === 'speed') { xp = q.correct * 5; if (q.correct > S.bestSpeed) { S.bestSpeed = q.correct; extra.push('🏆 Kỉ lục mới: ' + q.correct + ' điểm!'); } }
   if (failed) xp = Math.round(xp / 2);
   S.xp += xp; S.flowers += flowers;
   const prizes = total ? StreakRoom.award() : [];
   if (flowers) extra.push('🌸 +' + flowers + ' bông hoa cho khu vườn');
-  if (total) saveHistory(q.kind, q.topicId || q.nodeId || '', q.title, q.correct, total,
+  if (total) saveHistory(q.kind, q.topicId || q.nodeId || q.storyId || '', q.title, q.correct, total,
     !failed && q.log.length === total ? q.assignmentId : undefined, q.lessonGrade);
   const award = typeof QuaTang === 'undefined' ? null : QuaTang.earn(S, {
-    kind: q.kind, correct: q.correct, total, finished: !failed && q.log.length === total
+    kind: q.kind, correct: q.correct, total, finished: !failed && (q.kind === 'storybook' ? q.correct >= total : q.log.length === total)
   });
   const fresh = checkBadges(); save();
   const afterStage = gardenStage(S.xp);
@@ -1346,6 +1357,7 @@ function finishQuiz() {
   openModal('Kết quả của em', head, body, 'result');
   Q = null;
   $('#again').onclick = () => {
+    if (q.kind === 'storybook' && typeof StoryQuest !== 'undefined') { StoryQuest.start(q.storyId); return; }
     if (q.kind === 'classPractice') { ClassPractice.play(...q.bankFilter); return; }
     if (q.kind === 'lesson') { showIntro(getTopic(q.topicId), q.level, q.assignmentId); return; }
     if (q.kind === 'challenge' || q.kind === 'boss') { closeModal(); go('roadmap'); openNode(mapNodes.findIndex(n => n.id === q.nodeId)); return; }
@@ -1403,6 +1415,12 @@ function doAction(action) {
     startSkipTest();
   } else if (action === 'arena') {
     if (typeof startArena === 'function') startArena(); else toast('Chưa tải được chế độ Đấu đội.');
+  } else if (action === 'adaptive') {
+    go('adaptive');
+  } else if (action === 'stories') {
+    go('stories');
+  } else if (action === 'joinArena') {
+    if (typeof LiveArena !== 'undefined') LiveArena.join(); else toast('Chế độ đấu trường trực tuyến chưa tải được.');
   } else if (action === 'snowcatch') {
     if (typeof startSnowCatch === 'function') startSnowCatch(); else toast('Chưa tải được trò Hứng tuyết chữ.');
   } else if (action === 'claimMission') {
