@@ -1,0 +1,138 @@
+/* Màn chọn bạn đồng hành và hai hành trình khi làm bài. */
+.quest-select{padding:clamp(15px,3.5vw,28px);margin-bottom:15px;border:1px solid #c6d9c5;border-radius:21px;background:#f7fff5;color:#214638;box-shadow:0 8px 24px #123d3424}
+.quest-select h1{margin:0 0 5px;color:inherit;font:950 clamp(24px,5vw,36px)/1.12 Nunito,sans-serif}
+.quest-select>p{margin:0 0 14px;color:#416755;font:700 clamp(12px,2.7vw,15px)/1.45 Nunito,sans-serif}
+.quest-options{margin:0 0 14px;padding:0;border:0;min-width:0}
+.quest-options legend{margin-bottom:7px;color:#214638;font:900 14px/1.25 Nunito,sans-serif}
+.quest-option-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}
+.quest-choice{position:relative;display:grid;align-content:start;overflow:hidden;cursor:pointer;border:2px solid #cbdccc;border-radius:15px;background:#fff;color:#224435}
+.quest-choice input{position:absolute;z-index:1;top:5px;left:5px;width:17px;height:17px;margin:0;accent-color:#1e7555}
+.quest-choice:has(input:checked){border-color:#2d8059;box-shadow:0 0 0 2px #b5e8c2}
+.quest-choice:has(input:focus-visible){outline:3px solid #cc8d2b;outline-offset:3px}
+.quest-choice-portrait{display:grid;place-items:center;height:clamp(76px,16vw,137px);overflow:hidden;padding:4px;background:radial-gradient(ellipse at bottom,#c6ecc6,#e7f6db)}
+.quest-choice--football .quest-choice-portrait{background:radial-gradient(ellipse at bottom,#bde8e0,#e0f2f6)}
+.quest-choice--royal .quest-choice-portrait{background:radial-gradient(ellipse at bottom,#f3d89b,#fff1d8)}
+.quest-choice-portrait img{width:100%;height:100%;min-height:0;max-height:100%;object-fit:contain;filter:drop-shadow(0 5px 3px #244d2f30)}
+.quest-choice-info{display:grid;gap:3px;padding:7px 8px 9px}
+.quest-choice-info b{font:950 clamp(12px,2.8vw,17px)/1.15 Nunito,sans-serif}
+.quest-choice-info small{color:#385f4d;font:750 clamp(10px,2.35vw,13px)/1.3 Nunito,sans-serif}
+.quest-select .world-cta{min-height:46px;font-size:14px}
+html[data-theme=night] .quest-select{background:#182d29;color:#eef9ea;border-color:#3e604e}
+html[data-theme=night] .quest-select>p,html[data-theme=night] .quest-options legend{color:#d5e8d8}
+html[data-theme=night] .quest-choice{background:#233b32;color:#eef9ea;border-color:#55735c}
+html[data-theme=night] .quest-choice:has(input:checked){border-color:#b3e8b5;box-shadow:0 0 0 1px #b3e8b5}
+html[data-theme=night] .quest-choice-info small{color:#cce4d3}
+
+.journey-scene{position:relative;isolation:isolate;overflow:hidden;width:100%;height:clamp(170px,27vw,218px);margin-bottom:12px;border:1px solid #527a52;border-radius:17px;background:#286340;color:#fff;box-shadow:0 7px 19px #183d3038;--ground:17%;--pace:.72s}
+.journey--royal{--pace:1.02s;--ground:16%;background:#6f723c}
+.journey-background{position:absolute;z-index:-2;inset:-3% -4%;background:var(--journey-art) center 57%/cover no-repeat;animation:journeyPan 12s linear infinite alternate}
+.journey--football{--journey-art:url('assets/quest/stadium.webp')}
+.journey--royal{--journey-art:url('assets/quest/palace.webp')}
+.journey-scene::after{position:absolute;z-index:-1;inset:0;content:"";background:linear-gradient(#10291d71,transparent 42%,transparent 68%,#141e0b45);pointer-events:none}
+.journey-hud{position:absolute;z-index:5;top:7px;left:8px;right:8px;display:flex;justify-content:space-between;gap:5px}
+.journey-hud>*{display:inline-flex;align-items:center;min-height:24px;padding:4px 8px;border-radius:20px;background:#fafff0f4;color:#173b2a;font:950 clamp(9px,2vw,12px)/1.05 Nunito,sans-serif}
+.journey-hud>span{white-space:nowrap;background:#ffedb6;color:#5d401d}
+.journey-meter{position:absolute;z-index:5;top:36px;left:9px;right:9px;height:6px;overflow:hidden;border-radius:12px;background:#213b33bc;box-shadow:0 0 0 1px #fff9}
+.journey-meter>span{display:block;width:var(--journey-progress);height:100%;border-radius:inherit;background:linear-gradient(90deg,#ffd57c,#efffa9);transition:width .5s ease-out}
+.journey-track{position:absolute;inset:0}
+.journey-track::before{position:absolute;inset:auto -24% calc(var(--ground) - 3px);height:3px;content:"";background:repeating-linear-gradient(90deg,#fffbd9 0 20px,#fff0 20px 56px);animation:journeyTrack .9s linear infinite;opacity:.68}
+.journey--royal .journey-track::before{height:4px;background:repeating-linear-gradient(88deg,#b87a3aae 0 8px,#fff0 8px 56px);opacity:.6;animation-duration:1.5s}
+.journey-actor{position:absolute;bottom:var(--ground);left:var(--lead-x);transform:translateX(-50%);transition:left .55s cubic-bezier(.22,.7,.3,1),bottom .65s ease;z-index:2}
+.journey-sprite{position:absolute;display:block;inset:0;overflow:hidden}
+.journey-sprite>img{display:block;width:600%;height:100%;max-width:none;animation:chaseStride var(--pace) step-end var(--phase,0s) infinite}
+.journey-shadow{position:absolute;bottom:1%;left:19%;width:64%;height:7px;filter:blur(3px);border-radius:50%;background:#172d2770}
+.journey-scene.is-correct{--pace:.48s}
+.journey-scene.is-wrong{--pace:1s}
+.journey--royal.is-correct{--pace:.76s}
+.journey--royal.is-wrong{--pace:1.35s}
+.journey-scene.is-correct .journey-track::before{animation-duration:.49s}
+.journey-scene.is-wrong .journey-track::before{animation-duration:1.4s}
+.journey-scene:is(.is-finishing,.is-won,.is-short) .journey-track::before{animation-play-state:paused}
+
+/* Rê bóng, đặt chân trụ, sút và lưới rung. */
+.journey--football{--goal-x:87%;--player-width:clamp(90px,19vw,124px);--ball-ahead:calc(var(--player-width) * .35);--ball-lift:calc(var(--player-width) * .36);--ball-size:clamp(13px,3.5vw,22px)}
+.journey-footballer{width:var(--player-width);aspect-ratio:17/15;z-index:3}
+.journey-ball{position:absolute;z-index:4;left:calc(var(--lead-x) + var(--ball-ahead));bottom:var(--ground);width:var(--ball-size);height:var(--ball-size);transform:translateX(-50%);transition:left .55s cubic-bezier(.22,.7,.3,1)}
+.journey-ball-visual{display:block;width:100%;height:100%;border:1px solid #172e41;border-radius:50%;background:radial-gradient(circle at 48% 48%,#19303c 17%,transparent 20%),radial-gradient(circle at 9% 24%,#19303c 16%,transparent 20%),radial-gradient(circle at 79% 9%,#19303c 15%,transparent 18%),radial-gradient(circle at 91% 71%,#19303c 16%,transparent 18%),radial-gradient(circle at 30% 93%,#19303c 14%,transparent 18%),radial-gradient(circle at 31% 22%,#fff,#e9eff2 52%,#aabaca);box-shadow:0 2px 2px #213b3a77;animation:journeyDribble var(--pace) linear infinite}
+.journey-goal{position:absolute;z-index:1;left:var(--goal-x);bottom:calc(var(--ground) - 2px);width:clamp(35px,9vw,58px);height:clamp(39px,11vw,67px);transform:translateX(-42%);border:3px solid #f9fff3;border-bottom:0;border-radius:5px 3px 0 0;box-shadow:2px 1px 2px #294a6387;background:#d9f3f234}
+.journey-goal::after{position:absolute;inset:1px -9px 0 auto;width:8px;content:"";transform:skewY(20deg);transform-origin:left;border:1px solid #f9fff3;border-left:0;background:repeating-linear-gradient(0deg,#fff9 0 1px,#93ba911c 1px 6px)}
+.journey-net{position:absolute;inset:0;display:block;background:repeating-linear-gradient(0deg,#fffad8 0 1px,transparent 1px 6px),repeating-linear-gradient(90deg,#fffad8 0 1px,transparent 1px 6px);opacity:.75;transform-origin:left}
+.journey-foot-kick{visibility:hidden}
+.journey-foot-kick>img{width:300%;animation:none}
+.journey--football.is-finishing .journey-foot-run{animation:journeyHide 0s .43s forwards}
+.journey--football.is-finishing .journey-foot-kick{animation:journeyShow 0s .43s forwards}
+.journey--football.is-finishing .journey-foot-kick>img{animation:journeyKick .66s .43s step-end both}
+.journey--football.is-finishing .journey-ball{transition:none;animation:journeyBallPath 1.13s linear both}
+.journey--football.is-finishing .journey-ball-visual{animation:journeyBallArc 1.13s ease-out both}
+.journey--football.is-finishing .journey-net{animation:journeyNet .3s 1.04s ease-out both}
+.journey--football.is-won .journey-foot-run{visibility:hidden}
+.journey--football.is-won .journey-foot-kick{visibility:visible}
+.journey--football.is-won .journey-foot-kick>img{transform:translateX(-66.6667%)}
+.journey--football.is-won .journey-ball{left:var(--goal-x)}
+.journey--football.is-won .journey-ball-visual{animation:none;transform:translateY(-5px)}
+
+/* Bốn chân ngựa thay nhịp, hai lính lệch pha, Công chúa bước ra vẫy tay. */
+.journey--royal{--escort-gap:clamp(62px,17vw,115px)}
+.journey-rider{width:clamp(102px,25vw,145px);aspect-ratio:256/249;z-index:3;--stop-frame:-33.3333%}
+.journey-guard{width:clamp(42px,10vw,64px);aspect-ratio:46/59;--stop-frame:-50%}
+.journey-guard-back{left:calc(var(--lead-x) - var(--escort-gap));bottom:calc(var(--ground) - 6px);z-index:4}
+.journey-guard-front{left:calc(var(--lead-x) + var(--escort-gap));bottom:calc(var(--ground) + 8px);--phase:-.5s;z-index:4}
+.journey-princess{left:92%;width:clamp(36px,9vw,52px);aspect-ratio:136/253;bottom:calc(var(--ground) + 2px);visibility:hidden;z-index:4}
+.journey-princess img{animation:none}
+.journey-beacon{position:absolute;left:91%;bottom:calc(var(--ground) + 13px);width:40px;aspect-ratio:1;transform:translateX(-50%);background:radial-gradient(circle,#fff6b8c9 0,transparent 69%);animation:journeyBeacon 1.5s ease-in-out infinite alternate}
+.journey--royal:is(.is-finishing,.is-won) .journey-guard-front{left:79%;bottom:calc(var(--ground) + 13px)}
+.journey--royal.is-finishing :is(.journey-rider,.journey-guard) .journey-sprite>img{animation:chaseStride var(--pace) step-end var(--phase,0s) infinite,journeyHold 0s .72s forwards}
+.journey--royal.is-finishing .journey-princess{visibility:visible;animation:journeyGreeting .6s .58s ease-out both}
+.journey--royal.is-finishing .journey-princess img{animation:chaseStride .85s .6s step-end 2}
+.journey--royal.is-won .journey-princess{visibility:visible;left:90%}
+.journey--royal.is-won .journey-princess img{transform:translateX(-50%)}
+.journey--royal:is(.is-finishing,.is-won) .journey-beacon{display:none}
+.journey-scene:is(.is-won,.is-short) .journey-sprite>img,.journey-scene.is-short .journey-ball-visual{animation:none}
+.journey--royal:is(.is-won,.is-short) :is(.journey-rider,.journey-guard) .journey-sprite>img{transform:translateX(var(--stop-frame))}
+
+.journey-feedback,.journey-finish{position:absolute;z-index:6;left:50%;bottom:5px;max-width:calc(100% - 16px);transform:translateX(-50%);padding:4px 9px;border-radius:20px;text-align:center;white-space:normal;font:900 clamp(9px,2.1vw,13px)/1.15 Nunito,sans-serif}
+.journey-feedback{background:#163d32eb;color:#fff;border:1px solid #fff9}
+.journey-finish{opacity:0;background:#ffedaa;color:#604318;border:1px solid #fff1be;font-size:clamp(11px,2.5vw,16px);letter-spacing:.02em;white-space:nowrap}
+.journey-scene:is(.is-won,.is-short) .journey-finish{opacity:1}
+.journey-scene:is(.is-won,.is-short) .journey-feedback{opacity:0}
+.journey-scene.is-finishing .journey-finish{animation:journeyFinish .24s 1.07s ease-out both}
+.journey-scene.is-finishing .journey-feedback{animation:journeyFade 0s 1.07s forwards}
+.journey-scene.is-short .journey-finish{background:#f4ead8;color:#623b29}
+.journey-sparks{position:absolute;z-index:5;right:9%;bottom:31%;width:14px;height:14px;opacity:0;border-radius:50%;box-shadow:-17px -2px 0 -3px #fff3a0,6px -18px 0 -4px #ffc146,16px 9px 0 -3px #fffae0,-9px 13px 0 -4px #ffd379;pointer-events:none}
+.journey-scene.is-finishing .journey-sparks{animation:journeySpark .58s .96s ease-out both}
+
+@keyframes journeyPan{from{transform:translateX(1.8%)}to{transform:translateX(-2.9%)}}
+@keyframes journeyTrack{to{transform:translateX(-56px)}}
+@keyframes journeyDribble{0%{transform:translate(-3px,0) rotate(0)}20%{transform:translate(4px,-3px) rotate(58deg)}65%{transform:translate(7px,0) rotate(197deg)}100%{transform:translate(-3px,0) rotate(360deg)}}
+@keyframes journeyShow{to{visibility:visible}}
+@keyframes journeyHide{to{visibility:hidden}}
+@keyframes journeyKick{0%{transform:translateX(0)}29%{transform:translateX(-33.3333%)}57%,100%{transform:translateX(-66.6667%)}}
+@keyframes journeyBallPath{0%{left:calc(var(--previous-x) + var(--ball-ahead));animation-timing-function:ease-out}40%,56%{left:calc(var(--lead-x) + var(--ball-ahead));animation-timing-function:cubic-bezier(.12,.56,.35,1)}100%{left:var(--goal-x)}}
+@keyframes journeyBallArc{0%{transform:translateY(0) rotate(0)}38%{transform:translateY(0) rotate(150deg)}56%{transform:translateY(calc(-1 * var(--ball-lift))) rotate(235deg)}73%{transform:translateY(calc(-1 * var(--ball-lift) - 5px)) rotate(320deg)}100%{transform:translateY(-5px) rotate(470deg)}}
+@keyframes journeyNet{40%{transform:scaleX(1.14) skewY(6deg)}100%{transform:none}}
+@keyframes journeyHold{to{transform:translateX(var(--stop-frame))}}
+@keyframes journeyGreeting{from{left:95%;opacity:0}to{left:90%;opacity:1}}
+@keyframes journeyBeacon{to{opacity:.45;transform:translateX(-50%) scale(.75)}}
+@keyframes journeyFinish{from{opacity:0;transform:translate(-50%,4px) scale(.9)}to{opacity:1;transform:translate(-50%,0) scale(1)}}
+@keyframes journeyFade{to{opacity:0}}
+@keyframes journeySpark{0%{opacity:0;transform:scale(.45)}30%{opacity:1}100%{opacity:0;transform:scale(2.8) translateY(-8px)}}
+
+@media(max-width:380px){.quest-option-grid{gap:6px}.quest-choice-info{padding-inline:5px}.quest-choice input{width:14px;height:14px}.journey--royal .journey-rider{width:102px}}
+body.calm .journey-scene *,body.calm .journey-track::before{animation:none!important;transition:none!important}
+body.calm .journey-scene.is-finishing .journey-finish{opacity:1}
+body.calm .journey-scene.is-finishing .journey-feedback{opacity:0}
+body.calm .journey--football.is-finishing .journey-ball{left:var(--goal-x)}
+body.calm .journey--football.is-finishing .journey-foot-run{visibility:hidden}
+body.calm .journey--football.is-finishing .journey-foot-kick{visibility:visible}
+body.calm .journey--football.is-finishing .journey-foot-kick>img{transform:translateX(-66.6667%)}
+body.calm .journey--royal.is-finishing .journey-princess{left:90%}
+@media(prefers-reduced-motion:reduce){
+  .journey-scene *,.journey-track::before{animation:none!important;transition:none!important}
+  .journey-scene.is-finishing .journey-finish{opacity:1}
+  .journey-scene.is-finishing .journey-feedback{opacity:0}
+  .journey--football.is-finishing .journey-ball{left:var(--goal-x)}
+  .journey--football.is-finishing .journey-foot-run{visibility:hidden}
+  .journey--football.is-finishing .journey-foot-kick{visibility:visible}
+  .journey--football.is-finishing .journey-foot-kick>img{transform:translateX(-66.6667%)}
+  .journey--royal.is-finishing .journey-princess{left:90%}
+}

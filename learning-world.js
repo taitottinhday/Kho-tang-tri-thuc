@@ -40,18 +40,19 @@ const StoryQuest = (() => {
     const weak = topicNeeds()[0], isDone = S.adaptiveDay === day();
     const completed = completedChapters();
     return '<section class="quest-portals" aria-label="Khám phá nhiệm vụ mới">' +
-      '<button class="quest-portal quest-portal-mission" data-view="adaptive"><span class="quest-portal-copy"><small>THỬ THÁCH RIÊNG · ' + (isDone ? 'ĐÃ XONG HÔM NAY' : '5 CÂU NGẮN') + '</small><b>' + (isDone ? 'Thỏ Lá tự hào về em!' : 'Thám tử chữ tìm điểm yếu') + '</b><span>' + (weak ? 'Đang luyện: ' + esc(weak.topic.ten) : 'Chưa có từ sai — Thỏ Lá chọn bài vừa sức cho em.') + '</span><em>' + (isDone ? 'Ôn thêm một lượt →' : 'Bắt đầu nhiệm vụ →') + '</em></span><img src="' + MASCOT + '" alt="Thỏ Lá dẫn đường" /></button>' +
+      '<button class="quest-portal quest-portal-mission" data-view="adaptive"><span class="quest-portal-copy"><small>THỬ THÁCH RIÊNG · ' + (isDone ? 'ĐÃ XONG HÔM NAY' : '5 CÂU NGẮN') + '</small><b>Thám tử chữ</b><span>' + (weak ? 'Đang luyện: ' + esc(weak.topic.ten) : 'Chọn Thỏ Lá, Cầu thủ hoặc Nhà vua.') + '</span><em>Chọn nhân vật →</em></span><img src="' + MASCOT + '" alt="" /></button>' +
       '<button class="quest-portal quest-portal-story" data-view="stories"><span class="quest-portal-copy"><small>TRUYỆN TƯƠNG TÁC · ' + completed + '/' + chapters.length + ' CHƯƠNG</small><b>Đi tìm Khu Rừng Bí Mật</b><span>' + (forestOpen() ? 'Cánh cổng bí mật đã mở!' : esc(chapters[Math.min(completed,chapters.length - 1)].title) + ' đang chờ em.') + '</span><em>Mở Vườn truyện →</em></span><span class="quest-book-art" aria-hidden="true">📖<i>✦</i><i>✧</i></span></button>' +
       '</section>';
   }
   function adaptivePage() {
     const needs = topicNeeds(), rows = needs.slice(0,3), done = S.adaptiveDay === day();
     const count = pending().length;
-    const catchRule = window.ChaseRun ? ' Sai ' + ChaseRun.missLimit + ' câu thì Sói bắt kịp.' : '';
     return '<div class="learning-world adaptive-world">' +
-      '<section class="world-hero adaptive-hero"><div class="world-hero-copy"><span class="world-kicker">NHIỆM VỤ CỦA RIÊNG EM · LỚP ' + esc(S.grade) + '</span><h1>Thám tử chữ</h1><p>Thỏ Lá chọn câu mới ở nhóm chữ em cần luyện. Câu đúng giúp Thỏ chạy nhanh hơn.' + catchRule + '</p><button class="world-cta" id="adaptiveStart">' + (done ? 'Ôn thêm cùng Thỏ Lá' : 'Bắt đầu nhiệm vụ · 5 câu') + ' <span>→</span></button><small class="world-reward">' + (done ? 'Nhiệm vụ hôm nay đã hoàn thành' : 'Trả lời đúng cả 5 câu để Thỏ thoát sói!') + '</small></div><div class="world-mascot-wrap"><span class="world-spark spark-a">✦</span><span class="world-spark spark-b">✧</span><img src="' + MASCOT + '" alt="Thỏ Lá đang vẫy tay" /></div><div class="world-cloud cloud-one"></div><div class="world-cloud cloud-two"></div></section>' +
+      '<form class="quest-select" id="adaptiveSelect"><h1>Thám tử chữ</h1><p>Trả lời đúng để giúp bạn đồng hành về đích.</p>' +
+      '<fieldset class="quest-options"><legend>Em muốn chơi cùng ai?</legend><div class="quest-option-grid">' + QuestJourney.chooseMarkup(S.adaptiveCharacter) + '</div></fieldset>' +
+      '<button class="world-cta" id="adaptiveStart" type="submit">' + (done ? 'Chơi thêm một lượt' : 'Bắt đầu · 5 câu') + ' <span aria-hidden="true">→</span></button></form>' +
       '<div class="world-metrics"><div><b>' + count + '</b><span>từ đang chờ ôn</span></div><div><b>' + rows.length + '</b><span>nhóm chữ cần chú ý</span></div><div><b>' + (done ? '✓' : '5') + '</b><span>câu mới mỗi lượt</span></div></div>' +
-      '<section class="world-panel"><header><div><small>BẢN ĐỒ DẤU VẾT</small><h2>Thỏ Lá đang giúp em luyện gì?</h2></div><span class="world-panel-icon">🔍</span></header>' +
+      '<section class="world-panel"><header><div><small>BẢN ĐỒ DẤU VẾT</small><h2>Em đang luyện gì?</h2></div><span class="world-panel-icon">🔍</span></header>' +
       (rows.length ? '<div class="weak-list">' + rows.map((row,index) => '<article class="weak-row"><span class="weak-number">0' + (index + 1) + '</span><div><b>' + esc(row.topic.ten) + '</b><small>' + row.count + ' câu đang cần luyện lại</small></div><span class="weak-stamp">' + ['🌱','🌼','🍃'][index] + '</span></article>').join('') + '</div>' : '<div class="world-empty"><span>🌷</span><b>Chưa có dấu vết sai — thật tuyệt!</b><p>Nhiệm vụ sẽ chọn vài câu mới trong các bài em đang học để giữ chữ luôn chắc nhé.</p></div>') +
       '<p class="world-footnote">Câu sai vẫn được lưu vào sổ ôn. Em có thể thử lại tới khi mở được dấu chân tiếp theo.</p></section>' +
       '<button class="world-back" data-view="games">← Quay lại trò chơi</button></div>';
@@ -192,12 +193,21 @@ const StoryQuest = (() => {
       sfx('good');
     });
   }
-  function beginAdaptive() {
+  function beginAdaptive(id = S.adaptiveCharacter) {
     const items = selectedQuestions(5,false);
     if (!items.length) { toast('Chưa có câu phù hợp trong lộ trình lớp này.'); return; }
-    startQuiz({ kind:'adaptive', title:'Nhiệm vụ Thám tử chữ', icon:'🕵️', subtitle:'5 câu do Thỏ Lá chọn cho em', items });
+    const entry = QuestJourney.character(id);
+    S.adaptiveCharacter = entry.id;
+    save();
+    startQuiz({ kind: 'adaptive', title: entry.id === 'rabbit' ? 'Nhiệm vụ Thám tử chữ' : entry.mission,
+      icon: entry.icon, adventure: entry.id, items });
   }
-  function bindAdaptive() { $('#adaptiveStart')?.addEventListener('click',beginAdaptive); }
+  function bindAdaptive() {
+    $('#adaptiveSelect').onsubmit = event => {
+      event.preventDefault();
+      beginAdaptive(new FormData(event.currentTarget).get('quest-character'));
+    };
+  }
   function bindStories() { document.querySelectorAll('[data-story-start]').forEach(button => button.onclick = () => start(button.dataset.storyStart)); }
   registerView('adaptive','Nhiệm vụ của riêng em',adaptivePage,bindAdaptive);
   registerView('stories','Vườn truyện',storiesPage,bindStories);

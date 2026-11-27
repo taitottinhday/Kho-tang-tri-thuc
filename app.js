@@ -628,7 +628,7 @@ function openGift(n, st) {
 
 /* ============================== TRÒ CHƠI ============================== */
 const GAMES = [
-  { action: 'adaptive', icon: '🕵️', title: 'Nhiệm vụ của riêng em', desc: 'Thỏ Lá chọn câu theo những nhóm chữ em đang cần luyện.', meta: '5 câu · có gợi ý theo lỗi' },
+  { action: 'adaptive', icon: '🕵️', title: 'Nhiệm vụ của riêng em', desc: 'Chọn Thỏ Lá, Cầu thủ hoặc Nhà vua để cùng luyện những nhóm chữ em hay nhầm.', meta: '5 câu · 3 nhân vật' },
   { action: 'stories', icon: '📖', title: 'Truyện mở khoá bằng chữ đúng', desc: 'Mỗi câu đúng mở thêm một khung truyện mới.', meta: '3 chương · có tranh động' },
   { action: 'daily', icon: '🎯', title: 'Thử thách mỗi ngày', desc: '5 câu trộn từ các bài em đã mở, ưu tiên từ em hay nhầm.', meta: '+20 XP mỗi ngày' },
   { action: 'speed', icon: '🚀', title: 'Nhanh tay', desc: 'Trong 60 giây, chọn đúng càng nhiều chữ càng tốt!', meta: 'Kỉ lục của em: ' },
@@ -1068,7 +1068,11 @@ function startQuiz(opts) {
   Q = Object.assign({ i: 0, correct: 0, answered: false, startedAt: Date.now(), lives: null, log: [],
     hints: ['speed', 'placement', 'challenge', 'boss', 'skip'].includes(opts.kind) ? 0 : 2 }, opts);
   Q.items = Q.items.map(it => Object.assign({}, it));
-  if (Q.kind === 'adaptive' && window.ChaseRun) Q.race = ChaseRun.createRace();
+  if (Q.kind === 'adaptive') {
+    Q.adventure = window.QuestJourney?.character(Q.adventure).id || 'rabbit';
+    if (Q.adventure === 'rabbit') Q.race = window.ChaseRun?.createRace();
+    else Q.journey = QuestJourney.create(Q);
+  }
   if (Q.kind === 'speed') Q.usedQuestionKeys = new Set(Q.items.map(questionFingerprint));
   if (Q.lives != null) Q.maxLives = Q.lives;
   if (Q.timeLimit) { Q.endAt = Date.now() + Q.timeLimit * 1000; startTimer(); }
@@ -1095,13 +1099,13 @@ function livesHtml() {
 function playerShell(inner, it) {
   const total = Q.items.length, t = getTopic(it._t), speed = Q.kind === 'speed';
   const storyFrame = Q.kind === 'storybook' && typeof StoryQuest !== 'undefined' ? StoryQuest.playerFrame(Q) : '';
-  const chaseFrame = Q.kind === 'adaptive' && window.ChaseRun ? window.ChaseRun.playerFrame(Q) : '';
+  const adventureFrame = Q.race ? ChaseRun.playerFrame(Q) : Q.journey ? QuestJourney.playerFrame(Q) : '';
   return '<div class="player" style="--c:' + (t ? t.mau : '#64b281') + '">' +
     '<div class="pl-top"><button class="pl-x" data-close-modal aria-label="Thoát bài">✕</button>' +
     '<div class="pl-bar" role="progressbar" aria-label="Tiến độ" aria-valuemin="0" aria-valuemax="' + total + '" aria-valuenow="' + Q.i + '"><span style="width:' + (speed ? 100 : pct(Q.i, total)) + '%"></span><b>' + (speed ? Q.correct + ' điểm' : (Q.i + 1) + ' / ' + total) + '</b></div>' +
     (Q.endAt ? '<div class="pl-time" id="plTime">⏱ ' + Math.max(0, Math.ceil((Q.endAt - Date.now()) / 1000)) + 's</div>' : '') + livesHtml() + '</div>' +
     '<div class="pl-banner"><span class="pl-banner-icon">' + (Q.icon || (t ? t.bieuTuong : '📘')) + '</span><div class="pl-banner-text"><small>' + (KIND_LABEL[Q.kind] || 'LUYỆN TẬP') + '</small><b>' + esc(Q.title) + '</b></div><span class="combo" id="combo">' + comboText() + '</span></div>' +
-    storyFrame + chaseFrame + '<div class="pl-card" id="plCard"><div class="pl-tag-row"><span class="pl-tag">' + TYPE_TAG[it.loai] + '</span>' + (t && Q.kind !== 'lesson' ? '<span class="pl-topic">' + t.bieuTuong + ' ' + esc(t.ten) + '</span>' : '') +
+    storyFrame + adventureFrame + '<div class="pl-card" id="plCard"><div class="pl-tag-row"><span class="pl-tag">' + TYPE_TAG[it.loai] + '</span>' + (t && Q.kind !== 'lesson' ? '<span class="pl-topic">' + t.bieuTuong + ' ' + esc(t.ten) + '</span>' : '') +
     (canHint(it) ? '<button class="pl-hint-btn" id="plHint" aria-label="Dùng gợi ý, còn ' + Q.hints + ' lần">💡 Gợi ý <b>' + Q.hints + '</b></button>' : '') + '</div>' + inner + '</div>' +
     '<div class="pl-foot" id="plFoot"><button class="pl-check" id="plCheck" disabled>Kiểm tra</button></div>' +
     '<div class="pl-sheet" id="plSheet" hidden role="status" aria-live="polite"></div></div>';
@@ -1160,7 +1164,8 @@ function doCheck() {
   const res = Q.evaluate();
   Q.log.push({ lv: it._lv, right: res.right });
   record(it, res.right);
-  if (Q.kind === 'adaptive' && window.ChaseRun) window.ChaseRun.answer(Q, res.right);
+  if (Q.race) ChaseRun.answer(Q, res.right);
+  if (Q.journey) QuestJourney.answer(Q, res.right);
   if (Q.kind === 'storybook') res.storyPraise = StoryQuest.react(Q, res.right);
   if (Q.lives != null && !res.right) {
     Q.lives = Math.max(0, Q.lives - 1);
@@ -1173,6 +1178,7 @@ function doCheck() {
 }
 function showSheet(res) {
   const sh = $('#plSheet'), caught = Q.race?.caught;
+  const revealDelay = caught ? ChaseRun.catchDelay : Q.journey?.justWon ? Q.journey.mode.duration : 0;
   const last = Q.i + 1 >= Q.items.length || (Q.lives != null && Q.lives <= 0);
   const story = Q.kind === 'storybook';
   const praise = res.storyPraise || (res.right ? pick(PRAISE) : pick(ENCOURAGE));
@@ -1185,16 +1191,16 @@ function showSheet(res) {
   sh.hidden = false; $('#plFoot').hidden = true;
   const cont = $('#plCont');
   cont.onclick = nextItem;
-  if (caught) {
+  if (revealDelay) {
     $('#modalRoot').scrollTop = 0;
-    if (matchMedia('(prefers-reduced-motion: reduce)').matches) cont.focus({ preventScroll: true });
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches || (Q.journey && document.body.classList.contains('calm'))) cont.focus({ preventScroll: true });
     else {
       cont.dataset.chaseWait = '';
       cont.disabled = true;
       setTimeout(() => {
         cont.disabled = false;
         if (cont.isConnected && !$('#quitAsk')) cont.focus({ preventScroll: true });
-      }, ChaseRun.catchDelay);
+      }, revealDelay);
     }
   } else if (story) {
     if (res.right) $('#modalRoot').scrollTop = 0;
@@ -1394,6 +1400,7 @@ function finishQuiz() {
   const total = q.kind === 'speed' || caught ? q.log.length : q.items.length, acc = pct(q.correct, total);
   const failed = caught || (q.lives != null && q.lives <= 0) || (q.timeUp && q.kind !== 'speed');
   const storyWon = q.kind === 'storybook' && !failed && q.correct === total;
+  const journeyResult = q.journey && QuestJourney.result(q.journey);
   const beforeStage = gardenStage(S.xp);
   let xp = q.correct * 10, starsNow = 0, flowers = 0, passed = false, upTier = null;
   const extra = [], tier = TIERS[q.level] || TIERS.vua;
@@ -1434,15 +1441,15 @@ function finishQuiz() {
   const fresh = checkBadges(); save();
   const afterStage = gardenStage(S.xp);
   const gated = q.kind === 'lesson' || q.kind === 'skip';
-  const good = !failed && (q.kind === 'speed' ? q.correct >= 5 : gated ? passed : acc >= 60);
+  const good = !failed && (q.journey ? q.journey.won : q.kind === 'speed' ? q.correct >= 5 : gated ? passed : acc >= 60);
   if (good) { sfx('win'); if (!award && !storyWon) confetti(); }
   const next = q.kind === 'lesson' && passed && !q.assignmentId ? nextTopic() : null;
   const head = q.kind === 'speed' ? (q.correct + ' điểm') : (q.correct + ' / ' + total + ' câu đúng');
-  const title = storyWon ? '📖 Em đã qua tất cả các chốt!' : caught ? '🐺 Sói đã bắt kịp Thỏ Lá!' : q.race?.escaped ? '🐇 Thỏ Lá đã thoát khỏi sói!' : failed ? (q.timeUp ? '⏰ Hết giờ rồi!' : '💧 Cây khát nước rồi!') : q.kind === 'speed' ? (good ? 'Nhanh quá!' : 'Lần sau sẽ nhanh hơn!')
+  const title = journeyResult ? journeyResult.title : storyWon ? '📖 Em đã qua tất cả các chốt!' : caught ? '🐺 Sói đã bắt kịp Thỏ Lá!' : q.race?.escaped ? '🐇 Thỏ Lá đã thoát khỏi sói!' : failed ? (q.timeUp ? '⏰ Hết giờ rồi!' : '💧 Cây khát nước rồi!') : q.kind === 'speed' ? (good ? 'Nhanh quá!' : 'Lần sau sẽ nhanh hơn!')
     : q.kind === 'lesson' ? (passed ? (acc === 100 ? 'Tuyệt vời! Qua mức ' + tier.name + ' không sai câu nào!' : 'Qua màn mức ' + tier.name + '! 🎉') : 'Mình luyện thêm chút nữa nhé!')
     : q.kind === 'skip' ? (passed ? '🚀 Em đã vượt cấp!' : 'Chưa đủ để vượt cấp')
     : acc === 100 ? 'Tuyệt vời! Không sai câu nào!' : acc >= 60 ? 'Bài làm tốt lắm!' : 'Mình luyện thêm chút nữa nhé!';
-  const msg = storyWon ? 'Thỏ Lá cất bảo vật vào túi. Mình đi tiếp nhé!'
+  const msg = journeyResult ? journeyResult.message : storyWon ? 'Thỏ Lá cất bảo vật vào túi. Mình đi tiếp nhé!'
     : caught ? 'Lượt chạy dừng sau ' + q.race.mistakes + ' câu sai. Mình thử lại với câu hỏi mới để giúp Thỏ Lá chạy thoát nhé!'
     : q.race?.escaped ? 'Em trả lời đúng tất cả câu hỏi nên Thỏ Lá đã chạy thật nhanh tới nơi an toàn!'
     : q.kind === 'adaptive' && q.correct < total ? 'Sói đã tiến gần hơn một chút. Mình luyện tiếp để giúp Thỏ Lá chạy xa hơn nhé!'
@@ -1461,14 +1468,16 @@ function finishQuiz() {
     fresh.map(b => '<div class="unlock-note badge-new">' + b.icon + ' Huy hiệu mới: <b>' + b.name + '</b></div>').join('') +
     '<div class="modal-actions center">' + (next ? '<button class="primary-btn big" id="goNext">Bài tiếp: ' + next.bieuTuong + ' ' + esc(next.ten) + ' →</button>' : '') +
     (storyWon ? StoryQuest.nextAction(q.storyId) : '') +
+    (q.kind === 'adaptive' ? '<button class="soft-btn" id="changeAdventure">Đổi nhân vật</button>' : '') +
     (upTier ? '<button class="soft-btn big" id="upTier">Lên mức ' + TIERS[upTier].name + ' ' + '★'.repeat(TIERS[upTier].stars) + '</button>' : '') +
     (q.kind === 'boss' && !failed && typeof showCertificate === 'function' ? '<button class="primary-btn big" id="getCert">📜 Nhận giấy khen</button>' : '') +
     '<button class="soft-btn" id="again">↻ ' + (failed ? 'Thử lại' : 'Làm lại') + '</button><button class="soft-btn" id="toMap">🗺️ Con đường</button><button class="' + (next ? 'soft-btn' : 'primary-btn big') + '" id="home">Về trang học</button></div></div>';
   openModal('Kết quả của em', head, body, 'result');
   Q = null;
   if (storyWon) $('#storyNext').onclick = () => StoryQuest.follow(q.storyId);
+  if (q.kind === 'adaptive') $('#changeAdventure').onclick = () => { closeModal(); go('adaptive'); };
   $('#again').onclick = () => {
-    if (q.kind === 'adaptive' && window.StoryQuest?.beginAdaptive) { closeModal(); StoryQuest.beginAdaptive(); return; }
+    if (q.kind === 'adaptive' && window.StoryQuest?.beginAdaptive) { closeModal(); StoryQuest.beginAdaptive(q.adventure); return; }
     if (q.kind === 'storybook' && typeof StoryQuest !== 'undefined') { StoryQuest.start(q.storyId); return; }
     if (q.kind === 'classPractice') { ClassPractice.play(...q.bankFilter); return; }
     if (q.kind === 'lesson') { showIntro(getTopic(q.topicId), q.level, q.assignmentId); return; }
