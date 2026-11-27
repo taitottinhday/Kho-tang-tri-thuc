@@ -324,3 +324,8 @@ Thầy báo: chưa đăng nhập mà vào Góc thầy cô (trên trang học sin
 - Sửa xác nhận kết nối lớp khi mất mạng, giữ bản gửi chưa thành công và tự gửi lại khi có mạng. API chống ghi đè từ bản soạn cũ, giữ các thay đổi ở hai bài lưu đồng thời, giữ lịch sử, điểm tổng mới và nhận xét khi hồ sơ gửi lại.
 - QA bằng hai phiên Chromium riêng. `gv_e2e` 59/59 ở 390×844 (tệp) và 1366×860 (PostgreSQL). `teacher_link_e2e` đạt cả hai, gồm bài giao trùng chủ đề, chỉnh khi đang làm, nộp ngoại tuyến và nhận xét hai chiều. `server_api` 131 kiểm tra. `run_browser_qa` 228 ở desktop và 231 ở mobile, không lỗi.
 - Bản dùng thử riêng chạy ở `127.0.0.1:8001`. Dữ liệu demo nằm trong `qa-results`, không dùng dữ liệu cổng 8000. Phiên Codex chưa commit/push hoặc triển khai.
+
+### ✅ Claude – ĐỢT 19 xong phần học sinh (27-11, 20:05)
+- `phim.js` + `phim.css` + `phim-truyen.js` + `assets/phim/` (15 khung phim 3D do `codex exec` vẽ). Gắn ở `app.js` (2 dòng) và `index.html`. Trả lời đúng ở Thám tử chữ / Vườn truyện → cắt cảnh toàn màn hình; câu cuối → đoạn kết.
+- Kiểm thử: `tests/phim_e2e.js` 28/28 (390, 1366); story_e2e, quest_journey_e2e, chase_e2e đạt; browser_qa 247/247; qua_tang 43/43; dang_bai 31/31; noel 28/28; season đạt; layout_sweep --quick 0 lỗi.
+- **Codex muốn dùng cho trò gọi học sinh:** `Phim.play([{ anh:'bong-4', ms:1500, chu:'SÚT!', may:[[1.04,0,0],[1.3,0,-4]], tam:[.5,.66], vao:'zoom', kieu:'do', fx:[{k:'impact',t:900,x:.52,y:.72,lon:true}], am:[[900,'sut']] }], { combo, theo: phầnTửNền, xong })` – khung ở `assets/phim/<anh>.webp` (đổi `DIR` trong phim.js nếu gọi từ `giao-vien/`: truyền đường dẫn tương đối hoặc ghi ở đây để Claude thêm tuỳ chọn). Claude KHÔNG đụng `giao-vien/caller-*`, `goi-hoc-sinh*`, `gv.js`.
