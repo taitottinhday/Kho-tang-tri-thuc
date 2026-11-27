@@ -15,6 +15,22 @@ const check = (condition, message, details) => {
   console.log('  ✓ ' + message);
 };
 const until = async (expression, timeout = 8000) => browser.eval(`for(let i=0;i<${Math.ceil(timeout / 100)};i++){if(${expression})return true;await new Promise(r=>setTimeout(r,100))}return false`);
+const record = process.argv.includes('--record');
+async function captureMotion(name, pose, frames = 24) {
+  check(await until(pose, 8000), name + ' plays its new movement');
+  await browser.sleep(230);
+  await browser.shot(path.join(out, name + '-motion.png'));
+  if (!record) return;
+  const clip = await browser.eval('const { x, y, width, height } = document.querySelector("#callerCinema").getBoundingClientRect(); return { x, y, width, height, scale: .63 }');
+  const folder = path.join(out, name + '-frames');
+  fs.mkdirSync(folder, { recursive: true });
+  for (let index = 0; index < frames; index++) {
+    const began = performance.now();
+    const image = await browser.send('Page.captureScreenshot', { format: 'jpeg', quality: 78, clip, captureBeyondViewport: true });
+    fs.writeFileSync(path.join(folder, ('000' + index).slice(-3) + '.jpg'), Buffer.from(image.data, 'base64'));
+    await browser.sleep(Math.max(0, 1000 / 15 - (performance.now() - began)));
+  }
+}
 try {
   await browser.send('Page.addScriptToEvaluateOnNewDocument', { source: `
     const realFetch = window.fetch.bind(window);
@@ -59,6 +75,11 @@ try {
     if (key !== 'detective') {
       const requested = key === 'prince' ? 1 : 2;
       await browser.eval(`document.querySelector('#liveCount').value='${requested}';document.querySelector('#liveCount').dispatchEvent(new Event('change'));document.querySelector('#liveSpeed').value='10';document.querySelector('#liveSpeed').dispatchEvent(new Event('change'));document.querySelector('#startStory').click();return 1`);
+      const pose = key === 'prince'
+        ? 'document.querySelector("#callerCinema .caller-performer--prince[data-motion=run]")'
+        : 'document.querySelector("#callerCinema .caller-performer--striker[data-motion=run]")';
+      await captureMotion(image, pose, key === 'penalty' ? 40 : 26);
+      check(await browser.eval('return !document.querySelector("#gameStage").classList.contains("is-running") || !document.querySelector(".caller-student.is-done")'), name + ' does not mark the selected name before the result');
       check(await until(`document.querySelector('#resultOverlay').classList.contains('is-shown')`, 26000), name + ' story reaches the reveal');
       selectedByGame[key] = await browser.eval(`return [...document.querySelectorAll('.caller-result-person b')].map(item=>item.textContent)`);
       check(selectedByGame[key].length === requested, name + ' completes a ' + requested + '-student turn', selectedByGame[key]);
@@ -69,6 +90,8 @@ try {
   }
 
   await browser.eval(`document.querySelector('#liveCount').value='3';document.querySelector('#liveCount').dispatchEvent(new Event('change'));document.querySelector('#liveSpeed').value='10';document.querySelector('#liveSpeed').dispatchEvent(new Event('change'));document.querySelector('#startStory').click();return 1`);
+  await captureMotion('detective', 'document.querySelector("#callerCinema .caller-performer--detective[data-motion=run]")', 32);
+  check(await until('!document.querySelector(".caller-cinema-evidence").hidden'), 'Detective moves from the entrance into the magnifier and clue sequence');
   check(await until(`document.querySelector('#resultOverlay').classList.contains('is-shown')`, 26000), 'Detective story reaches the reveal');
   const result = await browser.eval(`return {winners:[...document.querySelectorAll('.caller-result-person b')].map(item=>item.textContent),history:document.querySelector('#todayCount').textContent,round:document.querySelector('#roundProgress').textContent}`);
   check(result.winners.length === 3 && new Set(result.winners).size === 3, 'Three different students are revealed', result);
@@ -92,6 +115,8 @@ try {
   await browser.sleep(1250);
   const mobile = await browser.eval(`const tiles=[...document.querySelectorAll('.caller-student')];let overlaps=0;for(let i=0;i<tiles.length;i++){const a=tiles[i].getBoundingClientRect();for(let j=i+1;j<tiles.length;j++){const b=tiles[j].getBoundingClientRect();if(a.left<b.right-1&&a.right>b.left+1&&a.top<b.bottom-1&&a.bottom>b.top+1)overlaps++}}return {viewport:innerWidth,page:document.documentElement.scrollWidth,count:tiles.length,overlaps,scroll:document.querySelector('#nameBoard').scrollHeight,visible:document.querySelector('#nameBoard').clientHeight}`);
   check(mobile.page <= mobile.viewport && mobile.count === 45 && mobile.overlaps === 0, 'Mobile 45-name board stays within the screen without overlapping', mobile);
+  const mobileStage = await browser.eval('const frame=document.querySelector("#gameStage").getBoundingClientRect(); const cinema=document.querySelector("#callerCinema").getBoundingClientRect(); const dialogue=document.querySelector("#dialogueBox").getBoundingClientRect(); return { frame:frame.right, cinema:cinema.right, dialogue:dialogue.right }');
+  check(mobileStage.cinema <= mobileStage.frame + 1 && mobileStage.dialogue <= mobileStage.frame, 'Mobile camera and dialogue fit inside the frame', mobileStage);
   await browser.shot(path.join(out, 'detective-mobile-45.png'));
   check(browser.errors.length === 0, 'No uncaught browser errors', browser.errors);
   console.log('Screenshots: ' + out);

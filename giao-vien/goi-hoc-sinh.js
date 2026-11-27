@@ -1,7 +1,10 @@
-import * as PIXI from '../assets/vendor/pixi.min.mjs';
+import { createCinema } from './caller-cinema.mjs';
+import { princeMarkup } from './caller-prince-art.mjs';
+import { strikerMarkup } from './caller-penalty-art.mjs';
+import { detectiveMarkup } from './caller-detective-art.mjs';
 import { makeRoster, parseNames, selectBatch, recordBatch, normalizeDailyState, buildDetectiveClues, secureShuffle } from './goi-hoc-sinh-core.mjs';
 
-/* Three original classroom mini-games. PIXI draws each living scene; GSAP choreographs the story. */
+/* Three classroom stories share one roster and one calling round. */
 const KEY = 'vuonchu.callerGames.v1';
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => Array.from(root.querySelectorAll(selector));
@@ -49,7 +52,9 @@ async function page(view) {
   let musicTimer = 0;
   let audio = null;
   let audioStep = 0;
-  let currentTimeline = null;
+  let visibleCalled = null;
+  let dialogueSequence = 0;
+  let noiseBuffer = null;
   let disposed = false;
   let lineDeck = {};
 
@@ -57,23 +62,21 @@ async function page(view) {
     <main class="caller-page" id="teacherCallerGames">
       <section class="caller-home" id="callerHome">
         <header class="caller-welcome">
-          <div class="caller-brand-orb" aria-hidden="true"><span>✦</span><b>HÔM NAY AI?</b><i>✦</i></div>
-          <div class="caller-welcome-copy"><span class="caller-eyebrow">SÂN KHẤU GỌI TÊN · VƯỜN CHỮ</span><h2>Chọn một cuộc phiêu lưu</h2><p>Mỗi lượt là một câu chuyện khác nhau. Ai sẽ được mời lên trả lời nhỉ?</p></div>
-          <div class="caller-welcome-badge"><span>🎲</span><b>Chọn công bằng</b><small>Hoạt cảnh chỉ tạo hồi hộp</small></div>
+          <div class="caller-welcome-copy"><h2>Chọn một cuộc phiêu lưu</h2><p>Chọn một trò để mời học sinh trả lời.</p></div>
         </header>
 
         <section class="caller-game-grid" aria-label="Chọn trò chơi">
           <button class="caller-game-card prince-card" data-open-game="prince" type="button">
-            <span class="game-card-scene prince-scene" aria-hidden="true"><i class="castle-spire spire-a"></i><i class="castle-spire spire-b"></i><i class="castle-tower"></i><i class="castle-cloud cloud-a"></i><i class="game-horse">♞</i><i class="garden-flower flower-a">✿</i><i class="garden-flower flower-b">✦</i><i class="scene-ribbon">MỞ CỔNG</i></span>
-            <span class="game-card-copy"><span class="game-card-kicker">SÂN KHẤU CỔ TÍCH</span><b>Hoàng tử cưỡi ngựa</b><small>Đoán xem hoàng tử sẽ dừng trước ai…</small><span class="game-card-action">DÀNH CHO NỮ <i>↗</i></span></span>
+            <span class="game-card-scene prince-scene" aria-hidden="true"><span class="caller-teaser-art caller-performer" data-motion="idle">${princeMarkup()}</span></span>
+            <span class="game-card-copy"><b>Hoàng tử cưỡi ngựa</b><small>Danh sách Nữ</small><span class="game-card-action" aria-hidden="true">↗</span></span>
           </button>
           <button class="caller-game-card penalty-card" data-open-game="penalty" type="button">
-            <span class="game-card-scene stadium-scene" aria-hidden="true"><i class="stadium-light"></i><i class="goal-net"></i><i class="stadium-ball">⚽</i><i class="stadium-player">●</i><i class="stadium-crowd">▴ ▴ ▴ ▴ ▴ ▴</i><i class="scene-ribbon">VÀO TRẬN</i></span>
-            <span class="game-card-copy"><span class="game-card-kicker">ĐÊM CHUNG KẾT</span><b>Sút phạt đền</b><small>Bóng đổi hướng phút chót, ai sẽ được gọi?</small><span class="game-card-action">DÀNH CHO NAM <i>↗</i></span></span>
+            <span class="game-card-scene stadium-scene" aria-hidden="true"><span class="caller-teaser-art caller-performer" data-motion="idle">${strikerMarkup()}</span></span>
+            <span class="game-card-copy"><b>Sút phạt đền</b><small>Danh sách Nam</small><span class="game-card-action" aria-hidden="true">↗</span></span>
           </button>
           <button class="caller-game-card detective-card" data-open-game="detective" type="button">
-            <span class="game-card-scene office-scene" aria-hidden="true"><i class="desk-lamp"></i><i class="case-board"><b>✦</b><b>✦</b><b>✦</b></i><i class="magnifier">⌕</i><i class="rain-lines"></i><i class="scene-ribbon">MỞ HỒ SƠ</i></span>
-            <span class="game-card-copy"><span class="game-card-kicker">VỤ ÁN TRONG LỚP</span><b>Thám tử tìm nghi phạm</b><small>Manh mối đang dẫn tới bạn nào đây?</small><span class="game-card-action">CẢ LỚP <i>↗</i></span></span>
+            <span class="game-card-scene office-scene" aria-hidden="true"><span class="caller-teaser-art caller-performer" data-motion="idle">${detectiveMarkup()}</span></span>
+            <span class="game-card-copy"><b>Thám tử tìm nghi phạm</b><small>Danh sách cả lớp</small><span class="game-card-action" aria-hidden="true">↗</span></span>
           </button>
         </section>
 
@@ -95,16 +98,32 @@ async function page(view) {
       <section class="caller-play" id="callerPlay" hidden>
         <header class="caller-play-top"><button class="caller-home-button" id="backHome" type="button">← Chọn trò khác</button><div class="caller-play-title"><span id="playGameIcon">✦</span><div><b id="playGameName"></b><small id="playGameSubtitle"></small></div></div><div class="caller-play-tools"><label class="caller-count-live"><span>Số bạn</span><select id="liveCount"><option value="1">1 bạn</option><option value="2">2 bạn</option><option value="3">3 bạn</option></select></label><label class="caller-count-live"><span>Nhịp chơi</span><select id="liveSpeed"><option value="10">Nhanh · 10s</option><option value="15">Vừa · 15s</option><option value="20">Hồi hộp · 20s</option></select></label><label class="caller-sound"><input type="checkbox" id="soundToggle"><span>♫</span><b>Âm thanh</b></label><button class="caller-tool-icon" id="fullscreenToggle" type="button" title="Toàn màn hình">⛶</button></div></header>
         <section class="caller-stage" id="gameStage" aria-label="Sân khấu hoạt hình">
-          <div class="caller-pixi-host" id="pixiHost" aria-hidden="true"></div>
+          <div class="caller-cinema" id="callerCinema">
+          <div class="caller-cinema-world" aria-hidden="true">
+            <div class="caller-cinema-backdrop"></div>
+            <div class="caller-cinema-atmosphere"></div>
+            <div class="caller-cinema-setpiece"></div>
+            <div class="caller-cinema-actors"></div>
+            <div class="caller-cinema-fx"></div>
+          </div>
           <div class="caller-stage-shade"></div>
+          <div class="caller-cinema-flash" aria-hidden="true"></div>
+          <div class="caller-cinema-target" aria-hidden="true"><strong></strong></div>
+          <strong class="caller-cinema-signal" aria-hidden="true"></strong>
+          <aside class="caller-cinema-evidence" hidden aria-live="polite"><b></b><span></span></aside>
           <div class="caller-stage-topline"><span class="caller-stage-chip"><i></i><b id="stageTheme">VƯỜN CỔ TÍCH</b></span><span id="stageStatus">Sân khấu đã sẵn sàng</span><button id="roundProgress" type="button">Lượt <b>0</b>/<i>0</i> · <u>Làm mới</u></button></div>
           <div class="caller-dialogue" id="dialogueBox"><span class="caller-dialogue-avatar" id="dialogueAvatar">✦</span><p id="dialogueText">Chọn nút bên dưới để bắt đầu câu chuyện nhé!</p><span class="dialogue-tail"></span></div>
-          <div class="caller-board-wrap"><div class="caller-name-board" id="nameBoard" role="list" aria-label="Tên học sinh"></div><div class="caller-no-names" id="noNames" hidden><span>📜</span><b>Sân khấu đang chờ tên học sinh</b><small>Về màn hình trước và dán danh sách phù hợp với trò chơi này.</small></div></div>
           <div class="caller-slow-overlay" id="slowOverlay"><span>✦</span><b>KHOẢNH KHẮC QUYẾT ĐỊNH</b><i></i></div>
           <div class="caller-result-overlay" id="resultOverlay" hidden><div class="caller-result-rays"></div><div class="caller-result-card"><span class="caller-result-eyebrow" id="resultEyebrow">HỒ SƠ ĐÃ MỞ</span><span class="caller-result-icon" id="resultIcon">🌟</span><b id="resultHeading">Đã tìm ra!</b><div class="caller-result-names" id="resultNames"></div><small id="resultCaption">Mời bạn lên trả lời câu hỏi của cô giáo!</small><div class="caller-result-actions"><button id="playAgain" class="caller-play-again" type="button">Chơi lại ↻</button><button id="resultHome" class="caller-result-home" type="button">Về màn hình chính</button></div></div><div class="caller-confetti" id="confetti" aria-hidden="true"></div></div>
           <div class="caller-stage-vignette"></div>
+          </div>
         </section>
         <footer class="caller-play-controls"><div><button id="startStory" class="caller-main-action" type="button"><span>✦</span><b>Bắt đầu câu chuyện</b><i>→</i></button><small id="playHint">Kết quả đã sẵn sàng, cả lớp cùng đoán nhé!</small></div><div class="caller-live-stats"><span><b id="remainingCount">0</b><small>còn lượt</small></span><span class="caller-stat-divider"></span><span><b id="calledCount">0</b><small>đã gọi hôm nay</small></span></div></footer>
+        <section class="caller-board-wrap" aria-label="Danh sách sân khấu">
+          <h3>Học sinh trong lượt này</h3>
+          <div class="caller-name-board" id="nameBoard" role="list" aria-label="Tên học sinh"></div>
+          <div class="caller-no-names" id="noNames" hidden><b>Sân khấu đang chờ tên học sinh</b><small>Chọn trò khác để quay lại và nhập danh sách lớp.</small></div>
+        </section>
       </section>
     </main>`;
 
@@ -199,7 +218,7 @@ async function page(view) {
   function renderRoster() {
     const meta = GAME[activeGame];
     const list = getGameRoster();
-    const used = calledSet();
+    const used = visibleCalled || calledSet();
     const cols = Math.min(9, Math.max(3, Math.ceil(Math.sqrt(Math.max(1, list.length) * 1.8))));
     board.style.setProperty('--roster-cols', cols);
     board.classList.toggle('is-detective-board', activeGame === 'detective');
@@ -244,13 +263,63 @@ async function page(view) {
     tick(); musicTimer = setInterval(tick, activeGame === 'detective' ? 610 : 490);
   }
   function stopMusic() { clearInterval(musicTimer); musicTimer = 0; }
+  function soundEffect(effect) {
+    if (!savedSound.checked || disposed) return;
+    const ctx = soundContext();
+    if (!ctx) return;
+    function noise(duration, volume, frequency, q = .9) {
+      if (!noiseBuffer) {
+        noiseBuffer = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
+        const samples = noiseBuffer.getChannelData(0);
+        for (let i = 0; i < samples.length; i++) samples[i] = Math.random() * 2 - 1;
+      }
+      const sample = ctx.createBufferSource();
+      const filter = ctx.createBiquadFilter();
+      const envelope = ctx.createGain();
+      sample.buffer = noiseBuffer;
+      filter.type = 'bandpass';
+      filter.frequency.value = frequency;
+      filter.Q.value = q;
+      envelope.gain.setValueAtTime(volume, ctx.currentTime);
+      envelope.gain.exponentialRampToValueAtTime(.0001, ctx.currentTime + duration);
+      sample.connect(filter).connect(envelope).connect(ctx.destination);
+      sample.start();
+      sample.stop(ctx.currentTime + duration);
+    }
+    const effects = {
+      hoof() { tone(113, .09, .034, 'triangle'); tone(164, .08, .019, 'sine', .045); noise(.14, .12, 650); },
+      step() { noise(.09, .08, 320); },
+      fanfare() { [440, 554, 659].forEach((note, i) => tone(note, .22, .036, 'triangle', i * .095)); },
+      whistle() { tone(1660, .24, .033); tone(1880, .12, .018, 'sine', .075); },
+      paper() { noise(.27, .12, 1650); },
+      swerve() { noise(.26, .11, 1320); tone(330, .13, .019, 'triangle'); },
+      kick() { noise(.24, .19, 430); tone(85, .16, .057, 'triangle'); },
+      post() { tone(840, .22, .039, 'triangle'); tone(1240, .18, .016); },
+      catch() { noise(.19, .16, 360); },
+      goal() { noise(.7, .18, 940, .3); [587, 784, 988].forEach((note, i) => tone(note, .37, .025, 'triangle', i * .11)); },
+      stamp() { tone(126, .13, .039, 'triangle'); noise(.12, .10, 390); },
+      heartbeat() { tone(72, .18, .06); tone(61, .16, .048, 'sine', .19); tone(72, .18, .05, 'sine', .54); },
+      chime() { [740, 988, 1175].forEach((note, i) => tone(note, .29, .026, 'sine', i * .081)); }
+    };
+    effects[effect]?.();
+  }
   async function typeDialogue(text, duration = 520) {
+    const sequence = ++dialogueSequence;
     const box = $('#dialogueBox', root); const target = $('#dialogueText', root);
     box.classList.remove('is-speaking'); void box.offsetWidth; box.classList.add('is-speaking');
     target.textContent = '';
     const letters = Array.from(text);
-    const interval = Math.max(8, Math.min(34, duration / Math.max(letters.length, 1)));
-    for (const character of letters) { if (!root.isConnected) return; target.textContent += character; await delay(interval); }
+    const began = performance.now();
+    return new Promise(resolve => {
+      function frame(now) {
+        if (sequence !== dialogueSequence || disposed || !root.isConnected) { resolve(); return; }
+        const progress = Math.min(1, (now - began) / duration);
+        target.textContent = progress === 1 ? text : letters.slice(0, Math.ceil(letters.length * progress)).join('');
+        if (progress === 1) resolve();
+        else requestAnimationFrame(frame);
+      }
+      requestAnimationFrame(frame);
+    });
   }
   function setEmotion(students, className = 'is-candidate') {
     $$('.caller-student', board).forEach(tile => tile.classList.remove('is-candidate', 'is-winner', 'is-pointed'));
@@ -260,10 +329,10 @@ async function page(view) {
       if (tile) tile.classList.add(className);
     });
   }
-  async function spotlight(duration = 1100) {
+  async function spotlight(duration = 1100, action) {
     gameStage.classList.add('is-slow');
     if (scene) scene.setSlow(true);
-    tone(activeGame === 'penalty' ? 145 : 94, .9, .055, 'sine');
+    action?.();
     await delay(duration);
     gameStage.classList.remove('is-slow');
     if (scene) scene.setSlow(false);
@@ -278,6 +347,11 @@ async function page(view) {
     $('#resultCaption', root).textContent = batch.length > 1 ? 'Các bạn cùng lên trả lời câu hỏi của cô giáo nhé!' : activeGame === 'detective' ? 'Mời em lên trả lời câu hỏi của cô giáo!' : activeGame === 'penalty' ? 'Cả sân vận động đang cổ vũ cho em!' : 'Nàng có đồng ý cùng hoàng tử trả lời câu hỏi không?';
     overlay.hidden = false;
     requestAnimationFrame(() => overlay.classList.add('is-shown'));
+    visibleCalled = null;
+    for (const student of batch) {
+      const tile = $('.caller-student[data-id="' + CSS.escape(student.id) + '"]', board);
+      tile?.classList.add('is-done');
+    }
     setEmotion(batch, 'is-winner');
     makeConfetti();
     if (scene) scene.celebrate();
@@ -291,7 +365,7 @@ async function page(view) {
     setEmotion([student], className);
     const tile = $('.caller-student[data-id="' + CSS.escape(student.id) + '"]', board);
     if (tile && gsap) gsap.fromTo(tile, { scale: .94, y: 5 }, { scale: 1.08, y: -4, duration: .34, ease: 'back.out(2)', yoyo: true, repeat: 1 });
-    if (scene) scene.travel(student.signature / 0xffffffff);
+    if (scene) scene.travel(student, className === 'is-pointed');
     await delay(wait);
   }
   async function interlude(game, name, wait = 650) {
@@ -300,9 +374,9 @@ async function page(view) {
     await delay(Math.max(50, wait - 500));
   }
 
-  async function playPrince(batch, pool, totalMs) {
+  async function playPrince(batch, pool, totalMs, timeLeft) {
+    scene?.enter();
     await typeDialogue('Nghe tiếng kèn gọi rồi! Cổng vườn đang mở…', 660); tone(880, .35, .04, 'triangle');
-    if (scene) scene.enter();
     await delay(totalMs * .09);
     const direct = randomIndex(3) === 0;
     const decoys = secureShuffle(pool.filter(student => !batch.some(winner => winner.id === student.id))).slice(0, Math.min(3, pool.length - batch.length));
@@ -316,58 +390,76 @@ async function page(view) {
     }
     if (!direct && decoys.length) { await typeDialogue('À không, ta đổi ý rồi! Ngựa con, quay lại nào!', 560); tone(260, .24, .045, 'triangle'); if (scene) scene.turnBack(); await delay(beat * .42); }
     else { await typeDialogue('Ta đã chọn được rồi… nhưng còn một bí mật!', 550); if (scene) scene.turnBack(); await delay(beat * .4); }
-    await spotlight(1250);
+    await spotlight(1250, () => scene?.travel(batch[0], true));
     for (let index = 0; index < batch.length; index++) {
       const winner = batch[index];
       if (index > 0) { await typeDialogue('Một hoàng tử khác phi vào khu vườn để đón bạn tiếp theo!', 440); if (scene) scene.newPrince(index); await delay(300); }
-      await focusOn(winner, 'is-pointed', Math.max(320, beat * .42));
+      if (index === 0) setEmotion([winner], 'is-pointed');
+      else await focusOn(winner, 'is-pointed', Math.max(320, beat * .42));
       await typeDialogue('Nàng ' + winner.name + ' có đồng ý cùng ta trả lời câu hỏi không?', 650);
-      if (scene) scene.winner();
-      tone(700, .2, .04, 'triangle'); await delay(Math.max(280, beat * .35));
+      if (scene) scene.winner(makeAvatar(winner));
+      tone(700, .2, .04, 'triangle'); await delay(Math.max(590, beat * .35));
     }
+    await delay(Math.max(0, timeLeft() - 900));
+    scene?.depart();
+    await delay(820);
   }
 
   async function playPenalty(batch, pool, totalMs) {
+    scene?.enter();
     await typeDialogue('Trận đấu đang ở phút quyết định… Đặt bóng nào!', 620); tone(190, .22, .04, 'square');
-    if (scene) scene.enter();
-    await delay(totalMs * .08);
-    const beat = Math.max(520, totalMs * .56 / batch.length);
+    const extraBuildUp = Math.max(0, totalMs - (batch.length * 2900 + 1700)) / (batch.length + 1);
     const decoys = secureShuffle(pool.filter(student => !batch.some(winner => winner.id === student.id)));
     for (let index = 0; index < batch.length; index++) {
       const falseAim = decoys.length ? decoys[(index * 2 + randomIndex(decoys.length)) % decoys.length] : batch[index];
-      await typeDialogue('Cầu thủ lùi lại… thủ môn đang đoán hướng sút!', Math.min(500, beat * .3));
-      if (scene) scene.prepareShot(index);
-      await delay(beat * .16);
-      await focusOn(falseAim, 'is-candidate', beat * .13);
+      scene?.prepareShot();
+      await typeDialogue('Cầu thủ lùi lại… thủ môn đang đoán hướng sút!', 480);
+      if (extraBuildUp > 250) await delay(extraBuildUp * .48);
+      setEmotion([falseAim], 'is-candidate');
+      scene?.travel(falseAim);
       const trick = randomIndex(3);
-      await typeDialogue(trick === 0 ? 'Sút về phía ' + falseAim.name + ' à?! Đổi chân rồi!' : trick === 1 ? 'Bóng dội cột! Vẫn đang lăn…' : 'Thủ môn đổ người! Bóng tuột tay mất rồi!', Math.min(520, beat * .3));
-      if (scene) scene.fakeShot(trick);
-      tone(140 + randomIndex(4) * 30, .19, .04, 'triangle'); await delay(beat * .12);
-      await focusOn(batch[index], 'is-pointed', beat * .14);
-      if (scene) scene.scoreShot(index);
-      tone(560, .18, .035, 'sine'); await delay(beat * .12);
+      const reaction = ['Đổi chân rồi!', 'Bóng dội cột! Vẫn đang lăn…', 'Thủ môn đổ người! Bóng tuột tay mất rồi!'][trick];
+      void typeDialogue('Sút về phía ' + falseAim.name + ' à?!', 400);
+      scene?.fakeShot(trick, () => { void typeDialogue(reaction, 290); });
+      await delay((trick === 0 ? 720 : 1210) + extraBuildUp * .32);
+      if (index === batch.length - 1) {
+        await spotlight(1450, () => scene?.scoreShot(index, true, batch[index]));
+      } else {
+        scene?.scoreShot(index, false, batch[index]);
+        await delay(1110);
+      }
+      setEmotion([batch[index]], 'is-pointed');
     }
-    await spotlight(1250);
     await typeDialogue('VÀOOOO! Người được gọi chính là…', 650);
   }
 
   async function playDetective(batch, pool, totalMs) {
+    scene?.enter();
     await typeDialogue('Có một bí mật trong lớp này… thám tử bắt đầu điều tra!', 680); tone(330, .3, .035, 'triangle');
-    if (scene) scene.enter();
     const clueCount = Math.max(3, Math.min(5, Math.floor(totalMs / Math.max(1, batch.length) / 1250)));
     const clueSlots = clueCount * batch.length;
     const beat = Math.max(390, totalMs * .57 / clueSlots);
     for (let caseIndex = 0; caseIndex < batch.length; caseIndex++) {
       const target = batch[caseIndex];
       const clueSet = buildDetectiveClues(pool, target, length => randomIndex(length), clueCount);
-      let clues = clueSet.clues;
+      const clues = clueSet.clues;
       if (clues.length < 3) {
-        const fallback = ['Hồ sơ mang mã ' + target.caseCode + '.', 'Tên có ' + Array.from(target.name).length + ' kí tự.', 'Họ tên có ' + target.name.trim().split(/\s+/).length + ' tiếng.'];
-        clues = fallback.slice(0, 3).map((text, i) => ({ text, remaining: i === 0 ? pool.filter(person => person.caseCode === target.caseCode) : i === 1 ? pool.filter(person => Array.from(person.name).length === Array.from(target.name).length) : pool.filter(person => person.name.trim().split(/\s+/).length === target.name.trim().split(/\s+/).length), removed: [] }));
+        const lengthOf = student => Array.from(student.name).length;
+        const wordsOf = student => student.name.trim().split(/\s+/).length;
+        const details = [
+          ['Họ tên có ' + wordsOf(target) + ' tiếng.', student => wordsOf(student) === wordsOf(target)],
+          ['Tên có ' + lengthOf(target) + ' kí tự.', student => lengthOf(student) === lengthOf(target)],
+          ['Hồ sơ mang mã ' + target.caseCode + '.', student => student.caseCode === target.caseCode]
+        ];
+        for (const [text, matches] of details) {
+          if (clues.length === 3) break;
+          const previous = clues.at(-1)?.remaining || pool;
+          clues.push({ text, remaining: previous.filter(matches) });
+        }
       }
-      for (const clue of clues) {
-        await typeDialogue('Manh mối ' + (caseIndex + 1) + ': ' + clue.text, Math.min(500, beat * .58));
-        if (scene) scene.stampClue();
+      for (const [index, clue] of clues.entries()) {
+        await typeDialogue('Manh mối ' + (index + 1) + ': ' + clue.text, Math.min(500, beat * .58));
+        scene?.stampClue(clue);
         const survivors = new Set(clue.remaining.map(student => student.id));
         $$('.caller-student', board).forEach(tile => {
           if (pool.some(student => student.id === tile.dataset.id) && !survivors.has(tile.dataset.id)) tile.classList.add('is-eliminated');
@@ -379,7 +471,11 @@ async function page(view) {
       }
       await typeDialogue('Hừm… hình như ta đã biết em là ai rồi…', 440);
       const decoy = pool.find(student => student.id !== target.id && !batch.some(winner => winner.id === student.id));
-      if (decoy) { await focusOn(decoy, 'is-pointed', Math.max(200, beat * .35)); await typeDialogue('Ơ, không phải em! Kính lúp soi nhầm rồi!', 470); }
+      if (decoy) {
+        await focusOn(decoy, 'is-candidate', Math.max(340, beat * .35));
+        scene?.falseClue();
+        await typeDialogue('Ơ, không phải em! Kính lúp soi nhầm rồi!', 470);
+      }
       await focusOn(target, 'is-pointed', 430);
       if (scene) scene.stampClue();
       await delay(180);
@@ -400,22 +496,24 @@ async function page(view) {
     const meta = GAME[activeGame];
     const pool = remaining(meta.scope);
     if (!pool.length) { updateGameStats(); return; }
+    visibleCalled = calledSet();
     const batch = selectBatch(pool, settings.count, 'all', settings.daily, randomIndex);
-    if (!batch.length) { updateGameStats(); return; }
+    if (!batch.length) { visibleCalled = null; updateGameStats(); return; }
     lineDeck = {};
     // The fair result is committed before the suspense animation begins.
     updateWinnerHistory(batch, activeGame);
     busy = true; updateGameStats();
+    gameStage.classList.add('is-running');
     $('#resultOverlay', root).hidden = true; $('#resultOverlay', root).classList.remove('is-shown');
     $('#slowOverlay', root).classList.remove('is-active'); gameStage.classList.remove('is-slow');
     renderRoster(); setEmotion([]);
     $('#stageStatus', root).textContent = 'Câu chuyện đang bắt đầu…';
     $('#playAgain', root).disabled = true; $('#resultHome', root).disabled = true;
     if (savedSound.checked) { soundContext(); startMusic(); }
-    if (scene) scene.reset(activeGame);
+    if (scene) scene.reset();
     const begin = performance.now(); const totalMs = settings.seconds * 1000;
     try {
-      if (activeGame === 'prince') await playPrince(batch, pool, totalMs);
+      if (activeGame === 'prince') await playPrince(batch, pool, totalMs, () => totalMs - (performance.now() - begin));
       if (activeGame === 'penalty') await playPenalty(batch, pool, totalMs);
       if (activeGame === 'detective') await playDetective(batch, pool, totalMs);
       const remainder = totalMs - (performance.now() - begin);
@@ -428,205 +526,18 @@ async function page(view) {
       if (root.isConnected) { await typeDialogue('Câu chuyện khựng lại một chút — kết quả đã được chọn rồi!', 450); reveal(batch); }
     } finally {
       busy = false; stopMusic();
+      gameStage.classList.remove('is-running');
       if ($('#playAgain', root)) { $('#playAgain', root).disabled = false; $('#resultHome', root).disabled = false; }
       updateGameStats();
       startButton.querySelector('b').textContent = remaining(meta.scope).length ? 'Chơi thêm một lượt' : 'Đã hết lượt trong vòng';
     }
   }
 
-  function makeScene(mode) {
-    const host = $('#pixiHost', root);
-    const app = new PIXI.Application();
-    const W = 1280; const H = 720;
-    let rootLayer; let world; let actor; let ball; let keeper; let sparks = []; let stopped = false; let observer;
-    const children = [];
-    function shape(parent, draw) { const graphic = new PIXI.Graphics(); draw(graphic); parent.addChild(graphic); return graphic; }
-    const fillRect = (graphic, x, y, w, h, color, alpha = 1) => graphic.rect(x, y, w, h).fill({ color, alpha });
-    const circle = (graphic, x, y, r, color, alpha = 1) => graphic.circle(x, y, r).fill({ color, alpha });
-    const ellipse = (graphic, x, y, rx, ry, color, alpha = 1) => graphic.ellipse(x, y, rx, ry).fill({ color, alpha });
-    const line = (graphic, points, color, width = 2, alpha = 1) => { graphic.moveTo(points[0], points[1]); for (let i = 2; i < points.length; i += 2) graphic.lineTo(points[i], points[i + 1]); graphic.stroke({ color, width, alpha, cap: 'round', join: 'round' }); };
-    function text(parent, content, x, y, style) { const label = new PIXI.Text({ text: content, style: new PIXI.TextStyle(style) }); label.anchor.set(.5); label.x = x; label.y = y; parent.addChild(label); return label; }
-    function drawBackground() {
-      world.removeChildren(); sparks = [];
-      shape(world, g => fillRect(g, 0, 0, W, H, mode === 'garden' ? 0x527db7 : mode === 'stadium' ? 0x111e42 : 0x29283a));
-      if (mode === 'garden') {
-        shape(world, g => { fillRect(g, 0, 380, W, 340, 0x75be8b); ellipse(g, 180, 420, 330, 150, 0x90d18d); ellipse(g, 1080, 430, 360, 168, 0x7dc87f); ellipse(g, 640, 600, 730, 220, 0x4caa78); });
-        shape(world, g => { circle(g, 1050, 98, 53, 0xffe9a0, .86); circle(g, 1033, 80, 47, 0x6f95c0, .38); });
-        for (let i = 0; i < 7; i++) {
-          const x = 95 + i * 184;
-          const cloud = new PIXI.Container(); cloud.x = x; cloud.y = 100 + (i % 3) * 45;
-          shape(cloud, g => { ellipse(g, 0, 10, 45, 16, 0xffffff, .54); circle(g, -19, 4, 19, 0xffffff, .54); circle(g, 8, -5, 25, 0xffffff, .54); circle(g, 30, 4, 16, 0xffffff, .54); }); world.addChild(cloud); children.push(cloud);
-          if (gsap) gsap.to(cloud, { x: x + 45, duration: 11 + i * 1.2, repeat: -1, yoyo: true, ease: 'sine.inOut', delay: i * -.9 });
-        }
-        shape(world, g => {
-          fillRect(g, 480, 135, 320, 280, 0xe7c28c); fillRect(g, 540, 95, 200, 115, 0xffd983);
-          fillRect(g, 462, 185, 62, 236, 0xf6d4a2); fillRect(g, 756, 185, 62, 236, 0xf6d4a2);
-          for (const [x, y, w, h] of [[450, 140, 85, 76], [744, 140, 85, 76], [522, 62, 235, 115]]) {
-            g.moveTo(x, y + h).lineTo(x + w / 2, y).lineTo(x + w, y + h).closePath().fill({ color: 0xab6385 });
-            g.circle(x + w / 2, y + h - 25, 13).fill({ color: 0x7bc6dc });
-          }
-          fillRect(g, 606, 300, 67, 120, 0x966485); g.roundRect(613, 358, 7, 9, 4).fill({ color: 0xffe59a });
-          // fountain and garden border
-          g.ellipse(205, 505, 72, 20).fill({ color: 0xd4f1d5, alpha: .54 }); g.roundRect(169, 442, 70, 51, 16).fill({ color: 0x75bfce }); g.ellipse(204, 442, 47, 13).fill({ color: 0xb2ecdf });
-          for (let i = 0; i < 16; i++) { const px = 50 + i * 82; g.roundRect(px, 510 + (i % 2) * 9, 13, 83, 7).fill({ color: i % 2 ? 0x539662 : 0x3d8156 }); g.circle(px + 5, 503 + (i % 3) * 7, 27, i % 2 ? 0x69aa65 : 0x6ab977); }
-        });
-      } else if (mode === 'stadium') {
-        shape(world, g => { fillRect(g, 0, 165, W, 330, 0x343967); fillRect(g, 0, 495, W, 225, 0x287452); fillRect(g, 0, 480, W, 22, 0x65bb7c); });
-        shape(world, g => {
-          for (let row = 0; row < 6; row++) for (let col = 0; col < 32; col++) {
-            const x = 22 + col * 40 + (row % 2) * 14; const y = 220 + row * 40;
-            circle(g, x, y, 7 + (col % 3), [0xffd58d, 0xf4a1bc, 0xa6d8f5, 0xc8eea8][(col + row * 3) % 4], .85);
-          }
-          for (let i = 0; i < 15; i++) { const x = 42 + i * 86; g.roundRect(x, 92, 4, 375, 2).fill({ color: 0xaec7ff, alpha: .34 }); }
-          g.roundRect(885, 210, 250, 220, 12).stroke({ color: 0xe9f6e9, width: 8, alpha: .84 });
-          for (let i = 1; i < 5; i++) line(g, [885 + i * 50, 214, 885 + i * 50, 426], 0xddebe7, 2, .34);
-          for (let i = 1; i < 4; i++) line(g, [890, 210 + i * 52, 1130, 210 + i * 52], 0xddebe7, 2, .34);
-          line(g, [0, 595, W, 595], 0xd1eed0, 3, .45); line(g, [640, 508, 640, 720], 0xd1eed0, 3, .35);
-          for (let i = 0; i < 6; i++) { const x = 78 + i * 206; g.roundRect(x, 85, 108, 13, 7).fill({ color: 0xfff4c3, alpha: .9 }); g.circle(x + 8, 94, 20, 0xe0eaff, .08); }
-        });
-      } else {
-        shape(world, g => { fillRect(g, 0, 0, W, H, 0x302b3c); fillRect(g, 0, 486, W, 234, 0x594349); fillRect(g, 0, 476, W, 18, 0x86614f); });
-        shape(world, g => {
-          g.roundRect(70, 82, 290, 247, 13).fill({ color: 0x555e7a }); g.roundRect(84, 96, 262, 220, 7).fill({ color: 0x91adc4 }); g.rect(207, 96, 12, 220).fill({ color: 0x66748c }); g.rect(84, 197, 262, 12).fill({ color: 0x66748c });
-          for (let i = 0; i < 34; i++) { const x = 95 + i * 32; const y = (i * 41) % 235 + 98; line(g, [x, y, x - 12, y + 38], 0xe2efff, 2, .44); }
-          // corkboard and red evidence string
-          g.roundRect(710, 88, 440, 308, 14).fill({ color: 0x98664f }); g.roundRect(727, 104, 406, 277, 8).fill({ color: 0xd7ad7a });
-          for (let i = 0; i < 7; i++) { const x = 770 + (i % 4) * 93; const y = 145 + Math.floor(i / 4) * 112; g.roundRect(x, y, 62, 73, 5).fill({ color: i % 2 ? 0xf4e5bd : 0xf8efd5 }); circle(g, x + 31, y + 25, 13, [0xd27b74, 0x85a8b5, 0xd3a35c][i % 3]); line(g, [x + 16, y + 53, x + 47, y + 53], 0x9e8b76, 2, .55); line(g, [x + 16, y + 60, x + 40, y + 60], 0x9e8b76, 2, .45); }
-          line(g, [800, 195, 921, 249, 1019, 187, 1080, 255], 0xbf4858, 3, .9); line(g, [824, 303, 927, 248, 990, 301], 0xbf4858, 3, .9);
-          g.roundRect(542, 490, 352, 28, 10).fill({ color: 0xa77d5e }); g.roundRect(570, 518, 19, 172, 5).fill({ color: 0x77513f }); g.roundRect(850, 518, 19, 172, 5).fill({ color: 0x77513f });
-          g.ellipse(1030, 52, 136, 90).fill({ color: 0xf7c970, alpha: .12 }); g.roundRect(1012, 48, 40, 19, 8).fill({ color: 0xffdfa0, alpha: .92 });
-        });
-      }
-      for (let i = 0; i < 31; i++) {
-        const particle = new PIXI.Container(); particle.x = randomIndex(W); particle.y = 80 + randomIndex(480); children.push(particle);
-        const dot = new PIXI.Graphics().circle(0, 0, 2 + (i % 3)).fill({ color: mode === 'garden' ? 0xfff1a4 : mode === 'stadium' ? 0xffe69e : 0xeab7a4, alpha: .65 }); particle.addChild(dot); world.addChild(particle); sparks.push(particle);
-        if (gsap) gsap.to(particle, { y: particle.y - 17 - randomIndex(42), alpha: .18, duration: 1.5 + randomIndex(25) / 10, repeat: -1, yoyo: true, ease: 'sine.inOut', delay: -randomIndex(30) / 10 });
-      }
-    }
-    function drawPrince() {
-      actor = new PIXI.Container(); actor.x = 640; actor.y = 210; world.addChild(actor);
-      shape(actor, g => {
-        // pony: articulated legs, body, mane, head, saddle, rider
-        ellipse(g, 10, 50, 107, 40, 0x7e4b3d); ellipse(g, -14, 49, 73, 35, 0x9a6148); ellipse(g, 90, 18, 30, 26, 0x93593f); ellipse(g, 109, 26, 22, 13, 0xefa98a); circle(g, 108, 15, 3.5, 0x342d36);
-        g.moveTo(74, 4).lineTo(100, -42).lineTo(127, -35).lineTo(115, 7).closePath().fill({ color: 0x93593f });
-        for (let i = 0; i < 8; i++) circle(g, 82 - i * 8, -7 + (i % 3) * 8, 12, i % 2 ? 0x603b45 : 0xa45851);
-        line(g, [-91, 42, -123, 24, -142, 43], 0x5a3742, 9); line(g, [-44, 79, -49, 130], 0x583f43, 10); line(g, [31, 79, 38, 130], 0x583f43, 10); line(g, [82, 65, 91, 120], 0x583f43, 10); line(g, [-5, 76, -2, 129], 0x583f43, 10);
-        ellipse(g, 29, 31, 40, 11, 0xb8546a); // saddle
-        circle(g, -4, -47, 24, 0xf0c5a4); ellipse(g, -4, -66, 24, 10, 0x583547); // hair
-        g.roundRect(-28, -45, 47, 19, 8).fill({ color: 0x3c3b55 }); circle(g, -11, -48, 2.4, 0x313242); circle(g, 4, -48, 2.4, 0x313242); line(g, [-4, -38, 0, -35, 5, -38], 0xb96f66, 2);
-        g.moveTo(-22, -64).lineTo(-10, -82).lineTo(18, -64).closePath().fill({ color: 0xf0c85e }); g.roundRect(-23, -67, 48, 6, 3).fill({ color: 0xe5ae4b });
-        g.moveTo(-24, -23).lineTo(-55, 22).lineTo(-9, 0).lineTo(20, 31).lineTo(14, -27).closePath().fill({ color: 0x8b5fd0 });
-        g.roundRect(-21, -23, 38, 68, 12).fill({ color: 0x4c79c5 }); line(g, [-20, -8, -39, 14], 0xf0c5a4, 7); line(g, [12, -6, 30, 12], 0xf0c5a4, 7);
-      });
-      const legs = new PIXI.Graphics(); actor.addChild(legs);
-      if (gsap) gsap.to(actor, { y: 202, duration: .78, repeat: -1, yoyo: true, ease: 'sine.inOut' });
-    }
-    function drawFootball() {
-      actor = new PIXI.Container(); actor.x = 550; actor.y = 260; world.addChild(actor);
-      shape(actor, g => {
-        // Goalkeeper, gloved hands and the striker take the spot.
-        g.roundRect(278, -79, 107, 145, 42).fill({ color: 0x4cb7a3 }); circle(g, 330, -102, 34, 0xe9bd9c); g.moveTo(300, -118).quadraticCurveTo(329, -147, 357, -117).lineTo(350, -137).lineTo(313, -139).closePath().fill({ color: 0x31374e });
-        circle(g, 319, -103, 3, 0x3a3b43); circle(g, 340, -103, 3, 0x3a3b43); line(g, [280, -55, 252, -2], 0xe9bd9c, 11); line(g, [384, -55, 407, -8], 0xe9bd9c, 11); circle(g, 249, 0, 13, 0xe7e8f0); circle(g, 409, -3, 13, 0xe7e8f0);
-        // kicker chibi
-        circle(g, 61, -73, 23, 0xeac09e); g.roundRect(41, -54, 42, 70, 12).fill({ color: 0xf3d44d }); line(g, [52, 13, 40, 59], 0x333c63, 11); line(g, [73, 13, 94, 49], 0x333c63, 11); line(g, [45, -35, 23, -2], 0xeac09e, 8); line(g, [78, -35, 104, -6], 0xeac09e, 8); g.moveTo(43, -88).quadraticCurveTo(58, -112, 82, -89).fill({ color: 0x38394c }); circle(g, 54, -71, 2, 0x30323d); circle(g, 68, -71, 2, 0x30323d);
-      });
-      ball = new PIXI.Container(); ball.x = 434; ball.y = 451; world.addChild(ball);
-      shape(ball, g => { circle(g, 0, 0, 22, 0xf8f4db); g.moveTo(-10, -5).lineTo(-4, -15).lineTo(8, -13).lineTo(12, -1).lineTo(2, 9).lineTo(-10, 5).closePath().fill({ color: 0x36405f }); line(g, [-18, -8, -8, -5, -4, -15], 0x414861, 2); line(g, [8, -13, 15, -8, 12, -1], 0x414861, 2); });
-      keeper = actor;
-      if (gsap) gsap.to(keeper, { x: 560, duration: .85, repeat: -1, yoyo: true, ease: 'sine.inOut' });
-    }
-    function drawDetective() {
-      actor = new PIXI.Container(); actor.x = 640; actor.y = 270; world.addChild(actor);
-      shape(actor, g => {
-        // Small original detective, coat, cap and magnifying glass.
-        ellipse(g, 0, 87, 125, 20, 0x201e2b, .19); g.roundRect(-64, 11, 128, 133, 32).fill({ color: 0x8c6255 }); g.moveTo(-64, 41).lineTo(-92, 138).lineTo(-24, 141).lineTo(0, 78).lineTo(28, 142).lineTo(94, 135).lineTo(61, 35).closePath().fill({ color: 0x9a6e58 });
-        circle(g, 0, -29, 50, 0xefc7a2); g.moveTo(-50, -40).quadraticCurveTo(-31, -85, 13, -81).quadraticCurveTo(44, -77, 54, -38).lineTo(29, -48).lineTo(5, -60).lineTo(-12, -45).closePath().fill({ color: 0x4a3b3b });
-        g.roundRect(-59, -55, 119, 15, 8).fill({ color: 0x524148 }); g.roundRect(-28, -98, 60, 42, 14).fill({ color: 0x655052 });
-        circle(g, -17, -27, 4, 0x303345); circle(g, 17, -27, 4, 0x303345); line(g, [-10, -6, 0, -2, 10, -6], 0xb77d6d, 3);
-        line(g, [47, 17, 104, -18], 0xe7cba0, 12); circle(g, 115, -28, 30, 0xe8c679, .72); circle(g, 115, -28, 20, 0x748394, .65); line(g, [135, -7, 164, 16], 0x98744e, 8);
-        g.roundRect(-31, 39, 13, 63, 6).fill({ color: 0xd9b88d }); g.moveTo(-25, 40).lineTo(-17, 56).lineTo(-25, 72).lineTo(-33, 56).closePath().fill({ color: 0xbe6b72 });
-      });
-      if (gsap) gsap.to(actor, { y: 262, duration: 1.35, repeat: -1, yoyo: true, ease: 'sine.inOut' });
-    }
-    function newPrince(index) {
-      if (mode !== 'garden' || !gsap) return;
-      const previous = actor;
-      const colors = [0x945fc2, 0x3f91ad, 0xd65f83];
-      const horses = [0x84523f, 0x6a536f, 0x9a7047];
-      const entrant = new PIXI.Container(); entrant.x = -230; entrant.y = 210; world.addChild(entrant);
-      children.push(entrant); gsap.killTweensOf(previous);
-      shape(entrant, g => {
-        ellipse(g, 0, 46, 93, 34, horses[(index - 1) % horses.length]); ellipse(g, 75, 18, 25, 24, horses[(index - 1) % horses.length]); ellipse(g, 96, 25, 18, 11, 0xf0b294);
-        circle(g, 94, 15, 3, 0x322d35); g.moveTo(65, 7).lineTo(87, -31).lineTo(109, -22).lineTo(96, 9).closePath().fill({ color: horses[(index - 1) % horses.length] });
-        for (let i = 0; i < 7; i++) circle(g, 70 - i * 8, 1 + i % 2 * 8, 10, 0x704051);
-        line(g, [-37, 75, -42, 119], 0x593f42, 9); line(g, [22, 77, 27, 120], 0x593f42, 9); line(g, [67, 59, 76, 110], 0x593f42, 9); line(g, [-82, 38, -110, 20, -125, 40], 0x593f42, 8);
-        circle(g, -1, -44, 22, 0xf0c5a4); ellipse(g, -1, -61, 23, 9, 0x573748); g.roundRect(-22, -44, 43, 17, 7).fill({ color: 0x363951 }); circle(g, -8, -46, 2, 0x30303a); circle(g, 6, -46, 2, 0x30303a);
-        g.moveTo(-16, -61).lineTo(-7, -77).lineTo(15, -61).closePath().fill({ color: 0xf1cb66 }); g.roundRect(-20, -64, 40, 5, 3).fill({ color: 0xe1b44d });
-        g.moveTo(-22, -21).lineTo(-53, 22).lineTo(-10, 1).lineTo(20, 31).lineTo(14, -24).closePath().fill({ color: colors[(index - 1) % colors.length] }); g.roundRect(-19, -20, 38, 59, 10).fill({ color: [0x3f75b8, 0x4e9c8a, 0xc05d73][(index - 1) % 3] });
-        line(g, [-17, -7, -33, 14], 0xf0c5a4, 7); line(g, [12, -7, 30, 11], 0xf0c5a4, 7);
-      });
-      gsap.to(previous, { x: 1480, duration: .48, ease: 'power2.in' });
-      gsap.fromTo(entrant, { x: -230 }, { x: 640, duration: 1.15, ease: 'power3.out' });
-      gsap.to(entrant, { y: 202, duration: .82, repeat: -1, yoyo: true, ease: 'sine.inOut', delay: 1.15 });
-      actor = entrant;
-    }
-    function scaleWorld() {
-      if (!rootLayer || !app.renderer) return;
-      const scale = Math.max(app.screen.width / W, app.screen.height / H);
-      rootLayer.scale.set(scale); rootLayer.x = (app.screen.width - W * scale) / 2; rootLayer.y = (app.screen.height - H * scale) / 2;
-    }
-    const api = {
-      app,
-      async init() {
-        await app.init({ resizeTo: host, backgroundAlpha: 0, antialias: true, autoDensity: true, resolution: Math.min(window.devicePixelRatio || 1, 2), preference: 'webgl' });
-        if (disposed || stopped || !host.isConnected) { app.destroy(true); return; }
-        app.canvas.className = 'caller-pixi-canvas'; host.appendChild(app.canvas);
-        rootLayer = new PIXI.Container(); app.stage.addChild(rootLayer);
-        world = new PIXI.Container(); rootLayer.addChild(world);
-        drawBackground();
-        if (mode === 'garden') drawPrince(); else if (mode === 'stadium') drawFootball(); else drawDetective();
-        scaleWorld(); observer = new ResizeObserver(scaleWorld); observer.observe(host);
-        if (gsap) {
-          gsap.to(rootLayer, { alpha: .96, duration: 2.3, repeat: -1, yoyo: true, ease: 'sine.inOut' });
-          if (mode === 'garden') gsap.to(actor, { rotation: .012, duration: .5, repeat: -1, yoyo: true, ease: 'sine.inOut' });
-        }
-      },
-      travel(value) {
-        if (!actor || !gsap) return;
-        const destination = mode === 'garden' ? 210 + value * 860 : mode === 'stadium' ? 415 + value * 630 : 465 + value * 360;
-        gsap.to(actor, { x: destination, duration: .48 + Math.random() * .26, ease: 'power2.inOut' });
-      },
-      enter() { if (!actor || !gsap) return; if (mode === 'garden') gsap.fromTo(actor, { x: -220 }, { x: 640, duration: 1.6, ease: 'power3.out' }); else if (mode === 'stadium') gsap.fromTo(ball, { x: 310, y: 335, rotation: -5 }, { x: 434, y: 451, rotation: 0, duration: .75, ease: 'bounce.out' }); else gsap.fromTo(actor, { x: 130, alpha: .4 }, { x: 640, alpha: 1, duration: 1.15, ease: 'back.out(1.5)' }); },
-      turnBack() { if (mode === 'garden' && gsap) gsap.to(actor, { x: 370, duration: .75, ease: 'power2.inOut', yoyo: true, repeat: 1 }); },
-      newPrince(index) { newPrince(index); },
-      prepareShot(index) { if (mode === 'stadium' && gsap) gsap.to(actor, { x: 530 + index * 24, y: 357, duration: .25, repeat: 1, yoyo: true, ease: 'power1.inOut' }); },
-      fakeShot(trick) {
-        if (mode === 'stadium' && gsap) {
-          const destination = trick === 0 ? 1020 : trick === 1 ? 840 : 930;
-          gsap.to(ball, { x: destination, y: trick === 1 ? 440 : 315, rotation: 10, duration: .55, ease: trick === 1 ? 'power1.in' : 'power2.in' });
-          gsap.to(keeper, { x: trick === 2 ? 720 : 640, rotation: trick === 2 ? -.16 : .11, duration: .35, yoyo: true, repeat: 1, ease: 'power1.inOut' });
-        }
-      },
-      scoreShot(index) {
-        if (mode === 'stadium' && gsap) gsap.to(ball, { x: 1010 + (index % 3) * 36, y: 268 + (index % 3) * 28, rotation: 13, duration: .68, ease: 'power1.in' });
-        if (mode === 'garden' && gsap) gsap.to(actor, { x: 735, y: 202, duration: .68, ease: 'power2.inOut' });
-      },
-      stampClue() {
-        if (mode === 'office' && gsap) gsap.fromTo(actor, { rotation: -.035, x: actor.x - 6 }, { rotation: .025, x: actor.x + 6, duration: .13, repeat: 3, yoyo: true, ease: 'power1.inOut' });
-      },
-      nextCase() { if (mode === 'office' && gsap) gsap.to(actor, { x: 510 + randomIndex(160), duration: .55, ease: 'power2.inOut' }); },
-      setSlow(flag) { if (app.ticker) app.ticker.speed = flag ? .62 : 1; if (gsap && currentTimeline) currentTimeline.timeScale(flag ? .72 : 1); },
-      reset(game) { if (gsap && actor) { gsap.killTweensOf(actor); actor.rotation = 0; if (game === 'prince') { actor.x = 640; actor.y = 210; gsap.to(actor, { y: 202, duration: .8, repeat: -1, yoyo: true, ease: 'sine.inOut' }); } else if (game === 'office') { actor.x = 640; actor.y = 270; gsap.to(actor, { y: 262, duration: 1.35, repeat: -1, yoyo: true, ease: 'sine.inOut' }); } else { actor.x = 550; actor.y = 260; gsap.to(actor, { x: 560, duration: .85, repeat: -1, yoyo: true, ease: 'sine.inOut' }); } } if (ball && gsap) { gsap.killTweensOf(ball); ball.x = 434; ball.y = 451; ball.rotation = 0; } },
-      celebrate() { if (!gsap || !actor) return; gsap.to(actor, { y: actor.y - 24, duration: .25, repeat: 3, yoyo: true, ease: 'power2.out' }); for (let i = 0; i < sparks.length; i++) { const p = sparks[i]; gsap.fromTo(p, { alpha: .1, scale: .5 }, { alpha: 1, scale: 1.8, duration: .55, delay: i % 10 * .035, yoyo: true, repeat: 1 }); } },
-      destroy() { stopped = true; observer?.disconnect(); [...children, ...sparks, actor, ball, keeper, rootLayer].filter(Boolean).forEach(item => gsap?.killTweensOf(item)); if (app.renderer) app.destroy(true, { children: true, texture: true, textureSource: true }); }
-    };
-    return api;
-  }
-
   async function openGame(key) {
     if (!GAME[key]) return;
     if (scene) { scene.destroy(); scene = null; }
     activeGame = key;
+    dialogueSequence++;
     const meta = GAME[key];
     home.hidden = true; play.hidden = false;
     $('#playGameIcon', root).textContent = meta.icon;
@@ -638,14 +549,14 @@ async function page(view) {
     $('#resultOverlay', root).hidden = true; $('#resultOverlay', root).classList.remove('is-shown');
     gameStage.className = 'caller-stage scene-' + meta.scene;
     renderRoster();
-    scene = makeScene(meta.scene);
-    scene.init().catch(error => { console.warn('PIXI scene could not start', error); gameStage.classList.add('is-css-fallback'); });
+    scene = createCinema($('#callerCinema', root), meta.scene, { gsap, sound: soundEffect });
     updateGameStats();
     if (savedSound.checked) startMusic();
   }
   function goHome() {
     if (busy) return;
     stopMusic();
+    dialogueSequence++;
     if (scene) { scene.destroy(); scene = null; }
     activeGame = ''; play.hidden = true; home.hidden = false; setRoster();
   }
@@ -681,18 +592,21 @@ async function page(view) {
   };
   $('#liveSpeed', root).value = String(settings.seconds);
   $('#liveCount', root).value = String(settings.count);
-  $('#resultOverlay', root).addEventListener('click', event => { if (event.target === event.currentTarget && !busy) event.currentTarget.classList.remove('is-shown'); });
   root.addEventListener('keydown', event => {
     if (event.code === 'Space' && activeGame && !busy && !event.target.closest('button, input, select, textarea, a')) { event.preventDefault(); startStory(); }
     if (event.code === 'Escape' && activeGame && !busy && document.fullscreenElement === root) document.exitFullscreen().catch(() => {});
   });
+  const teacherApp = root.closest('#app');
+  const appVisibility = new MutationObserver(() => cleanWhenLeaving());
   const cleanWhenLeaving = () => {
-    if (root.isConnected) return;
-    disposed = true; stopMusic(); currentTimeline?.kill(); scene?.destroy(); scene = null;
+    if (root.isConnected && !teacherApp?.hidden) return;
+    disposed = true; stopMusic(); scene?.destroy(); scene = null;
+    appVisibility.disconnect();
     window.removeEventListener('hashchange', cleanWhenLeaving);
     document.removeEventListener('fullscreenchange', updateFullscreen);
     if (audio && audio.state !== 'closed') audio.close().catch(() => {});
   };
+  if (teacherApp) appVisibility.observe(teacherApp, { attributes: true, attributeFilter: ['hidden'] });
   function updateFullscreen() { if (!root.isConnected) return; $('#fullscreenToggle', root).textContent = document.fullscreenElement === root ? '⤢' : '⛶'; }
   document.addEventListener('fullscreenchange', updateFullscreen);
   window.addEventListener('hashchange', cleanWhenLeaving);
