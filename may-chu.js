@@ -31,7 +31,7 @@ const MayChu = (() => {
     const signedIn = Boolean(token);
     return '<section class="project-panel cloud-panel" id="cloudPanel"><div class="cloud-head"><div><h2>☁️ Máy chủ lớp học</h2><p id="cloudStatus">Đang kiểm tra máy chủ…</p></div>' +
       (signedIn ? '<button class="soft-btn" id="cloudLogout">Đăng xuất</button>' : '') + '</div>' +
-      (!signedIn ? '<form class="cloud-login" id="cloudLogin"><label>Mật khẩu giáo viên<input id="cloudPassword" type="password" autocomplete="current-password" placeholder="Mật khẩu trong Railway" required></label><button class="primary-btn">Đăng nhập máy chủ</button><p id="cloudLoginMessage" role="status"></p></form>' : '') +
+      (!signedIn ? '<form class="cloud-login" id="cloudLogin"><label>Tên đăng nhập<input id="cloudUser" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="Quản trị: để trống"></label><label>Mật khẩu<input id="cloudPassword" type="password" autocomplete="current-password" required></label><button class="primary-btn">Đăng nhập máy chủ</button><p id="cloudLoginMessage" role="status"></p></form>' : '') +
       '<div class="cloud-class"><div><b>Mã lớp đang kết nối</b><span id="cloudCodeValue">' + escText(localStorage.getItem(CLASS_KEY) || 'Chưa kết nối') + '</span></div>' +
       (signedIn ? '<button class="primary-btn" id="cloudCreateClass">Tạo mã lớp</button>' : '') +
       '<form id="cloudJoin" class="cloud-join"><label>Kết nối máy này với lớp<input id="cloudClassCode" inputmode="latin" maxlength="6" autocomplete="off" placeholder="Ví dụ: AB23CD" value="' + escText(localStorage.getItem(CLASS_KEY) || '') + '"></label><button class="soft-btn">Kết nối / đồng bộ</button></form></div>' +
@@ -49,7 +49,7 @@ const MayChu = (() => {
     const form = document.querySelector('#cloudLogin'), message = document.querySelector('#cloudLoginMessage'), button = form.querySelector('button');
     button.disabled = true; message.textContent = 'Đang đăng nhập…';
     try {
-      const result = await post('/api/login', { password: document.querySelector('#cloudPassword').value });
+      const result = await post('/api/login', { username: (document.querySelector('#cloudUser')?.value || '').trim(), password: document.querySelector('#cloudPassword').value });
       token = result.token; sessionStorage.setItem(TOKEN_KEY, token); render();
     } catch (error) { message.textContent = error.message; }
     finally { button.disabled = false; }

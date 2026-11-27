@@ -8,7 +8,10 @@
     <title>Trang giáo viên · Vườn Chữ Kì Diệu</title>
     <link rel="stylesheet" href="../fonts.css" />
     <link rel="stylesheet" href="gv.css" />
+    <link rel="stylesheet" href="thong-ke.css" />
+    <link rel="stylesheet" href="admin-giao-vien.css" />
     <link rel="stylesheet" href="goi-hoc-sinh.css" />
+    <link rel="stylesheet" href="../phim.css" />
     <link rel="stylesheet" href="caller-cinema.css" />
   </head>
   <body>
@@ -18,7 +21,10 @@
         <div class="brand"><span class="brand-logo" aria-hidden="true">🌱</span><div><b>Vườn Chữ Kì Diệu</b><small>Trang dành cho giáo viên</small></div></div>
         <h1>Đăng nhập</h1>
         <p class="muted">Quản lý lớp học, theo dõi học sinh, tải tài liệu và soạn câu hỏi.</p>
-        <label for="loginPass">Mật khẩu giáo viên</label>
+        <label for="loginUser">Tên đăng nhập</label>
+        <input id="loginUser" name="username" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="Tài khoản giáo viên" aria-describedby="loginUserHint" />
+        <small id="loginUserHint" class="hint">Quản trị viên: nhập <b>admin</b> (hoặc để trống) và mật khẩu quản trị.</small>
+        <label for="loginPass">Mật khẩu</label>
         <input id="loginPass" type="password" autocomplete="current-password" required />
         <p id="loginErr" class="form-err" role="alert"></p>
         <button class="btn primary wide" id="loginBtn">Đăng nhập</button>
@@ -33,6 +39,8 @@
         <div class="brand"><span class="brand-logo" aria-hidden="true">🌱</span><div><b>Vườn Chữ</b><small>Giáo viên</small></div></div>
         <nav id="nav">
           <a href="#tong-quan" data-nav="tong-quan"><svg viewBox="0 0 24 24"><path d="M3 13h8V3H3zm10 8h8V11h-8zM3 21h8v-6H3zm10-18v6h8V3z"/></svg><span>Tổng quan</span></a>
+          <a href="#quan-tri-giao-vien" data-nav="quan-tri-giao-vien" hidden><svg viewBox="0 0 24 24"><path d="M16 11a3 3 0 1 0-3-3 3 3 0 0 0 3 3m-8 0a3 3 0 1 0-3-3 3 3 0 0 0 3 3m0 2c-2.3 0-7 1.2-7 3.5V19h14v-2.5C15 14.2 10.3 13 8 13m8 0c-.3 0-.6 0-1 .1a4.2 4.2 0 0 1 2 3.4V19h6v-2.5c0-2.3-4.7-3.5-7-3.5"/></svg><span>Quản lý giáo viên</span></a>
+          <a href="#thong-ke" data-nav="thong-ke"><svg viewBox="0 0 24 24"><path d="M3 4h2v15h16v2H3zm4 7h3v6H7zm5-7h3v13h-3zm5 4h3v9h-3z"/></svg><span>Thống kê</span></a>
           <a href="#giao-bai" data-nav="giao-bai"><svg viewBox="0 0 24 24"><path d="m14 4 6 6-2 2-1-1-4 4v4l-2 2-4-4-4 4H2v-1l4-4-4-4 2-2h4l4-4-1-1z"/></svg><span>Giao bài</span></a>
           <a href="#lop" data-nav="lop"><svg viewBox="0 0 24 24"><path d="M12 3 1 9l11 6 9-4.9V17h2V9zM5 13.2v4L12 21l7-3.8v-4L12 17z"/></svg><span>Lớp học</span></a>
           <a href="#goi-ten" data-nav="goi-ten"><svg viewBox="0 0 24 24"><path d="M12 2a7 7 0 0 0-4.2 12.6c.7.5 1.2 1.3 1.2 2.2h6c0-.9.5-1.7 1.2-2.2A7 7 0 0 0 12 2m-2 17h4v1h-4zm1 3h2v1h-2zM5 3.6 3.6 2.2 2.2 3.6l1.4 1.4zm14 0 1.4-1.4 1.4 1.4-1.4 1.4zM1 9h3v2H1zm19 0h3v2h-3z"/></svg><span>Gọi tên</span></a>
@@ -43,6 +51,8 @@
           <a href="#huong-dan" data-nav="huong-dan"><svg viewBox="0 0 24 24"><path d="M11 7h2v2h-2zm0 4h2v6h-2zm1-9a10 10 0 1 0 10 10A10 10 0 0 0 12 2m0 18a8 8 0 1 1 8-8 8 8 0 0 1-8 8"/></svg><span>Trợ giúp</span></a>
         </nav>
         <div class="side-foot">
+          <div class="me-box" id="meBox" hidden><span class="me-avatar" aria-hidden="true">👤</span><span><b id="meName"></b><small id="meRole"></small></span></div>
+          <button class="btn ghost wide" id="changePass" title="Đổi mật khẩu" hidden>🔑<span class="cp-label"> Đổi mật khẩu</span></button>
           <a class="btn ghost wide" href="../" target="_blank" rel="noopener">Mở trang học sinh ↗</a>
           <button class="btn ghost wide" id="logout">Đăng xuất</button>
         </div>
@@ -65,7 +75,12 @@
     <script src="../data/chuong-trinh.js"></script>
     <script src="excel.js"></script>
     <script src="gv.js"></script>
+    <script type="module" src="thong-ke.mjs"></script>
+    <script type="module" src="admin-giao-vien.mjs"></script>
     <script src="../assets/vendor/gsap.min.js"></script>
+    <script src="../qua-tang-am.js"></script>
+    <script src="../qua-tang-fx.js"></script>
+    <script src="../phim.js"></script>
     <script type="module" src="goi-hoc-sinh.js"></script>
     <script src="bai-hoc.js"></script>
     <script src="../season-options.js"></script>

@@ -10,7 +10,7 @@
 const Phim = (() => {
   const DIR = 'assets/phim/';
   const cache = new Map();
-  const src = k => DIR + k + '.webp';
+  const src = k => k.includes('/') ? k + '.webp' : DIR + k + '.webp';
   function load(k) {
     if (!cache.has(k)) { const i = new Image(); i.src = src(k); cache.set(k, (i.decode ? i.decode() : Promise.resolve()).then(() => i, () => null)); }
     return cache.get(k);
@@ -23,6 +23,8 @@ const Phim = (() => {
     if (typeof QuaAm === 'undefined') return;
     const S = QuaAm;
     if (name === 'sut') { S.thud(0, 1); S.whoosh(0.03, true); }
+    /* hồi hộp: tim đập dồn dần + âm cao dần, tắt hẳn ngay trước lúc công bố để cả lớp “nín thở” */
+    else if (name === 'hoi-hop') { [0, 0.34, 0.62, 0.84].forEach((d, i) => { S.thud(d, 0.24 + i * 0.07); S.thud(d + 0.11, 0.14 + i * 0.04); }); S.tone(180, 0, 0.9, 'triangle', 0.07, 920); }
     else if (name === 'kiem') { S.tone(2400, 0, 0.35, 'square', 0.05, 900); S.tone(3150, 0.01, 0.6, 'triangle', 0.14, 2600); S.thud(0, 0.7); }
     else if (name === 'khien') { S.tone(520, 0, 0.5, 'square', 0.08, 380); S.tone(1560, 0, 0.55, 'triangle', 0.12); S.thud(0, 0.9); }
     else if (name === 'phep') { S.sparkle(0, 20); S.whoosh(0, true); }
@@ -42,38 +44,9 @@ const Phim = (() => {
     cur.dlg.remove(); cur.done();
   }
 
-  async function play(shots, opts = {}) {
-    shots = (shots || []).filter(Boolean);
-    if (!shots.length || typeof HTMLDialogElement === 'undefined' || typeof QuaFx === 'undefined') return;
-    stop();
-    const still = calm();
-    if (!still && typeof QuaAm !== 'undefined' && QuaAm.begin) QuaAm.begin();
-    const dlg = document.createElement('dialog');
-    dlg.className = 'phim' + (still ? ' phim-still' : '');
-    dlg.setAttribute('aria-label', 'Đoạn phim: ' + (opts.nhan || shots[shots.length - 1].chu || 'hành động'));
-    dlg.innerHTML = '<div class="ph-back" aria-hidden="true"></div><div class="ph-frame"><div class="ph-world" aria-hidden="true"><div class="ph-shots"></div><canvas></canvas><div class="ph-over"></div></div>' +
-      '<div class="ph-bars" aria-hidden="true">' + shots.map(() => '<i><b></b></i>').join('') + '</div>' +
-      (opts.combo > 1 ? '<div class="ph-combo" aria-hidden="true"><small>LIÊN HOÀN</small><b>x' + (opts.combo | 0) + '</b></div>' : '') +
-      '<div class="ph-caption" role="status" aria-live="polite"></div></div>' +
-      '<button type="button" class="ph-skip">Bỏ qua ⏭</button>';
-    document.body.appendChild(dlg);
-    dlg.showModal();
-    let resolve; const finished = new Promise(r => { resolve = r; });
-    const cur = live = { dlg, timers: [], anims: [], fx: null, done: () => { resolve(); if (opts.xong) opts.xong(); } };
-    const world = dlg.querySelector('.ph-world'), stage = dlg.querySelector('.ph-shots'), over = dlg.querySelector('.ph-over'), caption = dlg.querySelector('.ph-caption');
-    cur.fx = QuaFx.create(dlg.querySelector('canvas'));
-    // Màn bên dưới đổi (bấm tiếp, thoát bài, đổi trang) → đóng phim ngay, không nằm đè và không giành lại con trỏ về sau
-    if (opts.theo) { cur.watch = new MutationObserver(() => { if (!opts.theo.isConnected) stop(); }); cur.watch.observe(document.body, { childList: true, subtree: true }); }
-    dlg.addEventListener('cancel', e => { e.preventDefault(); stop(); });
-    dlg.addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Escape') { e.preventDefault(); stop(); } });
-    const skip = dlg.querySelector('.ph-skip'); skip.onclick = stop; skip.focus({ preventScroll: true });
-    const at = (ms, fn) => cur.timers.push(setTimeout(() => { if (live === cur) { try { fn(); } catch (e) { console.warn(e); } } }, ms));
-    const anim = (node, frames, o) => { if (!node.animate) return null; const a = node.animate(frames, Object.assign({ fill: 'forwards' }, o)); cur.anims.push(a); return a; };
-
-    await Promise.race([Promise.all(shots.map(s => load(s.anh))), new Promise(r => setTimeout(r, 2500))]);
-    if (live !== cur) return finished;
-    cur.fx.size(); dlg.classList.add('ph-on');
-
+  /* Phần chiếu dùng chung cho hộp toàn màn hình (play) và khung nhúng (dung). */
+  function mayChieu({ dlg, world, stage, over, caption, still, at, anim, fx }) {
+    const cur = { fx };
     function shake(power, ms) { if (still) return; const f = []; for (let i = 0; i < 12; i++) { const k = 1 - i / 12; f.push({ transform: 'translate(' + (Math.random() * 2 - 1) * power * k + 'px,' + (Math.random() * 2 - 1) * power * k + 'px) rotate(' + (Math.random() * 2 - 1) * k * power / 22 + 'deg)' }); } f.push({ transform: 'none' }); anim(world, f, { duration: ms || 500, fill: 'none' }); }
     function impact(x, y, color, big) {
       const flash = el('ph-flash'); over.appendChild(flash); anim(flash, [{ opacity: big ? 0.72 : 0.5 }, { opacity: 0 }], { duration: big ? 420 : 260 });
@@ -108,7 +81,7 @@ const Phim = (() => {
       node.style.setProperty('--tx', focus[0] * 100 + '%'); node.style.setProperty('--ty', focus[1] * 100 + '%');
       node.innerHTML = '<img class="base" src="' + src(s.anh) + '" alt=""><img class="depth" src="' + src(s.anh) + '" alt="">';
       stage.appendChild(node);
-      dlg.querySelector('.ph-back').style.backgroundImage = 'linear-gradient(rgba(3,4,12,.45),rgba(3,4,12,.62)),url("' + src(s.anh) + '")';
+      const back = dlg.querySelector('.ph-back'); if (back) back.style.backgroundImage = 'linear-gradient(rgba(3,4,12,.45),rgba(3,4,12,.62)),url("' + src(s.anh) + '")';
       const [from, to] = s.may || [[1.18, 0, 0], [1.04, 0, 0]];
       const T = (m, k) => 'translate(' + m[1] * k + '%,' + m[2] * k + '%) scale(' + (1 + (m[0] - 1) * k) + ')';
       if (!still) {
@@ -135,6 +108,77 @@ const Phim = (() => {
       }
     }
 
+    return { showShot, shake, impact, EFFECT };
+  }
+
+  /* Chiếu NGAY TRONG một khung (vd. sân khấu “Gọi tên”): người gọi tự quyết lúc đổi cảnh.
+     Trả về { canh(s), hieuUng(e), cham(ms/co), rung(), xoa() }; s.ms = thời gian máy quay trôi. */
+  function dung(host, opts = {}) {
+    const still = opts.still != null ? opts.still : calm();
+    const root = el('phim phim-nhung' + (still ? ' phim-still' : ''));
+    root.innerHTML = '<div class="ph-frame"><div class="ph-world" aria-hidden="true"><div class="ph-shots"></div><canvas></canvas><div class="ph-over"></div></div><div class="ph-caption"></div></div>';
+    host.appendChild(root);
+    const timers = new Set(), anims = new Set();
+    let alive = true, count = 0, stopAmbient = null;
+    const fx = QuaFx.create(root.querySelector('canvas'));
+    const at = (ms, fn) => { const t = setTimeout(() => { timers.delete(t); if (alive) { try { fn(); } catch (e) { console.warn(e); } } }, ms); timers.add(t); return t; };
+    const anim = (node, frames, o) => { if (!node.animate) return null; const a = node.animate(frames, Object.assign({ fill: 'forwards' }, o)); anims.add(a); if (anims.size > 60) { const first = anims.values().next().value; anims.delete(first); } return a; };
+    const may = mayChieu({ dlg: root, world: root.querySelector('.ph-world'), stage: root.querySelector('.ph-shots'), over: root.querySelector('.ph-over'), caption: root.querySelector('.ph-caption'), still, at, anim, fx });
+    const ro = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(() => fx.size());
+    if (ro) ro.observe(root);
+    return {
+      root, still, at,
+      canh(s) { if (!alive) return; fx.size(); root.classList.add('ph-on'); may.showShot(Object.assign({ ms: 6000 }, s), count++); },
+      hieuUng(e) { if (alive && !still && may.EFFECT[e.k]) may.EFFECT[e.k](e); },
+      rung(luc, dai) { if (alive && !still) may.shake(luc, dai); },
+      khongKhi(ms, fn) { if (stopAmbient) stopAmbient(); stopAmbient = !still && fn ? fx.every(ms, () => fn(fx)) : null; },
+      huyHen() { timers.forEach(clearTimeout); timers.clear(); },
+      /* khựng hình vài chục mili-giây đúng lúc va chạm (hit-stop) rồi chạy tiếp */
+      dungHinh(ms) {
+        if (!alive || still) return;
+        const dang = Array.from(anims).filter(a => a.playState === 'running');
+        dang.forEach(a => a.pause());
+        at(ms || 90, () => dang.forEach(a => { if (a.playState === 'paused') a.play(); }));
+      },
+      cham(on) { if (!alive) return; root.classList.toggle('slow', !!on); anims.forEach(a => { try { a.updatePlaybackRate ? a.updatePlaybackRate(on ? 0.42 : 1) : (a.playbackRate = on ? 0.42 : 1); } catch (e) {} }); },
+      xoa() { if (!alive) return; alive = false; timers.forEach(clearTimeout); timers.clear(); anims.forEach(a => { try { a.cancel(); } catch (e) {} }); if (ro) ro.disconnect(); fx.stop(); root.remove(); }
+    };
+  }
+
+  async function play(shots, opts = {}) {
+    shots = (shots || []).filter(Boolean);
+    if (!shots.length || typeof HTMLDialogElement === 'undefined' || typeof QuaFx === 'undefined') return;
+    stop();
+    const still = calm();
+    if (!still && typeof QuaAm !== 'undefined' && QuaAm.begin) QuaAm.begin();
+    const dlg = document.createElement('dialog');
+    dlg.className = 'phim' + (still ? ' phim-still' : '');
+    dlg.setAttribute('aria-label', 'Đoạn phim: ' + (opts.nhan || shots[shots.length - 1].chu || 'hành động'));
+    dlg.innerHTML = '<div class="ph-back" aria-hidden="true"></div><div class="ph-frame"><div class="ph-world" aria-hidden="true"><div class="ph-shots"></div><canvas></canvas><div class="ph-over"></div></div>' +
+      '<div class="ph-bars" aria-hidden="true">' + shots.map(() => '<i><b></b></i>').join('') + '</div>' +
+      (opts.combo > 1 ? '<div class="ph-combo" aria-hidden="true"><small>LIÊN HOÀN</small><b>x' + (opts.combo | 0) + '</b></div>' : '') +
+      '<div class="ph-caption" role="status" aria-live="polite"></div></div>' +
+      '<button type="button" class="ph-skip">Bỏ qua ⏭</button>';
+    document.body.appendChild(dlg);
+    dlg.showModal();
+    let resolve; const finished = new Promise(r => { resolve = r; });
+    const cur = live = { dlg, timers: [], anims: [], fx: null, done: () => { resolve(); if (opts.xong) opts.xong(); } };
+    const world = dlg.querySelector('.ph-world'), stage = dlg.querySelector('.ph-shots'), over = dlg.querySelector('.ph-over'), caption = dlg.querySelector('.ph-caption');
+    cur.fx = QuaFx.create(dlg.querySelector('canvas'));
+    // Màn bên dưới đổi (bấm tiếp, thoát bài, đổi trang) → đóng phim ngay, không nằm đè và không giành lại con trỏ về sau
+    if (opts.theo) { cur.watch = new MutationObserver(() => { if (!opts.theo.isConnected) stop(); }); cur.watch.observe(document.body, { childList: true, subtree: true }); }
+    dlg.addEventListener('cancel', e => { e.preventDefault(); stop(); });
+    dlg.addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Escape') { e.preventDefault(); stop(); } });
+    const skip = dlg.querySelector('.ph-skip'); skip.onclick = stop; skip.focus({ preventScroll: true });
+    const at = (ms, fn) => cur.timers.push(setTimeout(() => { if (live === cur) { try { fn(); } catch (e) { console.warn(e); } } }, ms));
+    const anim = (node, frames, o) => { if (!node.animate) return null; const a = node.animate(frames, Object.assign({ fill: 'forwards' }, o)); cur.anims.push(a); return a; };
+
+    await Promise.race([Promise.all(shots.map(s => load(s.anh))), new Promise(r => setTimeout(r, 2500))]);
+    if (live !== cur) return finished;
+    cur.fx.size(); dlg.classList.add('ph-on');
+
+    const may = mayChieu({ dlg, world, stage, over, caption, still, at, anim, fx: cur.fx });
+    const showShot = may.showShot;
     if (still) {
       showShot(shots[shots.length - 1], shots.length - 1);
       cur.fx.freeze(); at(2200, stop);
@@ -148,5 +192,8 @@ const Phim = (() => {
 
   addEventListener('popstate', stop);
   document.addEventListener('visibilitychange', () => { if (document.hidden) stop(); });
-  return { play, stop, preload, isPlaying: () => !!live };
+  return { play, dung, stop, preload, say, isPlaying: () => !!live };
 })();
+
+// module (trang giáo viên) đọc qua window
+window.Phim = Phim;

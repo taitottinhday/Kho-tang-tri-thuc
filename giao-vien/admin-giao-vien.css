@@ -1,0 +1,85 @@
+.admin-intro{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:25px 28px;border-radius:16px;background:linear-gradient(115deg,#163c36,#226855);color:#fff}
+.admin-intro>div:first-child>span{font-size:.73rem;letter-spacing:.1em;font-weight:800;color:#c2ebd9}
+.admin-intro h2{margin:5px 0;font-size:clamp(1.45rem,3vw,1.9rem);color:#fff}
+.admin-intro p{margin:0;color:#e1f1e9}
+.admin-count{display:grid;justify-items:end}
+.admin-count strong{font-size:1.9rem;line-height:1}
+.admin-count span{font-size:.8rem;color:#deeee7}
+.admin-grid{display:grid;grid-template-columns:minmax(260px,.75fr) minmax(0,1.7fr);gap:17px;margin-top:17px;align-items:start}
+.admin-panel{padding:20px;border:1px solid var(--line);border-radius:14px;background:#fff;box-shadow:var(--shadow);min-width:0}
+.admin-panel h3{margin:0 0 5px;font-size:1.13rem}
+.admin-panel>p,.admin-list-heading p{margin:0;color:var(--muted);font-size:.85rem}
+.admin-form,.admin-dialog form{display:grid;gap:13px;margin-top:17px}
+.admin-form label,.admin-dialog label{display:grid;gap:5px;font-weight:700;font-size:.88rem}
+.admin-form input,.admin-dialog input{width:100%;min-height:42px;padding:9px 11px;border:1px solid #bdcec5;border-radius:9px;font:inherit}
+.admin-form small,.admin-dialog small{font-weight:400;color:var(--muted);font-size:.78rem;line-height:1.45}
+.admin-form button{width:fit-content}
+.admin-feedback{min-height:1.35em;margin:0;color:#22594c;font-size:.84rem}
+.admin-list-heading{display:flex;align-items:start;justify-content:space-between;gap:12px}
+.admin-search{display:grid;gap:5px;margin:16px 0 10px;font-weight:700;font-size:.85rem}
+.admin-search input{width:100%;min-height:39px;padding:8px 11px;border:1px solid #bdcec5;border-radius:8px;font:inherit;font-weight:400}
+.admin-table-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:9px}
+.admin-table{width:100%;border-collapse:collapse;font-size:.86rem;text-align:left}
+.admin-table th,.admin-table td{padding:10px 9px;border-bottom:1px solid #e9f0ec;vertical-align:middle}
+.admin-table thead{background:#f1f6f3;color:#365a4d;font-size:.78rem}
+.admin-table tbody tr:last-child td{border-bottom:0}
+.admin-table td:first-child strong,.admin-table td:first-child small{display:block}
+.admin-table td:first-child small{margin-top:2px;color:var(--muted);font-size:.78rem}
+.admin-status{display:inline-flex;padding:4px 8px;border-radius:99px;font-size:.75rem;font-weight:750;white-space:nowrap}
+.admin-status.active{background:#e8f5ed;color:#225c40}
+.admin-status.inactive{background:#f1f2f2;color:#5f6763}
+.admin-row-actions{display:flex;flex-wrap:wrap;gap:5px}
+.admin-row-actions .btn{min-height:32px;padding:3px 8px;font-size:.8rem}
+.admin-dialog{width:min(440px,calc(100% - 32px));border:1px solid var(--line);border-radius:14px;padding:22px;box-shadow:0 20px 60px #10282040}
+.admin-dialog::backdrop{background:#14251f99}
+.admin-dialog h3{margin:0}
+.admin-actions{display:flex;justify-content:end;gap:8px;padding-top:5px}
+@media(max-width:850px){.admin-grid{grid-template-columns:1fr}.admin-form{grid-template-columns:repeat(2,minmax(0,1fr));align-items:end}.admin-form label:first-child{grid-column:1/-1}}
+@media(max-width:560px){.admin-intro{padding:18px}.admin-panel{padding:14px}.admin-form{grid-template-columns:1fr}.admin-form label:first-child{grid-column:auto}.admin-table{min-width:510px}}
+/* Đợt 21 (Claude): số liệu toàn trường, lớp chưa giao, phiếu đăng nhập, bảng thành thẻ trên điện thoại */
+.admin-stats{display:grid;grid-template-columns:repeat(4,auto);gap:10px 22px}
+.admin-pass{display:flex;gap:6px}
+.admin-pass input{flex:1;min-width:0;font-family:ui-monospace,Consolas,monospace}
+.admin-pass .btn{flex:none;min-height:42px}
+.admin-slip{display:grid;gap:8px;margin-top:14px;padding:14px;border:1px dashed #7aa890;border-radius:12px;background:#f3faf6}
+.admin-slip pre{margin:0;white-space:pre-wrap;overflow-wrap:anywhere;font-size:.82rem;line-height:1.5}
+.admin-slip .btn{width:fit-content}
+.admin-slip small{color:var(--muted);font-size:.78rem}
+.admin-unassigned{margin-top:17px;border-color:#f0c66b;background:#fffaf0}
+.admin-unassigned h3{color:#7a4d00}
+.admin-assign-list{display:grid;gap:8px;margin-top:12px}
+.admin-assign{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr) auto;gap:8px;align-items:center;padding:8px 10px;border:1px solid #f1dfb6;border-radius:10px;background:#fff}
+.admin-assign span{display:grid;min-width:0}
+.admin-assign small{color:var(--muted);font-size:.78rem}
+.admin-assign select,.admin-dialog select{width:100%;min-height:40px;padding:6px 9px;border:1px solid #bdcec5;border-radius:9px;font:inherit;background:#fff;min-width:0}
+.admin-chips{display:flex;flex-wrap:wrap;gap:4px}
+.admin-chip{display:inline-flex;padding:2px 8px;border-radius:99px;background:#eef6f1;border:1px solid #d3e6db;font-size:.76rem;font-weight:700;color:#2d5848;white-space:nowrap}
+.admin-sub{display:block;margin-top:3px;color:var(--muted);font-size:.76rem}
+.admin-note{margin:0;color:#4b5b55;font-size:.88rem;line-height:1.5}
+@media(max-width:850px){.admin-stats{grid-template-columns:repeat(2,auto)}.admin-intro{align-items:flex-start;flex-direction:column}.admin-intro .admin-count{justify-items:start}}
+@media(max-width:620px){
+  .admin-assign{grid-template-columns:1fr}
+  .admin-table{min-width:0}
+  .admin-table thead{display:none}
+  .admin-table,.admin-table tbody,.admin-table tr,.admin-table td{display:block;width:100%}
+  .admin-table tr{padding:10px 4px;border-bottom:1px solid #e9f0ec}
+  .admin-table td{display:grid;grid-template-columns:96px minmax(0,1fr);gap:8px;padding:5px 8px;border:0}
+  .admin-table td::before{content:attr(data-label);font-size:.74rem;font-weight:800;color:#5c6d66;text-transform:uppercase}
+  .admin-table td:first-child strong,.admin-table td:first-child small{grid-column:2}
+  .admin-table td:first-child{grid-template-rows:auto auto}
+  .admin-table td:first-child::before{grid-row:1/3}
+}
+/* giao nhiều lớp cho một giáo viên */
+.admin-class-list{display:grid;gap:6px;max-height:min(52vh,420px);overflow:auto;padding:2px}
+.admin-class-option{display:flex!important;align-items:center;gap:10px!important;padding:9px 11px;border:1px solid var(--line);border-radius:10px;font-weight:400!important;cursor:pointer}
+.admin-class-option:has(input:checked){border-color:#7aa890;background:#f3faf6}
+.admin-class-option input{width:20px!important;min-height:20px!important;height:20px;flex:none;accent-color:#226855}
+.admin-class-option span{display:grid;min-width:0}
+.admin-class-option small{color:var(--muted);font-size:.78rem}
+
+/* Dữ liệu thử */
+.admin-demo{margin-top:17px;padding:14px 18px}
+.admin-demo summary{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 12px;cursor:pointer;list-style-position:outside}
+.admin-demo summary small{color:var(--muted);font-size:.82rem}
+.admin-demo p{margin:10px 0 0;font-size:.88rem;color:#4b5b55}
+.admin-demo-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}

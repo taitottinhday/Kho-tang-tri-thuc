@@ -56,3 +56,10 @@ dialog.phim::backdrop{background:#02030a}
 .phim-still *{animation:none!important}
 .phim-still .ph-speed,.phim-still .ph-flash,.phim-still .ph-burst,.phim-still .ph-bars{display:none}
 @media print{dialog.phim{display:none!important}}
+/* Chiếu trong khung (trò “Gọi tên”): phủ kín khung sân khấu, ảnh ngang 3:2 */
+.phim-nhung{position:absolute;inset:0;overflow:hidden;background:#05060d;color:#fff;font-family:'Be Vietnam Pro',Nunito,system-ui,sans-serif;pointer-events:none}
+.phim-nhung .ph-frame,.phim-nhung.phim .ph-frame{width:100%;height:100%;box-shadow:none}
+.phim-nhung .ph-caption{top:13%;bottom:auto}
+.phim-nhung .ph-word{font-size:clamp(24px,5cqw,64px)}
+.phim-nhung .ph-word.to{font-size:clamp(28px,6cqw,78px)}
+.phim-nhung{container-type:inline-size}

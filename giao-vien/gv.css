@@ -248,3 +248,16 @@ details summary{cursor:pointer;font-weight:600;color:var(--pri-d);padding:6px 0}
   .report .sign{margin-top:36px}
   .dlg{display:none!important}
 }
+
+/* Đợt 21: ai đang đăng nhập, phạm vi xem, giáo viên phụ trách lớp */
+.me-box{display:flex;align-items:center;gap:9px;padding:9px 10px;border:1px solid var(--line);border-radius:12px;background:var(--soft);min-width:0}
+.me-box>span:last-child{display:grid;min-width:0}
+.me-box b{font-size:.9rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.me-box small{font-size:.75rem;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.me-avatar{flex:none;display:grid;place-items:center;width:32px;height:32px;border-radius:50%;background:#fff;border:1px solid var(--line)}
+.scope-note{margin:0 0 14px;padding:9px 13px;border-radius:10px;background:var(--soft);font-size:.9rem;color:#2f4a40}
+.class-owner{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:2px 0 8px;font-weight:600;font-size:.92rem}
+.warn-text{color:#8a5400}
+.login-card .hint{display:block;margin:-4px 0 10px;font-size:.8rem}
+.me-box b{color:var(--ink)}
+@media (max-width:900px){.me-box{display:none}.side-foot #changePass .cp-label{display:none}}

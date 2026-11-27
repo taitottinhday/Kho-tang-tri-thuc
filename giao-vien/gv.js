@@ -10,7 +10,7 @@
   const lessonById = id => BANK.chuDe.find(t => t.id === id);
   const TYPES = { choice: 'Chọn cách viết đúng', fill: 'Điền chữ còn thiếu', picture: 'Nhìn tranh chọn từ', listen: 'Nghe – viết từ ngữ', order: 'Xếp tiếng thành cụm từ', sort: 'Chọn nhóm chính tả' };
   const PICTURES = { '1f414': 'gà', '1f407': 'thỏ', '1f986': 'vịt', '1f422': 'rùa', '1f43f': 'sóc', '1f33b': 'hoa hướng dương', '1f34e': 'táo', '1f4da': 'sách' };
-  const PAGES = { 'tong-quan': 'Tổng quan', 'giao-bai': 'Giao bài', lop: 'Lớp học', 'goi-ten': 'Gọi tên', 'hoc-sinh': 'Học sinh', 'bai-hoc': 'Bài học', 'cau-do': 'Câu đố luyện thêm', 'tai-lieu': 'Tài liệu', 'huong-dan': 'Trợ giúp' };
+  const PAGES = { 'tong-quan': 'Tổng quan', 'quan-tri-giao-vien': 'Quản lý giáo viên', 'giao-bai': 'Giao bài', lop: 'Lớp học', 'goi-ten': 'Gọi tên', 'hoc-sinh': 'Học sinh', 'bai-hoc': 'Bài học', 'cau-do': 'Câu đố luyện thêm', 'tai-lieu': 'Tài liệu', 'huong-dan': 'Trợ giúp' };
   const EXTRA = {}; // trang do tệp khác đăng ký (bai-hoc.js)
   const MAX_DOC = 10 * 1024 * 1024;
 
@@ -26,6 +26,11 @@
   const lastLabel = k => { const n = daysAgo(k); return n === Infinity ? 'Chưa học' : n === 0 ? 'Hôm nay' : n === 1 ? 'Hôm qua' : n + ' ngày trước'; };
 
   let token = sessionStorage.getItem(TOKEN_KEY) || '';
+  const tokenUser = value => {
+    try { return JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(value.split('.')[0].replace(/-/g, '+').replace(/_/g, '/')), char => char.charCodeAt(0)))); }
+    catch { return null; }
+  };
+  let currentUser = tokenUser(token);
   let status = { storage: 'file' };
   let cache = { classes: null, students: null, docs: null, questions: null };
   let studentFilter = { cls: '', q: '', sort: 'name' };
@@ -71,32 +76,59 @@
     const b = $('#storageBadge');
     b.className = 'badge ' + (status.storage === 'postgres' ? 'ok' : 'warn');
     b.textContent = status.storage === 'postgres' ? '● Dữ liệu được lưu an toàn' : status.storage === 'file' ? '● Dữ liệu đang lưu tạm' : '● Mất kết nối';
-    if (token) { try { await load('classes', true); return showApp(); } catch (e) { /* hết hạn */ } }
+    if (token) { try { currentUser = (await api('/api/me')).user; await load('classes', true); return showApp(); } catch (e) { /* hết hạn */ } }
     showLogin();
   }
-  function showLogin() { $('#app').hidden = true; $('#login').hidden = false; setTimeout(() => $('#loginPass').focus(), 50); }
+  function showLogin() { $('#app').hidden = true; $('#login').hidden = false; setTimeout(() => $('#loginUser').focus(), 50); }
   function showApp() { $('#login').hidden = true; $('#app').hidden = false; route(); }
   $('#loginForm').onsubmit = async e => {
     e.preventDefault(); const btn = $('#loginBtn'); btn.disabled = true; $('#loginErr').textContent = '';
     try {
-      const r = await fetch('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: $('#loginPass').value }) });
+      const r = await fetch('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: $('#loginUser').value.trim(), password: $('#loginPass').value }) });
       const body = await r.json().catch(() => ({}));
       if (!r.ok) throw Error(body.error || 'Không đăng nhập được.');
-      token = body.token; sessionStorage.setItem(TOKEN_KEY, token); $('#loginPass').value = '';
+      token = body.token; currentUser = tokenUser(token); sessionStorage.setItem(TOKEN_KEY, token); $('#loginPass').value = '';
       cache = { classes: null, students: null, docs: null, questions: null };
       showApp();
     } catch (err) { $('#loginErr').textContent = err.message; }
     finally { btn.disabled = false; }
   };
-  function logout(expired) { stopStudentWatch?.(); token = ''; sessionStorage.removeItem(TOKEN_KEY); cache = { classes: null, students: null, docs: null, questions: null }; showLogin(); if (expired) $('#loginErr').textContent = 'Phiên đăng nhập đã hết hạn. Thầy cô đăng nhập lại nhé.'; }
+  function logout(expired) { stopStudentWatch?.(); token = ''; currentUser = null; sessionStorage.removeItem(TOKEN_KEY); cache = { classes: null, students: null, docs: null, questions: null }; showLogin(); if (expired) $('#loginErr').textContent = 'Phiên đăng nhập đã hết hạn hoặc tài khoản vừa được thay đổi. Thầy cô đăng nhập lại nhé.'; }
   $('#logout').onclick = () => logout(false);
+  const isAdmin = () => currentUser?.role === 'admin';
+  function showMe() {
+    const box = $('#meBox'); if (!box) return;
+    box.hidden = !currentUser;
+    $('#meName').textContent = currentUser?.name || '';
+    $('#meRole').textContent = isAdmin() ? 'Quản trị · xem toàn trường' : currentUser ? 'Giáo viên · @' + currentUser.username : '';
+    $('#changePass').hidden = !currentUser;
+  }
+  $('#changePass').onclick = () => {
+    if (isAdmin()) { dialog('<h2>🔑 Mật khẩu quản trị</h2><p>Mật khẩu quản trị là biến <b>TEACHER_PASSWORD</b> trong Railway → Variables. Đổi ở đó rồi bấm <b>Redeploy</b>.</p><p class="hint">Tài khoản của từng giáo viên đổi ở mục <a href="#quan-tri-giao-vien" data-close>Quản lý giáo viên</a>.</p><div class="actions"><button class="btn primary" data-close>Đã hiểu</button></div>'); return; }
+    const d = dialog('<h2>🔑 Đổi mật khẩu</h2><form class="form" id="pwForm"><label class="field"><span>Mật khẩu hiện tại</span><input id="pwOld" type="password" autocomplete="current-password" required></label>' +
+      '<label class="field"><span>Mật khẩu mới (ít nhất 10 ký tự)</span><input id="pwNew" type="password" minlength="10" maxlength="200" autocomplete="new-password" required></label>' +
+      '<label class="field"><span>Nhập lại mật khẩu mới</span><input id="pwAgain" type="password" minlength="10" maxlength="200" autocomplete="new-password" required></label>' +
+      '<p class="form-err" id="pwErr" role="alert"></p><div class="actions"><button type="button" class="btn" data-close>Huỷ</button><button class="btn primary">Đổi mật khẩu</button></div></form>');
+    $('#pwForm').onsubmit = async e => {
+      e.preventDefault();
+      if ($('#pwNew').value !== $('#pwAgain').value) { $('#pwErr').textContent = 'Hai lần nhập mật khẩu mới chưa giống nhau.'; return; }
+      try {
+        const r = await send('/api/me/password', 'POST', { current: $('#pwOld').value, password: $('#pwNew').value });
+        token = r.token; sessionStorage.setItem(TOKEN_KEY, token); d.close();
+        toast('Đã đổi mật khẩu. Các máy khác đang đăng nhập sẽ phải đăng nhập lại.');
+      } catch (err) { $('#pwErr').textContent = err.message; }
+    };
+  };
 
   /* ---------------- Điều hướng ---------------- */
   function route() {
     stopStudentWatch?.();
     const [first, sub] = location.hash.slice(1).split('/');
-    const page = PAGES[first] ? first : 'tong-quan';
+    const page = PAGES[first] && (first !== 'quan-tri-giao-vien' || currentUser?.role === 'admin') ? first : 'tong-quan';
     $$('#nav a').forEach(a => a.classList.toggle('on', a.dataset.nav === (page === 'cau-do' ? 'bai-hoc' : page)));
+    const adminLink = $('#nav [data-nav="quan-tri-giao-vien"]');
+    adminLink.hidden = currentUser?.role !== 'admin';
+    showMe();
     const on = $('#nav a.on'); if (on && on.scrollIntoView) on.scrollIntoView({ block: 'nearest', inline: 'nearest' });
     $('#pageTitle').textContent = PAGES[page];
     document.title = PAGES[page] + ' · Trang giáo viên';
@@ -156,9 +188,9 @@
     const [classes, students, docs, questions] = await Promise.all([load('classes'), load('students'), load('docs'), load('questions')]);
     const help = students.filter(needsHelp), today = students.filter(s => daysAgo(s.lastDay) === 0).length;
     const recent = students.flatMap(s => (s.history || []).slice(0, 5).map(h => ({ s, h }))).sort((a, b) => (parseDay(b.h.d) || 0) - (parseDay(a.h.d) || 0)).slice(0, 10);
-    v.innerHTML = storageWarn() +
+    v.innerHTML = storageWarn() + scopeNote(classes) +
       (classes.length ? '' : '<div class="okbox">👋 Bắt đầu: vào <a href="#lop">Lớp học</a> tạo lớp để có <b>mã lớp</b>, rồi cho học sinh nhập mã đó trên máy của các em (Cài đặt → Lớp học của em).</div>') +
-      '<div class="quick"><a class="btn primary" href="#giao-bai">📌 Giao bài</a><a class="btn" href="#goi-ten">✨ Gọi tên bất ngờ</a><a class="btn" href="#bai-hoc">📝 Sửa – thêm câu</a><a class="btn" href="#tai-lieu">📚 Tải tài liệu</a><a class="btn" href="#hoc-sinh">👧 Xem học sinh</a></div>' +
+      '<div class="quick"><a class="btn primary" href="#giao-bai">📌 Giao bài</a><a class="btn" href="#thong-ke">Thống kê học tập</a><a class="btn" href="#goi-ten">✨ Gọi tên bất ngờ</a><a class="btn" href="#bai-hoc">📝 Sửa – thêm câu</a><a class="btn" href="#tai-lieu">📚 Tải tài liệu</a><a class="btn" href="#hoc-sinh">👧 Xem học sinh</a></div>' +
       '<div class="grid g4">' +
       stat(classes.length, 'Lớp học') + stat(students.length, 'Học sinh đã kết nối') + stat(today, 'Học sinh học hôm nay') + stat(help.length, 'Cần quan tâm', help.length ? 'warn' : '') +
       stat(docs.length, 'Tài liệu') + stat(questions.length, 'Câu hỏi của thầy cô') + '</div>' +
@@ -180,22 +212,34 @@
 
   /* ---------------- Trang: Lớp học ---------------- */
   async function pgClasses(v) {
-    const [classes, students] = await Promise.all([load('classes', true), load('students')]);
-    v.innerHTML = storageWarn() +
+    const [classes, students, staff] = await Promise.all([load('classes', true), load('students', true), isAdmin() ? api('/api/admin/teachers').then(r => r.teachers || []) : []]);
+    const nameOf = u => { const t = staff.find(x => x.username === u); return t ? t.name + (t.active ? '' : ' (đã khoá)') : ''; };
+    const staffOptions = sel => '<option value="">— Quản trị giữ lớp —</option>' + staff.filter(t => t.active).map(t => '<option value="' + esc(t.username) + '"' + (t.username === sel ? ' selected' : '') + '>' + esc(t.name) + '</option>').join('');
+    v.innerHTML = storageWarn() + scopeNote(classes) +
       '<section class="card"><h2>➕ Tạo lớp mới</h2><form id="newClass" class="toolbar"><label class="field"><span>Tên lớp</span><input id="ncName" maxlength="40" placeholder="Ví dụ: Lớp 2A" required></label>' +
-      '<label class="field" style="flex:0 1 160px"><span>Khối</span><select id="ncGrade"><option value="1">Lớp 1</option><option value="2" selected>Lớp 2</option><option value="3">Lớp 3</option></select></label><button class="btn primary">Tạo lớp</button></form>' +
+      '<label class="field" style="flex:0 1 160px"><span>Khối</span><select id="ncGrade"><option value="1">Lớp 1</option><option value="2" selected>Lớp 2</option><option value="3">Lớp 3</option></select></label>' +
+      (isAdmin() ? '<label class="field" style="flex:1 1 200px"><span>Giáo viên phụ trách</span><select id="ncOwner">' + staffOptions('') + '</select></label>' : '') + '<button class="btn primary">Tạo lớp</button></form>' +
       '<p class="hint">Mỗi lớp có một <b>mã 6 kí tự</b>. Học sinh nhập mã này một lần trên máy của em (Cài đặt → Lớp học của em) – sau mỗi lượt học, kết quả tự gửi về đây.</p></section>' +
       '<div class="grid g2 section">' + (classes.length ? classes.map(c => {
         const n = students.filter(s => s.classCode === c.code).length;
-        return '<section class="card class-card"><div class="card-head"><h2>' + esc(c.name || 'Lớp chưa đặt tên') + '</h2><span class="pill">Khối ' + esc(c.grade || '—') + ' · ' + n + ' học sinh</span></div>' +
+        const owner = isAdmin() ? '<p class="class-owner">' + (c.owner && nameOf(c.owner) ? '👩‍🏫 ' + esc(nameOf(c.owner)) : '<span class="warn-text">⚠️ Chưa giao giáo viên</span>') + ' <button class="btn sm" data-owner="' + esc(c.code) + '">' + (c.owner ? 'Chuyển lớp' : 'Giao lớp') + '</button></p>' : '';
+        return '<section class="card class-card"><div class="card-head"><h2>' + esc(c.name || 'Lớp chưa đặt tên') + '</h2><span class="pill">Khối ' + esc(c.grade || '—') + ' · ' + n + ' học sinh</span></div>' + owner +
           '<div class="code" aria-label="Mã lớp">' + esc(c.code) + '</div>' +
           '<div class="actions" style="justify-content:flex-start"><button class="btn sm" data-copy="' + esc(c.code) + '">📋 Chép mã</button><button class="btn sm" data-print="' + esc(c.code) + '">🖨️ In thẻ mã cho học sinh</button>' +
           '<a class="btn sm" href="#hoc-sinh" data-see="' + esc(c.code) + '">👀 Xem học sinh</a><button class="btn sm" data-rename="' + esc(c.code) + '">✏️ Sửa</button><button class="btn sm danger" data-del="' + esc(c.code) + '">Xoá</button></div></section>';
       }).join('') : '<div class="empty">Chưa có lớp nào.</div>') + '</div>';
     $('#newClass').onsubmit = async e => {
       e.preventDefault();
-      try { const r = await send('/api/classes', 'POST', { name: $('#ncName').value.trim(), grade: Number($('#ncGrade').value) }); toast('Đã tạo lớp, mã ' + r.code); cache.classes = null; route(); } catch (err) { fail(err); }
+      try { const r = await send('/api/classes', 'POST', { name: $('#ncName').value.trim(), grade: Number($('#ncGrade').value), ...(isAdmin() ? { owner: $('#ncOwner').value } : {}) }); toast('Đã tạo lớp, mã ' + r.code); cache.classes = null; route(); } catch (err) { fail(err); }
     };
+    $$('[data-owner]', v).forEach(b => b.onclick = () => {
+      const c = classOf(b.dataset.owner);
+      const d = dialog('<h2>Giao lớp ' + esc(c.name || c.code) + '</h2><form class="form" id="ownForm"><label class="field"><span>Giáo viên phụ trách</span><select id="ownSel">' + staffOptions(c.owner) + '</select></label>' +
+        '<p class="hint">Giáo viên mới thấy ngay lớp, học sinh và bài đã giao. Giáo viên cũ không còn thấy lớp này. Học sinh không phải nhập lại mã.</p>' +
+        (staff.some(t => t.active) ? '' : '<p class="hint">Chưa có tài khoản giáo viên. Tạo ở mục <a href="#quan-tri-giao-vien" data-close>Quản lý giáo viên</a>.</p>') +
+        '<div class="actions"><button type="button" class="btn" data-close>Huỷ</button><button class="btn primary">Lưu</button></div></form>');
+      $('#ownForm').onsubmit = async e => { e.preventDefault(); try { await send('/api/classes/' + c.code, 'PATCH', { owner: $('#ownSel').value }); d.close(); cache.classes = null; toast('Đã giao lớp.'); route(); } catch (err) { fail(err); } };
+    });
     $$('[data-copy]', v).forEach(b => b.onclick = () => { navigator.clipboard?.writeText(b.dataset.copy).then(() => toast('Đã chép mã ' + b.dataset.copy), () => toast('Mã lớp: ' + b.dataset.copy)); });
     $$('[data-see]', v).forEach(b => b.onclick = () => { studentFilter.cls = b.dataset.see; });
     $$('[data-print]', v).forEach(b => b.onclick = () => printCards(classOf(b.dataset.print)));
@@ -434,10 +478,19 @@
       qa('Hai anh em dùng chung một máy', 'Mỗi em tạo hồ sơ riêng. Khi nhập mã lớp, các hồ sơ trên máy đó đều thuộc lớp ấy. Học sinh lớp khác nên dùng trình duyệt hoặc máy khác.') +
       qa('Học sinh quên mã PIN', 'Trên chính máy của em: mở trang học sinh → Góc thầy cô → bấm <b>🔓 Xoá PIN</b> bên tên em.') +
       qa('Tôi in báo cáo gửi phụ huynh thế nào?', 'Vào <a href="#hoc-sinh">Học sinh</a> → bấm vào tên em → <b>🖨️ In báo cáo cho phụ huynh</b>.') +
-      qa('Dùng máy chung ở trường', 'Làm xong nhớ bấm <b>Đăng xuất</b>. Web cũng tự đăng xuất sau 12 giờ. Muốn đổi mật khẩu, thầy cô nhờ người cài đặt web.') + '</section>';
+      qa('Dùng máy chung ở trường', 'Làm xong nhớ bấm <b>Đăng xuất</b>. Web cũng tự đăng xuất sau 12 giờ.') +
+      qa('Tôi muốn đổi mật khẩu', 'Bấm <b>🔑 Đổi mật khẩu</b> ở cuối thanh bên trái. Đổi xong, các máy khác đang đăng nhập bằng tài khoản này sẽ phải đăng nhập lại. Quên mật khẩu thì nhờ quản trị trường đặt lại.') +
+      qa('Vì sao tôi không thấy lớp của đồng nghiệp?', 'Mỗi giáo viên chỉ thấy lớp mình phụ trách và học sinh của lớp đó. Quản trị trường thấy toàn trường và có thể <b>giao</b> hoặc <b>chuyển lớp</b> cho giáo viên khác. Câu hỏi, tài liệu và bài học là kho chung của trường.') +
+      (isAdmin() ? qa('Quản trị: thêm giáo viên mới', 'Vào <a href="#quan-tri-giao-vien">Quản lý giáo viên</a> → nhập họ tên, tên đăng nhập, bấm <b>🎲 Tạo</b> mật khẩu → <b>Tạo tài khoản</b> → <b>📋 Chép</b> phiếu đăng nhập gửi giáo viên. Sau đó vào <a href="#lop">Lớp học</a> bấm <b>Giao lớp</b>. Giáo viên nghỉ: bấm <b>Xoá</b> và chọn người nhận lớp, học sinh không mất dữ liệu.') : '') + '</section>';
   }
 
-  window.GV = { $, $$, esc, api, send, toast, fail, dialog, confirmBox, lessonsOf, lessonById, download, load, cache: () => cache, pct, className, daysAgo, storageWarn, watchStudents,
+  /* nhắc phạm vi đang xem: quản trị = toàn trường, giáo viên = lớp mình phụ trách */
+  function scopeNote(classes) {
+    if (!currentUser) return '';
+    return '<p class="scope-note">' + (isAdmin() ? '🏫 Đang xem <b>toàn trường</b> (' + classes.length + ' lớp) với quyền quản trị.' : '👩‍🏫 ' + esc(currentUser.name) + ' · đang xem <b>' + classes.length + ' lớp</b> do thầy cô phụ trách.') + '</p>';
+  }
+
+  window.GV = { $, $$, esc, api, send, toast, fail, dialog, confirmBox, me: () => currentUser, lessonsOf, lessonById, download, load, cache: () => cache, pct, className, daysAgo, storageWarn, watchStudents, openStudent: studentDetail,
     register(name, title, page) { PAGES[name] = title; EXTRA[name] = page; } };
   addEventListener('DOMContentLoaded', boot);
 })();

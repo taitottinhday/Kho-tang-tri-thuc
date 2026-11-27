@@ -13,7 +13,7 @@ const TYPES = {
   '.ttf': 'font/ttf', '.woff': 'font/woff', '.woff2': 'font/woff2', '.mp4': 'video/mp4'
 };
 // Chỉ phục vụ tệp ứng dụng; không để lộ mã nguồn máy chủ, dữ liệu hay ghi chú nội bộ.
-const HIDDEN = new Set(['server.js', 'server', '.data', 'package.json', 'package-lock.json', 'tests', 'qa-results', '_sao-luu-codex-v1', 'node_modules', 'PHOI_HOP_CLAUDE_CODEX.md']);
+const HIDDEN = new Set(['server.js', 'server', 'scripts', '.data', 'package.json', 'package-lock.json', 'tests', 'qa-results', '_sao-luu-codex-v1', 'node_modules', 'PHOI_HOP_CLAUDE_CODEX.md']);
 
 function send(res, code, body) {
   res.writeHead(code, { 'Content-Type': 'text/plain; charset=utf-8', 'X-Content-Type-Options': 'nosniff' });

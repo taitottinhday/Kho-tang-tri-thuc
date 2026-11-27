@@ -811,3 +811,81 @@
   .caller-cinema .caller-result-rays { display: none; }
   .caller-page .caller-cinema-atmosphere { animation: none !important; }
 }
+
+/* ===== Sân khấu điện ảnh (đợt 20): khung phim 3D phủ sân khấu, giữ lời thoại – kết quả – nút của trang ===== */
+.caller-cinema.use-phim>.caller-cinema-world,.caller-cinema.use-phim>.caller-cinema-flash,.caller-cinema.use-phim>.caller-cinema-target,.caller-cinema.use-phim>.caller-cinema-signal{display:none!important}
+.caller-cinema>.phim-nhung{z-index:1}
+.caller-cinema.use-phim .caller-stage-shade{background:linear-gradient(180deg,rgba(0,0,12,.45),transparent 22%,transparent 68%,rgba(0,0,10,.62))}
+.caller-cinema.use-phim .caller-cinema-evidence{z-index:4}
+.cp-hud{position:absolute;inset:0;z-index:6;pointer-events:none;overflow:hidden}
+/* tâm ngắm + thẻ tên ứng viên */
+.cp-target{position:absolute;top:44%;transform:translate(-50%,-50%);display:grid;justify-items:center;gap:6px;animation:cpIn .32s cubic-bezier(.2,1.5,.35,1) both;transition:opacity .25s,transform .25s}
+.cp-target.out{opacity:0;transform:translate(-50%,-60%) scale(.9)}
+.cp-reticle{position:relative;width:clamp(64px,11cqw,128px);aspect-ratio:1;border-radius:50%;border:3px solid #ffe25a;box-shadow:0 0 18px rgba(255,214,60,.85),inset 0 0 18px rgba(255,214,60,.5);animation:cpSpin 1.6s linear infinite}
+.cp-reticle::before,.cp-reticle::after{content:'';position:absolute;left:50%;top:-14%;width:3px;height:128%;margin-left:-1.5px;background:linear-gradient(#ffe25a 0 18%,transparent 18% 82%,#ffe25a 82%)}
+.cp-reticle::after{transform:rotate(90deg)}
+.cp-reticle b{position:absolute;inset:34%;border-radius:50%;background:rgba(255,80,80,.85);animation:cpBlink .35s steps(2) infinite}
+.cp-target.is-detective .cp-reticle{border-width:7px;border-color:#d8a54a;background:radial-gradient(circle at 36% 32%,rgba(255,255,255,.5),rgba(180,220,255,.12) 45%,transparent)}
+.cp-target.is-detective .cp-reticle::before,.cp-target.is-detective .cp-reticle::after{display:none}
+.cp-target.is-detective .cp-reticle b{display:none}
+.cp-target.is-detective .cp-reticle{animation:cpScan 1.1s ease-in-out infinite alternate}
+.cp-tag{display:grid;justify-items:center;max-width:min(60cqw,420px);padding:6px 18px 8px;border-radius:14px;background:linear-gradient(180deg,rgba(20,14,46,.92),rgba(10,6,26,.92));border:2px solid #ffe25a;box-shadow:0 8px 24px rgba(0,0,0,.5);text-align:center}
+.cp-tag small{font-size:clamp(9px,1.25cqw,13px);font-weight:800;letter-spacing:.08em;color:#ffd76a;white-space:nowrap}
+.cp-tag strong{font-size:clamp(15px,2.6cqw,30px);line-height:1.2;font-weight:900;color:#fff;overflow-wrap:anywhere}
+/* thẻ tên bung ra như quà tặng */
+.cp-card{position:absolute;left:50%;top:52%;transform:translate(-50%,-50%);display:grid;place-items:center;width:max-content;max-width:88cqw;animation:cpPop .55s cubic-bezier(.18,1.5,.3,1) both}
+.cp-rays{position:absolute;left:50%;top:50%;width:120cqw;aspect-ratio:1;translate:-50% -50%;background:repeating-conic-gradient(rgba(255,226,120,.5) 0 5deg,transparent 5deg 17deg);-webkit-mask:radial-gradient(circle,#000 0 9%,rgba(0,0,0,.35) 20%,transparent 42%);mask:radial-gradient(circle,#000 0 9%,rgba(0,0,0,.35) 20%,transparent 42%);animation:cpSpin 14s linear infinite}
+.cp-plate{position:relative;display:grid;justify-items:center;gap:2px;padding:clamp(10px,1.6cqw,22px) clamp(18px,4cqw,56px);border-radius:22px;text-align:center;background:linear-gradient(180deg,#fff7d6,#ffd75e 55%,#f2a516);border:4px solid #fff;box-shadow:0 0 0 4px #a5560a,0 18px 44px rgba(0,0,0,.55),0 0 50px rgba(255,205,70,.85);color:#4a2000;overflow:hidden}
+.cp-plate::after{content:'';position:absolute;inset:0;background:linear-gradient(105deg,transparent 40%,rgba(255,255,255,.8) 50%,transparent 60%) 220% 0/260% 100% no-repeat;animation:cpShine 1.5s ease-in-out .5s infinite;mix-blend-mode:overlay}
+.cp-plate small{font-size:clamp(11px,1.8cqw,20px);font-weight:900;letter-spacing:.06em;color:#8a3a00}
+.cp-plate strong{font-size:clamp(26px,6cqw,76px);line-height:1.15;font-weight:900;overflow-wrap:anywhere;text-shadow:0 2px 0 rgba(255,255,255,.65)}
+.cp-plate em{font-style:normal;font-size:clamp(12px,1.9cqw,22px);font-weight:800;color:#7a2f00}
+.cp-card.scroll{top:70%}
+.cp-card.scroll .cp-plate{background:linear-gradient(180deg,#fffaf0,#ffeac0);border-color:#e7b44c;box-shadow:0 0 0 3px #8a5a14,0 16px 40px rgba(0,0,0,.45),0 0 60px rgba(255,220,120,.9)}
+.cp-card.file .cp-plate{background:linear-gradient(180deg,#fbf1dc,#e8cf9c);border-color:#8a5a2b;box-shadow:0 0 0 3px #4a2c10,0 16px 40px rgba(0,0,0,.55),0 0 46px rgba(255,205,110,.7)}
+.cp-stamp{position:absolute;right:6%;top:20%;padding:6px 18px;border:5px solid #ff5a4d;border-radius:10px;color:#ff5a4d;font-size:clamp(18px,3.4cqw,42px);font-weight:900;letter-spacing:.06em;background:rgba(40,6,4,.35);text-shadow:0 2px 6px rgba(0,0,0,.6);animation:cpStamp .4s cubic-bezier(.2,1.3,.4,1) both}
+@keyframes cpIn{from{opacity:0;transform:translate(-50%,-50%) scale(2.2)}to{opacity:1;transform:translate(-50%,-50%) scale(1)}}
+@keyframes cpPop{from{opacity:0;transform:translate(-50%,-50%) scale(.2) rotate(-8deg)}to{opacity:1;transform:translate(-50%,-50%) scale(1) rotate(0)}}
+@keyframes cpStamp{from{opacity:0;transform:scale(3) rotate(-24deg)}to{opacity:1;transform:scale(1) rotate(-12deg)}}
+@keyframes cpSpin{to{rotate:360deg}}
+@keyframes cpScan{from{translate:-18px -8px}to{translate:18px 10px}}
+@keyframes cpBlink{50%{opacity:.25}}
+@keyframes cpShine{0%{background-position:220% 0}60%,100%{background-position:-120% 0}}
+.phim-still~* .cp-reticle,.phim-still .cp-hud *,.phim-still .cp-rays,.phim-still .cp-plate::after{animation:none!important}
+@media(prefers-reduced-motion:reduce){.cp-hud *,.cp-rays,.cp-plate::after{animation:none!important}}
+
+/* Ảnh bìa 3 trò + nền bảng kết quả dùng khung phim 3D */
+.caller-teaser-photo{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 30%;transition:transform .6s cubic-bezier(.2,.7,.3,1)}
+.caller-game-card .game-card-scene{overflow:hidden}
+.caller-game-card:hover .caller-teaser-photo,.caller-game-card:focus-visible .caller-teaser-photo{transform:scale(1.09)}
+#callerCinema[data-phim=garden] .caller-result-overlay{background:linear-gradient(rgba(10,8,30,.25),rgba(10,8,30,.62)),url(../assets/phim/goi/ht-7.webp) 50% 30%/cover}
+#callerCinema[data-phim=stadium] .caller-result-overlay{background:linear-gradient(rgba(4,10,30,.2),rgba(4,10,30,.62)),url(../assets/phim/goi/sut-7.webp) 50% 30%/cover}
+#callerCinema[data-phim=office] .caller-result-overlay{background:linear-gradient(rgba(20,12,6,.25),rgba(20,12,6,.66)),url(../assets/phim/goi/tt-6.webp) 50% 30%/cover}
+.caller-medal{display:grid;place-items:center;width:64px;height:64px;border-radius:50%;font-style:normal;font-weight:900;font-size:30px;color:#5a2d00;background:radial-gradient(circle at 34% 28%,#fff8d8,#ffd45a 52%,#d98c0a);border:3px solid #fff;box-shadow:0 0 0 3px #a5560a,0 8px 18px rgba(0,0,0,.4),0 0 24px rgba(255,205,70,.75)}
+
+/* Tên viết thẳng lên cuộn chiếu / thẻ hồ sơ trong tranh */
+.cp-surface{position:absolute;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:calc(var(--h) * .02);text-align:center;animation:cpWrite .7s cubic-bezier(.2,1.2,.35,1) both}
+.cp-surface small{font-size:max(9px,calc(var(--h) * .12));font-weight:800;letter-spacing:.03em;line-height:1.2;white-space:nowrap}
+.cp-surface strong{max-width:100%;font-weight:900;line-height:1.18;overflow-wrap:break-word;text-wrap:balance}
+.cp-surface em{font-style:normal;font-size:max(9px,calc(var(--h) * .115));font-weight:800;line-height:1.2;white-space:nowrap}
+.cp-surface.scroll{color:#6a2f00}
+.cp-surface.scroll strong{color:#8a1230;text-shadow:0 1px 0 #fff6d8,0 0 18px rgba(255,236,160,.9)}
+.cp-surface.file{color:#5a3a18}
+.cp-surface.file strong{color:#3a1d06;text-shadow:0 1px 0 rgba(255,248,226,.9)}
+@keyframes cpWrite{0%{opacity:0;transform:translate(-50%,-50%) scale(1.6);filter:blur(10px) brightness(2.4)}100%{opacity:1;transform:translate(-50%,-50%) scale(1);filter:blur(0) brightness(1)}}
+@media(prefers-reduced-motion:reduce){.cp-surface{animation:none}}
+
+/* Khung ngang cắt ảnh 3:2: giữ phần đầu nhân vật (cắt chủ yếu ở đáy), chữ hô nằm phía dưới để không che mặt */
+.caller-cinema>.phim-nhung .ph-shot img{object-position:var(--tx) 12%;transform-origin:var(--tx) 20%}
+.caller-cinema>.phim-nhung .ph-caption{top:auto;bottom:clamp(92px,19%,150px)}
+
+/* Thẻ ứng viên không bị bóp hẹp khi đứng gần mép (tên bị bẻ từng chữ trên điện thoại) */
+.cp-target{width:max-content}
+.cp-tag strong{overflow-wrap:break-word;text-wrap:balance}
+@media(max-width:620px){
+  .cp-target{left:50%!important}
+  .cp-tag{max-width:min(78cqw,320px)}
+  .cp-stamp{right:auto;left:5%;top:auto;bottom:27%;border-width:3px;padding:3px 10px}
+  .caller-cinema>.phim-nhung:has(.cp-card) .ph-caption{display:none}
+  .caller-cinema.use-phim .caller-cinema-evidence{transform-origin:top right;scale:.82}
+}

@@ -1,7 +1,4 @@
-import { createCinema } from './caller-cinema.mjs';
-import { princeMarkup } from './caller-prince-art.mjs';
-import { strikerMarkup } from './caller-penalty-art.mjs';
-import { detectiveMarkup } from './caller-detective-art.mjs';
+import { createCinema } from './caller-phim.mjs';
 import { makeRoster, parseNames, reserveDraw, completeDraw, restoreStudent, normalizeDailyState, buildDetectiveClues, secureShuffle } from './goi-hoc-sinh-core.mjs';
 
 /* Three classroom stories share one roster and one calling round. */
@@ -68,21 +65,21 @@ async function page(view) {
 
         <section class="caller-game-grid" aria-label="Chọn trò chơi">
           <button class="caller-game-card prince-card" data-open-game="prince" type="button">
-            <span class="game-card-scene prince-scene" aria-hidden="true"><span class="caller-teaser-art caller-performer" data-motion="idle">${princeMarkup()}</span></span>
+            <span class="game-card-scene prince-scene" aria-hidden="true"><img class="caller-teaser-photo" src="../assets/phim/goi/ht-1.webp" alt="" decoding="async"></span>
             <span class="game-card-copy"><b>Hoàng tử cưỡi ngựa</b><small>Danh sách Nữ</small><span class="game-card-action" aria-hidden="true">↗</span></span>
           </button>
           <button class="caller-game-card penalty-card" data-open-game="penalty" type="button">
-            <span class="game-card-scene stadium-scene" aria-hidden="true"><span class="caller-teaser-art caller-performer" data-motion="idle">${strikerMarkup()}</span></span>
+            <span class="game-card-scene stadium-scene" aria-hidden="true"><img class="caller-teaser-photo" src="../assets/phim/goi/sut-4.webp" alt="" decoding="async"></span>
             <span class="game-card-copy"><b>Sút phạt đền</b><small>Danh sách Nam</small><span class="game-card-action" aria-hidden="true">↗</span></span>
           </button>
           <button class="caller-game-card detective-card" data-open-game="detective" type="button">
-            <span class="game-card-scene office-scene" aria-hidden="true"><span class="caller-teaser-art caller-performer" data-motion="idle">${detectiveMarkup()}</span></span>
+            <span class="game-card-scene office-scene" aria-hidden="true"><img class="caller-teaser-photo" src="../assets/phim/goi/tt-6.webp" alt="" decoding="async"></span>
             <span class="game-card-copy"><b>Thám tử tìm nghi phạm</b><small>Danh sách cả lớp</small><span class="game-card-action" aria-hidden="true">↗</span></span>
           </button>
         </section>
 
         <section class="caller-setup-card" aria-label="Danh sách học sinh và thiết lập">
-          <div class="caller-setup-heading"><div><span class="caller-eyebrow">CHUẨN BỊ SÂN KHẤU</span><h3>Danh sách lớp</h3></div><span class="caller-local-note"><i></i> Tự lưu trên thiết bị này</span></div>
+          <div class="caller-setup-heading"><div><span class="caller-eyebrow">CHUẨN BỊ SÂN KHẤU</span><h3>Danh sách lớp</h3></div><div class="caller-setup-tools"><button id="importClass" class="caller-import" type="button">📋 Lấy tên từ lớp</button><span class="caller-local-note"><i></i> Tự lưu trên thiết bị này</span></div></div>
           <div class="caller-lists-grid">
             <label class="caller-list-field girls-field"><span class="caller-list-label"><b>👧 Danh sách Nữ</b><small><strong id="girlsCount">0</strong> bạn</small></span><textarea id="girlsNames" rows="5" placeholder="Dán hoặc nhập tên, mỗi dòng một bạn&#10;Ví dụ:&#10;Nguyễn Ngọc An&#10;Trần Hà Chi"></textarea></label>
             <label class="caller-list-field boys-field"><span class="caller-list-label"><b>👦 Danh sách Nam</b><small><strong id="boysCount">0</strong> bạn</small></span><textarea id="boysNames" rows="5" placeholder="Dán hoặc nhập tên, mỗi dòng một bạn&#10;Ví dụ:&#10;Lê Minh Khang&#10;Phạm Gia Bảo"></textarea></label>
@@ -407,7 +404,7 @@ async function page(view) {
     $('#resultEyebrow', root).textContent = activeGame === 'detective' ? 'HỒ SƠ ĐÃ MỞ' : activeGame === 'penalty' ? 'BẢNG TỈ SỐ VỪA SÁNG' : 'LỜI MỜI TỪ LÂU ĐÀI';
     $('#resultIcon', root).textContent = meta.icon;
     $('#resultHeading', root).textContent = activeGame === 'detective' ? 'Đã tìm ra nghi phạm!' : activeGame === 'penalty' ? 'VÀOOOO! Được gọi rồi!' : 'Hoàng tử đã chọn!';
-    $('#resultNames', root).innerHTML = batch.map((student, index) => '<span class="caller-result-person" style="--person-index:' + index + '">' + makeAvatar(student) + '<b>' + esc(student.name) + '</b></span>').join('');
+    $('#resultNames', root).innerHTML = batch.map((student, index) => '<span class="caller-result-person" style="--person-index:' + index + '"><i class="caller-medal" aria-hidden="true">' + esc(Array.from(student.name.trim().split(/\s+/).pop() || '?')[0].toUpperCase()) + '</i><b>' + esc(student.name) + '</b></span>').join('');
     $('#resultCaption', root).textContent = batch.length > 1 ? 'Các bạn cùng lên trả lời câu hỏi của cô giáo nhé!' : activeGame === 'detective' ? 'Mời em lên trả lời câu hỏi của cô giáo!' : activeGame === 'penalty' ? 'Cả sân vận động đang cổ vũ cho em!' : 'Nàng có đồng ý cùng hoàng tử trả lời câu hỏi không?';
     overlay.hidden = false;
     requestAnimationFrame(() => {
@@ -496,7 +493,7 @@ async function page(view) {
         await spotlight(1540, () => scene?.scoreShot(index, true, batch[index]));
       } else {
         scene?.scoreShot(index, false, batch[index]);
-        await delay(1320);
+        await delay(Math.max(1320, scene?.revealWait?.() || 0)); // đủ lâu để đọc tên trước cú sút sau
       }
       setEmotion([batch[index]], 'is-pointed');
     }
@@ -559,7 +556,7 @@ async function page(view) {
       } else {
         await focusOn(target, 'is-pointed', 270);
         scene?.confirmSuspect?.(target);
-        await delay(320);
+        await delay(Math.max(320, scene?.revealWait?.() || 0)); // đọc xong hồ sơ mới sang vụ án kế
         $$('.caller-student', board).forEach(tile => tile.classList.remove('is-eliminated', 'is-candidate', 'is-pointed'));
         scene?.nextCase();
       }
@@ -626,6 +623,7 @@ async function page(view) {
       if (draw.game === 'prince') await playPrince(batch, pool, totalMs, timeLeft);
       if (draw.game === 'penalty') await playPenalty(batch, pool, totalMs, timeLeft);
       if (draw.game === 'detective') await playDetective(batch, pool, totalMs);
+      await delay(scene?.revealWait?.() || 0); // để cả lớp kịp đọc tên trên sân khấu trước khi bảng kết quả che lên
       const remainder = totalMs - (performance.now() - begin);
       if (remainder > 0) await delay(remainder);
       finishStory(run);
@@ -684,6 +682,58 @@ async function page(view) {
   $('#roundProgress', root).onclick = refreshRound;
   $('#refreshRound', root).onclick = refreshToday;
   $('#clearLists', root).onclick = () => { $('#girlsNames', root).value = ''; $('#boysNames', root).value = ''; setRoster(); };
+  $('#importClass', root).onclick = () => importFromClass().catch(error => window.GV?.fail?.(error));
+  /* Nối luồng Lớp học → Gọi tên: lấy tên học sinh đã kết nối với lớp, chia Nữ / Nam.
+     Máy chủ không lưu giới tính nên đoán theo tên, thầy cô bấm sửa; lựa chọn được nhớ theo từng học sinh trên máy này. */
+  async function importFromClass() {
+    const GV = window.GV;
+    if (!GV?.load) return;
+    const [classes, students] = await Promise.all([GV.load('classes', true), GV.load('students', true)]);
+    if (!classes.length) {
+      GV.dialog('<h2>📋 Lấy tên từ lớp</h2><p>Thầy cô chưa phụ trách lớp nào. Tạo lớp ở mục <a href="#lop" data-close>Lớp học</a> (hoặc nhờ quản trị giao lớp), cho học sinh nhập mã lớp, rồi quay lại đây.</p><div class="actions"><button class="btn primary" data-close>Đã hiểu</button></div>');
+      return;
+    }
+    const saved = (() => { try { return JSON.parse(localStorage.getItem(GENDER_KEY) || '{}') || {}; } catch { return {}; } })();
+    const options = classes.map(c => { const n = students.filter(s => s.classCode === c.code).length; return '<option value="' + GV.esc(c.code) + '">' + GV.esc((c.name || 'Lớp ' + c.code) + ' · ' + n + ' học sinh') + '</option>'; }).join('');
+    const d = GV.dialog('<h2>📋 Lấy tên từ lớp</h2><form class="form caller-import-form" id="ciForm"><label class="field"><span>Lớp</span><select id="ciClass">' + options + '</select></label>' +
+      '<p class="hint">Trò <b>Hoàng tử</b> gọi các bạn nữ, <b>Sút phạt đền</b> gọi các bạn nam, <b>Thám tử</b> gọi cả lớp. Máy đoán Nữ/Nam theo tên – thầy cô bấm để sửa những bạn đoán sai.</p>' +
+      '<div class="caller-import-head"><b id="ciCount"></b><span><button type="button" class="btn sm" data-all="nu">Tất cả Nữ</button><button type="button" class="btn sm" data-all="nam">Tất cả Nam</button></span></div>' +
+      '<div class="caller-import-list" id="ciList"></div>' +
+      '<p class="hint">Danh sách hiện tại trên trang sẽ được thay bằng danh sách lớp này.</p><div class="actions"><button type="button" class="btn" data-close>Huỷ</button><button class="btn primary" id="ciOk">Đưa vào danh sách</button></div></form>');
+    let rows = [];
+    const draw = () => {
+      const code = $('#ciClass', d).value;
+      rows = students.filter(s => s.classCode === code).map(s => ({ id: s.classCode + ':' + s.id, name: String(s.name || '').trim() })).filter(r => r.name)
+        .sort((a, b) => a.name.split(' ').pop().localeCompare(b.name.split(' ').pop(), 'vi') || a.name.localeCompare(b.name, 'vi'));
+      rows.forEach(r => { r.gender = saved[r.id] || guessGender(r.name); });
+      const girls = rows.filter(r => r.gender === 'nu').length;
+      $('#ciCount', d).textContent = rows.length ? rows.length + ' bạn · ' + girls + ' nữ · ' + (rows.length - girls) + ' nam' : '';
+      $('#ciList', d).innerHTML = rows.length ? rows.map((r, i) => '<div class="caller-import-row"><span>' + GV.esc(r.name) + '</span><span class="caller-import-pick" role="group" aria-label="Giới tính của ' + GV.esc(r.name) + '">' +
+        '<button type="button" data-i="' + i + '" data-g="nu" aria-pressed="' + (r.gender === 'nu') + '">👧 Nữ</button><button type="button" data-i="' + i + '" data-g="nam" aria-pressed="' + (r.gender === 'nam') + '">👦 Nam</button></span></div>').join('')
+        : '<p class="hint">Lớp này chưa có học sinh nào kết nối. Học sinh nhập mã lớp trên máy của em (Cài đặt → Lớp học của em) là tên hiện ở đây.</p>';
+      $('#ciOk', d).disabled = !rows.length;
+    };
+    draw();
+    $('#ciClass', d).onchange = draw;
+    $('#ciList', d).onclick = event => {
+      const b = event.target.closest('button[data-g]'); if (!b) return;
+      const r = rows[Number(b.dataset.i)]; r.gender = b.dataset.g; saved[r.id] = r.gender;
+      b.parentElement.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+      const girls = rows.filter(x => x.gender === 'nu').length;
+      $('#ciCount', d).textContent = rows.length + ' bạn · ' + girls + ' nữ · ' + (rows.length - girls) + ' nam';
+    };
+    d.querySelectorAll('[data-all]').forEach(b => b.onclick = () => { rows.forEach(r => { r.gender = b.dataset.all; saved[r.id] = r.gender; }); const keep = $('#ciClass', d).value; draw(); $('#ciClass', d).value = keep; });
+    $('#ciForm', d).onsubmit = event => {
+      event.preventDefault();
+      rows.forEach(r => { saved[r.id] = r.gender; });
+      try { localStorage.setItem(GENDER_KEY, JSON.stringify(saved)); } catch { /* bộ nhớ đầy */ }
+      $('#girlsNames', root).value = rows.filter(r => r.gender === 'nu').map(r => r.name).join('\n');
+      $('#boysNames', root).value = rows.filter(r => r.gender === 'nam').map(r => r.name).join('\n');
+      setRoster();
+      d.close();
+      GV.toast('Đã đưa ' + rows.length + ' bạn vào danh sách. Chọn trò để bắt đầu!');
+    };
+  }
   $('#liveCount', root).onchange = event => { settings.count = Number(event.target.value); syncSegments(); persist(); };
   $('#liveSpeed', root).onchange = event => { settings.seconds = Number(event.target.value); syncSegments(); persist(); };
   savedSound.onchange = () => { settings.sound = savedSound.checked; persist(); if (settings.sound) { soundContext(); startMusic(); tone(659, .12, .035); } else stopMusic(); };
@@ -726,6 +776,24 @@ async function page(view) {
   updateHomeHistory();
   setRoster();
   if (settings.daily.pending) await recoverDraw(settings.daily.pending);
+}
+
+const GENDER_KEY = 'vuonchu.callerGender.v1';
+/* Đoán Nữ/Nam theo tên Việt: tên đệm “Thị” → nữ; “Văn” → nam; còn lại theo tên chính hay gặp. Chỉ là gợi ý để thầy cô sửa. */
+const NU = new Set(['an','anh','chi','châu','diệp','dung','duyên','giang','hà','hạnh','hằng','hân','hiền','hoa','hồng','hương','hường','huyền','khuê','lam','lan','liên','linh','loan','ly','mai','my','mỹ','nga','ngân','nghi','ngọc','nguyệt','nhi','nhung','như','oanh','phương','quyên','quỳnh','thảo','thơ','thư','thùy','thuỳ','thủy','thuỷ','trang','trâm','trinh','tú','tuyết','uyên','vân','vi','vy','xuân','yến','hậu','ngà','thanh','thu','hoài','diệu','tâm','tiên','trà','em']);
+const NAM_DEM = new Set(['văn','đức','quốc','thành','trọng','công','hữu','đình','xuân','mạnh']);
+const NU_DEM = new Set(['thị','ngọc','thùy','thuỳ','diệu','khánh','phương','thảo','mai','tuệ']);
+const NAM = new Set(['an','bình','dũng','huy','khang','long','minh','nam','phúc','quân','sơn','trí','tuấn','hùng','hải','khoa','kiên','lâm','lộc','nhân','phong','quang','tài','thắng','thịnh','toàn','trung','tùng','việt','vinh','vũ','bảo','đạt','đăng','duy','hiếu','hoàng','khôi','kiệt','nguyên','phát','tín','tiến','tường']);
+function guessGender(name) {
+  const words = String(name).toLocaleLowerCase('vi').normalize('NFC').split(/\s+/).filter(Boolean);
+  const given = words[words.length - 1] || '', middle = words.slice(1, -1);
+  if (middle.includes('thị')) return 'nu';
+  if (middle.includes('văn')) return 'nam';
+  if (NAM.has(given) && !NU.has(given)) return 'nam';
+  if (NU.has(given) && !NAM.has(given)) return 'nu';
+  if (middle.some(w => NU_DEM.has(w))) return 'nu';
+  if (middle.some(w => NAM_DEM.has(w))) return 'nam';
+  return NU.has(given) ? 'nu' : 'nam';
 }
 
 window.GV && window.GV.register('goi-ten', 'Gọi tên', page);

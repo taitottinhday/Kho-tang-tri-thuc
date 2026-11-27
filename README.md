@@ -71,10 +71,10 @@ Máy chủ chạy bằng `node server.js`. Nếu chưa gắn cơ sở dữ liệ
 1. Trong dự án Railway, chọn **New → Database → PostgreSQL** và chờ dịch vụ cơ sở dữ liệu hoạt động.
 2. Mở service chạy web → **Variables**. Thêm các biến sau:
    - `DATABASE_URL` = `${{Postgres.DATABASE_URL}}` (chọn đúng tên service PostgreSQL nếu service có tên khác).
-   - `TEACHER_PASSWORD` = mật khẩu riêng, đủ dài, chỉ dành cho giáo viên.
+   - `TEACHER_PASSWORD` = mật khẩu quản trị ban đầu, đủ dài. Tài khoản này mở mục **Quản lý giáo viên**.
    - `SESSION_SECRET` = chuỗi bí mật ngẫu nhiên dài (ít nhất 32 kí tự).
 3. Lưu biến và chọn **Redeploy**. Khi ứng dụng khởi động, máy chủ tự tạo các bảng cần thiết. Kết nối nội bộ `*.railway.internal` dùng không SSL; địa chỉ PostgreSQL công khai dùng SSL.
-4. Mở trang web, vào **Góc thầy cô**, nhập `TEACHER_PASSWORD` để đăng nhập máy chủ. Tạo mã lớp sáu kí tự, rồi nhập mã đó ở **Kết nối máy này với lớp**. Trên thiết bị học sinh, mở cùng mục và kết nối bằng mã lớp một lần.
+4. Đăng nhập trang giáo viên bằng `TEACHER_PASSWORD`. Tại **Quản lý giáo viên**, tạo tài khoản riêng cho từng giáo viên. Giáo viên đăng nhập bằng tên tài khoản và mật khẩu được cấp. Mỗi lớp có một giáo viên phụ trách: lớp giáo viên tự tạo thuộc về giáo viên đó; các lớp tạo trước khi có tài khoản (hoặc do quản trị tạo) hiện ở khung **Lớp chưa có giáo viên** để quản trị bấm **Giao lớp**. Giáo viên chỉ thấy lớp, học sinh, bài giao và phòng đấu trường của lớp mình; quản trị thấy toàn trường. Khoá hoặc đặt lại mật khẩu sẽ đăng xuất giáo viên ngay; xoá tài khoản thì chọn người nhận lớp trước. Sau khi cập nhật phiên bản đăng nhập, thầy cô đăng nhập lại để nhận phiên mới. Tạo mã lớp sáu kí tự, rồi nhập mã đó ở **Kết nối máy này với lớp**. Trên thiết bị học sinh, mở cùng mục và kết nối bằng mã lớp một lần.
 5. Trong tab **Câu hỏi**, tải mẫu CSV hoặc nhập tệp CSV/JSON; câu nhập mới ở trạng thái nháp cho đến khi bấm **Công bố tất cả câu nháp**. Trong tab **Tài liệu**, tải PDF, Word, PowerPoint, ảnh hoặc MP3 (tối đa 10 MB) và chọn công bố để học sinh xem ở **Ôn luyện → Tài liệu của thầy cô**.
 
 Nếu `GET /api/status` báo `storage: "file"`, hãy kiểm tra biến `DATABASE_URL` ở service web và deploy lại. Không đặt mật khẩu hoặc `SESSION_SECRET` trong mã nguồn hay tệp trình duyệt.

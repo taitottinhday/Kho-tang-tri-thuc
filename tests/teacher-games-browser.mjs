@@ -39,6 +39,7 @@ try {
       let body = null;
       if (url.includes('/api/status')) body = { storage: 'file' };
       else if (url.includes('/api/login')) body = { token: 'teacher-games-browser-test' };
+      else if (url.includes('/api/me')) body = { user: { role: 'admin', username: 'admin', name: 'Quản trị viên' } };
       else if (url.includes('/api/classes')) body = { classes: [] };
       else if (url.includes('/api/students')) body = { students: [] };
       else if (url.includes('/api/docs')) body = { documents: [] };
@@ -75,12 +76,12 @@ try {
     if (key !== 'detective') {
       const requested = key === 'prince' ? 1 : 2;
       await browser.eval(`document.querySelector('#liveCount').value='${requested}';document.querySelector('#liveCount').dispatchEvent(new Event('change'));document.querySelector('#liveSpeed').value='10';document.querySelector('#liveSpeed').dispatchEvent(new Event('change'));document.querySelector('#startStory').click();return 1`);
-      const pose = key === 'prince'
-        ? 'document.querySelector("#callerCinema .caller-performer--prince[data-motion=run][data-gait]")'
-        : 'document.querySelector("#callerCinema .caller-performer--striker[data-motion=focus]")';
+      // sân khấu điện ảnh (đợt 20): khung phim 3D thay cho nhân vật vẽ
+      const pose = key === 'prince' ? 'document.querySelector("#callerCinema[data-canh^=ht-] .phim-nhung .ph-shot img.base")' : 'document.querySelector("#callerCinema[data-canh^=sut-] .phim-nhung .ph-shot img.base")';
       await captureMotion(image, pose, key === 'penalty' ? 55 : 48);
       check(await browser.eval('return !document.querySelector("#gameStage").classList.contains("is-running") || !document.querySelector(".caller-student.is-done")'), name + ' does not mark the selected name before the result');
       check(await until(`document.querySelector('#resultOverlay').classList.contains('is-shown')`, 26000), name + ' story reaches the reveal');
+      check(await browser.eval('const imgs=[...document.querySelectorAll("#callerCinema .ph-shot img.base")]; return imgs.length>0 && imgs.every(i=>i.complete && i.naturalWidth>0)'), name + ' shows real 3D film frames');
       selectedByGame[key] = await browser.eval(`return [...document.querySelectorAll('.caller-result-person b')].map(item=>item.textContent)`);
       check(selectedByGame[key].length === requested, name + ' completes a ' + requested + '-student turn', selectedByGame[key]);
       if (key === 'penalty') {
@@ -93,7 +94,8 @@ try {
   }
 
   await browser.eval(`document.querySelector('#liveCount').value='3';document.querySelector('#liveCount').dispatchEvent(new Event('change'));document.querySelector('#liveSpeed').value='10';document.querySelector('#liveSpeed').dispatchEvent(new Event('change'));document.querySelector('#startStory').click();return 1`);
-  await captureMotion('detective', 'document.querySelector("#callerCinema .caller-performer--detective[data-locomotion=driven]")', 45);
+  await captureMotion('detective', 'document.querySelector("#callerCinema[data-canh^=tt-] .phim-nhung .ph-shot img.base")', 45);
+  check(await until('document.querySelector(".cp-target strong, .cp-card strong, .cp-surface strong")', 20000), 'A name card or magnifier tag appears on the film stage');
   check(await until('!document.querySelector(".caller-cinema-evidence").hidden'), 'Detective moves from the entrance into the magnifier and clue sequence');
   check(await until(`document.querySelector('#resultOverlay').classList.contains('is-shown')`, 26000), 'Detective story reaches the reveal');
   const result = await browser.eval(`return {winners:[...document.querySelectorAll('.caller-result-person b')].map(item=>item.textContent),history:document.querySelector('#todayCount').textContent,round:document.querySelector('#roundProgress').textContent}`);
@@ -122,8 +124,9 @@ try {
   check(mobileStage.cinema <= mobileStage.frame + 1 && mobileStage.dialogue <= mobileStage.frame, 'Mobile camera and dialogue fit inside the frame', mobileStage);
   await browser.shot(path.join(out, 'detective-mobile-45.png'));
   await browser.eval('document.querySelector("#backHome").click(); document.querySelector("[data-open-game=penalty]").click()');
-  const mobileFootball = await browser.eval('const ball=document.querySelector(".caller-cinema-ball").getBoundingClientRect(); const caption=document.querySelector("#dialogueBox").getBoundingClientRect(); return { ball:ball.bottom, caption:caption.top }');
-  check(mobileFootball.ball <= mobileFootball.caption, 'Mobile captions sit below the ball', mobileFootball);
+  check(await until('document.querySelector("#callerCinema[data-canh^=sut-] .ph-shot img.base")'), 'Mobile penalty stage shows the film frame');
+  const mobileFootball = await browser.eval('const f=document.querySelector("#gameStage").getBoundingClientRect(); const p=document.querySelector("#callerCinema .phim-nhung").getBoundingClientRect(); return { inside: p.left>=f.left-1 && p.right<=f.right+1, h: p.height, page: document.documentElement.scrollWidth }');
+  check(mobileFootball.inside && mobileFootball.h > 200 && mobileFootball.page <= 391, 'Mobile film fills the stage without sideways scroll', mobileFootball);
   await browser.shot(path.join(out, 'penalty-mobile.png'));
   const longNames = ['Nguyễn Hoàng Phương Ngọc Bảo Anh', 'Trần Khánh Linh Bảo Ngọc Ánh Dương', 'Đặng Nguyễn Hoàng Bảo Ngọc Khánh Chi'];
   await browser.eval(`
@@ -137,7 +140,12 @@ try {
     document.querySelector('#startStory').click();
     return 1;
   `);
-  check(await until('document.querySelector(".caller-horse-guest")', 19000), 'A guest reaches the horse in a three-name turn');
+  check(await until('document.querySelector(".cp-surface.scroll")', 19000), 'The prince unrolls a golden scroll with a name in a three-name turn');
+  await browser.sleep(850); // chờ hiệu ứng viết chữ (phóng từ 1.6 về 1) xong rồi mới đo
+  const scroll = await browser.eval('const c=document.querySelector(".cp-surface.scroll").getBoundingClientRect(); const s=document.querySelector("#gameStage").getBoundingClientRect(); const n=document.querySelector(".cp-surface strong"); const r=n.getBoundingClientRect(); return { name: n.textContent, fits: c.left>=s.left-1 && c.right<=s.right+1 && r.top>=s.top-1 && r.bottom<=s.bottom+1 && n.scrollWidth<=n.clientWidth+1, box:[c.left,c.right,s.left,s.right,c.height], font: getComputedStyle(n).fontSize }');
+  await browser.shot(path.join(out, 'prince-mobile-scroll.png'));
+  console.log('   scroll', JSON.stringify(scroll));
+  check(longNames.includes(scroll.name) && scroll.fits, 'The scroll shows one of the chosen long names and fits on mobile', scroll);
   check(await until('document.querySelector("#resultOverlay").classList.contains("is-shown")', 20000), 'The three-name prince animation completes');
   const longResult = await browser.eval(`return {
     names:[...document.querySelectorAll('#resultNames .caller-result-person b')].map(name => name.textContent),

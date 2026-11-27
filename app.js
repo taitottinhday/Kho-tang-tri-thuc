@@ -687,14 +687,15 @@ function teacherGate() {
   if (typeof GUEST_MODE !== 'undefined' && GUEST_MODE) { toast('Hãy thoát chế độ học thử để mở Góc thầy cô.'); return; }
   openModal('Dành cho thầy cô 👩‍🏫', 'Đăng nhập để vào góc giáo viên',
     '<form class="gate" id="gateForm" autocomplete="off"><p>Góc này có thông tin học sinh và cài đặt lớp, <b>chỉ thầy cô được vào</b>. Em hãy quay lại bằng nút ✕ nhé.</p>' +
-    '<label for="gateInput">Mật khẩu giáo viên</label><input id="gateInput" type="password" class="dictation-input" autocomplete="current-password" aria-label="Mật khẩu giáo viên" />' +
+    '<label for="gateUser">Tên đăng nhập <small>(quản trị: để trống)</small></label><input id="gateUser" type="text" class="dictation-input" autocomplete="username" autocapitalize="none" spellcheck="false" aria-label="Tên đăng nhập giáo viên" />' +
+    '<label for="gateInput">Mật khẩu</label><input id="gateInput" type="password" class="dictation-input" autocomplete="current-password" aria-label="Mật khẩu giáo viên" />' +
     '<p class="gate-err" id="gateErr" role="alert"></p><div class="modal-actions"><button class="primary-btn" id="gateOk">Đăng nhập</button> <button type="button" class="soft-btn" data-close-modal>Huỷ</button></div></form>');
   const form = $('#gateForm');
   form.onsubmit = async e => {
     e.preventDefault();
     const btn = $('#gateOk'), err = $('#gateErr'); btn.disabled = true; err.textContent = '';
     try {
-      const r = await fetch('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: $('#gateInput').value }) });
+      const r = await fetch('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: $('#gateUser').value.trim(), password: $('#gateInput').value }) });
       const body = await r.json().catch(() => ({}));
       if (!r.ok) throw Error(body.error || 'Chưa đăng nhập được.');
       try { sessionStorage.setItem('vuonchu.teacherToken', body.token); } catch (x) {}
@@ -702,7 +703,7 @@ function teacherGate() {
       teacherOK = true; closeModal(); go('teacher');
     } catch (x) { sfx('bad'); err.textContent = x instanceof TypeError ? 'Chưa kết nối được máy chủ. Thầy cô kiểm tra mạng rồi thử lại.' : x.message; btn.disabled = false; $('#gateInput').select(); }
   };
-  $('#gateInput').focus();
+  $('#gateUser').focus();
 }
 function renderTeacher() {
   const profiles = Object.values(db.profiles);
