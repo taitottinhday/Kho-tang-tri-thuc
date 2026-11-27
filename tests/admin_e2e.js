@@ -28,7 +28,7 @@ const fs = require('fs'), os = require('os'), path = require('path');
     ok(await b.eval(`return document.activeElement.id === 'loginUser' && /admin/.test(document.querySelector('#loginUserHint').textContent)`), 'Trang đăng nhập: con trỏ ở ô tên, có hướng dẫn cho quản trị');
     ok(await login('admin', env.TEACHER_PASSWORD), 'Quản trị đăng nhập bằng tên “admin”');
     ok(await b.eval(`return !document.querySelector('[data-nav="quan-tri-giao-vien"]').hidden && /Quản trị/.test(document.querySelector('#meRole').textContent)`), 'Quản trị thấy mục Quản lý giáo viên và vai trò của mình');
-    ok(await b.eval(`return /toàn trường/.test(document.querySelector('.scope-note').textContent)`), 'Tổng quan ghi rõ đang xem toàn trường');
+    ok(await b.eval(`return /Quản trị trường/.test(document.querySelector('.page-head').textContent)`), 'Tổng quan ghi rõ đang xem toàn trường');
 
     // quản trị tạo lớp chưa có giáo viên
     await go('lop');
@@ -72,7 +72,7 @@ const fs = require('fs'), os = require('os'), path = require('path');
     await go('lop');
     const seen = await b.eval(`return [...document.querySelectorAll('.class-card h2')].map(x=>x.textContent)`);
     ok(seen.length === 2 && seen.includes('Lớp 1A') && seen.includes('Lớp 2B') && await b.eval(`return !document.querySelector('[data-owner]') && !document.querySelector('#ncOwner')`), 'Giáo viên thấy đủ 2 lớp mình phụ trách (không thấy 3C), không có nút giao lớp', seen);
-    ok(await b.eval(`return /2 lớp/.test(document.querySelector('.scope-note').textContent)`), 'Ghi chú phạm vi: đang xem 2 lớp');
+    ok(await b.eval(`return /2 lớp/.test(document.querySelector('.page-head').textContent)`), 'Ghi chú phạm vi: đang xem 2 lớp');
     await go('hoc-sinh');
     ok(await until(`/Bé Na/.test(document.querySelector('#view').textContent)`), 'Giáo viên thấy học sinh lớp mình gửi lên');
     await shot('2-giao-vien');

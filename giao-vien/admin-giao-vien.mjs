@@ -34,11 +34,12 @@ async function page(view) {
   let data = await api('/api/admin/teachers');
   let teachers = data.teachers || [], unassigned = data.unassigned || [];
   view.innerHTML = `
-    <div class="admin-intro"><div><span>QUẢN TRỊ TRƯỜNG</span><h2>Đội ngũ giáo viên</h2>
-      <p>Tạo tài khoản, giao lớp cho từng giáo viên. Giáo viên chỉ thấy lớp và học sinh của mình.</p></div>
-      <div class="admin-stats" data-stats></div></div>
+    <div class="page-head"><div><span class="eyebrow">Quản trị trường</span><h2>Giáo viên</h2>
+      <p>Tạo tài khoản, giao lớp cho từng giáo viên. Giáo viên chỉ thấy lớp và học sinh của mình.</p></div></div>
+    <div class="kpis" data-stats></div>
+    <section class="panel admin-load"><div class="panel-head"><div><h3>Số học sinh mỗi giáo viên phụ trách</h3><p>Giúp phân công lớp cho cân</p></div></div><div class="viz" id="vzLoad"></div></section>
     <section class="admin-panel admin-unassigned" data-unassigned hidden></section>
-    <details class="admin-panel admin-demo"><summary><b>🧪 Dữ liệu thử</b><small>Tạo 7 lớp mẫu (245 học sinh hư cấu) để thử Gọi tên, Giao bài, Thống kê</small></summary>
+    <details class="admin-panel admin-demo"><summary><b>Dữ liệu thử</b><small>Tạo 7 lớp mẫu (245 học sinh hư cấu) để thử Gọi tên, Giao bài, Thống kê</small></summary>
       <p>Tạo tài khoản <b>${esc(DEMO.name)}</b> (@${esc(DEMO.username)}) phụ trách 7 lớp “Mẫu 1A … 3C”, mỗi lớp 35 học sinh hư cấu (chỉ có tên, chưa có kết quả). Bấm lại không tạo trùng. Thử xong bấm <b>Xoá dữ liệu mẫu</b>.</p>
       <div class="admin-demo-actions"><button type="button" class="btn primary" data-demo-make>Tạo 7 lớp mẫu</button><button type="button" class="btn danger" data-demo-clear>Xoá dữ liệu mẫu</button></div>
       <p class="admin-feedback" data-demo-status role="status" aria-live="polite"></p>
@@ -96,14 +97,17 @@ async function page(view) {
   function drawStats() {
     const classCount = teachers.reduce((n, t) => n + t.classes.length, 0) + unassigned.length;
     const students = teachers.reduce((n, t) => n + (t.students || 0), 0);
-    $('[data-stats]').innerHTML = [[teachers.length, 'giáo viên'], [active().length, 'đang hoạt động'], [classCount, 'lớp'], [students, 'học sinh có lớp']]
-      .map(([n, label]) => '<div class="admin-count"><strong>' + n + '</strong><span>' + label + '</span></div>').join('');
+    $('[data-stats]').innerHTML = [[teachers.length, 'Tài khoản giáo viên'], [active().length, 'Đang hoạt động'], [classCount, 'Lớp học'], [students, 'Học sinh có giáo viên']]
+      .map(([n, label]) => '<div class="kpi"><span class="kpi-label">' + label + '</span><span class="kpi-value">' + n + '</span></div>').join('');
+    const load = teachers.map(t => ({ nhan: t.name, gt: t.students || 0, phu: t.classes.length + ' lớp' })).sort((a, b) => b.gt - a.gt).slice(0, 10);
+    $('.admin-load').hidden = !load.length;
+    if (load.length) window.BieuDo.ngang($('#vzLoad'), load, { donVi: 'em', moTa: 'Số học sinh mỗi giáo viên', cotNhan: 'Giáo viên', cotGiaTri: 'Học sinh' });
   }
   function drawUnassigned() {
     const box = $('[data-unassigned]');
     box.hidden = !unassigned.length;
     if (!unassigned.length) return;
-    box.innerHTML = '<h3>⚠️ ' + unassigned.length + ' lớp chưa có giáo viên phụ trách</h3><p>Chỉ quản trị thấy các lớp này. Giao cho giáo viên để họ theo dõi học sinh và giao bài.</p>' +
+    box.innerHTML = '<h3>' + unassigned.length + ' lớp chưa có giáo viên phụ trách</h3><p>Chỉ quản trị thấy các lớp này. Giao cho giáo viên để họ theo dõi học sinh và giao bài.</p>' +
       '<div class="admin-assign-list">' + unassigned.map(c => '<form class="admin-assign" data-assign="' + esc(c.code) + '"><span><b>' + esc(className(c)) + '</b><small>Mã ' + esc(c.code) + '</small></span>' +
         '<select aria-label="Giáo viên nhận ' + esc(className(c)) + '">' + teacherOptions('') + '</select><button class="btn sm primary">Giao lớp</button></form>').join('') + '</div>';
   }

@@ -32,10 +32,10 @@ function stats(data) {
     rate: 'm4 12 5 5L20 6',
     help: 'M12 8v4m0 4h.01M10.3 4.9l-8 14A1 1 0 0 0 3.2 20h17.6a1 1 0 0 0 .9-1.5l-8-13.6a2 2 0 0 0-3.4 0Z'
   };
-  return `<div class="gv-report-stats">${cards.map(([label, value, hint, key]) => `
-    <article class="gv-report-stat" data-tone="${key}">
-      <div><span>${label}</span><svg aria-hidden="true" viewBox="0 0 24 24"><path d="${icons[key]}"/></svg></div>
-      <strong>${value}</strong><p>${hint}</p>
+  return `<div class="kpis">${cards.map(([label, value, hint, key]) => `
+    <article class="kpi ${key==='help'?'attn':''}">
+      <span class="kpi-label">${label}<i aria-hidden="true"><svg viewBox="0 0 24 24"><path d="${icons[key]}"/></svg></i></span>
+      <span class="kpi-value">${value}</span><span class="kpi-foot">${hint}</span>
     </article>`).join('')}</div>`;
 }
 
@@ -148,12 +148,19 @@ async function page(view) {
   const state = { days: 30, classCode: '', source: 'all', metric: 'turns', bucket: null, band: '', topic: '', moreTopics: false };
   let classes, students, report;
 
-  function render() {
+function render() {
     report = makeReport(students, state);
     const period = root.querySelector('[data-period]');
     period.textContent = `Từ ${labelDay(report.start, true)} đến ${labelDay(report.today, true)}`;
     root.querySelector('[data-stats]').innerHTML = stats(report);
-    root.querySelector('[data-trend]').innerHTML = trend(report, state);
+    const chart = (selector, rows, opts) => window.BieuDo.tuCo(root.querySelector(selector), () => window.BieuDo[opts.kind](root.querySelector(selector), rows, opts));
+    chart('[data-chart-days]', report.buckets.map(b => ({ nhan: dateRange(b.from,b.to), nhanNgan: labelDay(b.from), gt:b.turns, phu:`${n(b.correct)}/${n(b.total)} câu đúng` })), {kind:'cot', donVi:'lượt', moTa:'Lượt học theo ngày', cotNhan:'Ngày', cotGiaTri:'Lượt học'});
+    const classRows = classes.map(c => { const rs=report.rows.filter(r=>r.student.classCode===c.code); const total=rs.reduce((a,r)=>a+r.total,0), correct=rs.reduce((a,r)=>a+r.correct,0); return {nhan:c.name||c.code,gt:total?correct*100/total:0,phu:`${n(total)} câu trả lời`}; }).filter(r=>r.gt||r.phu!=='0 câu trả lời');
+    chart('[data-chart-classes]', classRows, {kind:'ngang', toiDa:100, dinhDang:v=>n(v)+'%', donVi:'%', moTa:'Tỷ lệ đúng theo lớp'});
+    const topicRows=report.topics.map(t=>({nhan:titleOf(t),gt:t.total-t.correct,phu:`${n(t.correct)}/${n(t.total)} câu đúng`})).sort((a,b)=>b.gt-a.gt).slice(0,8);
+    chart('[data-chart-topics]',topicRows,{kind:'ngang',moTa:'Bài còn sai nhiều',donVi:'câu sai'});
+    const bands=report.ranges.map((r,i)=>({nhan:['Dưới 60%','60–80%','80–100%','Chưa có lượt'][i],gt:r.count,mau:['var(--bad)','var(--warn)','var(--good)','var(--muted)'][i]}));
+    chart('[data-chart-bands]',bands,{kind:'ngang',moTa:'Phân bố kết quả học sinh',cotGiaTri:'Học sinh'});
     renderBreakdown();
   }
 
@@ -180,28 +187,21 @@ async function page(view) {
   }
   if (!root.isConnected) return;
   root.removeAttribute('aria-busy');
-  root.innerHTML = storageWarn() + `<div class="gv-report-intro">
-    <div><h2>Báo cáo học tập</h2><span data-period aria-live="polite"></span></div>
-    <button type="button" data-refresh class="gv-report-refresh"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5m10-2a7 7 0 0 0-12-3l-3 5m16 0-3 5a7 7 0 0 1-12-3"/></svg>Làm mới</button>
+  const admin = window.GV.me().role === 'admin';
+  root.innerHTML = storageWarn() + `<header class="page-head"><div><span class="eyebrow">BÁO CÁO HỌC TẬP</span><h2>Thống kê</h2><p>${admin ? 'Toàn trường' : 'Lớp của tôi'} · <span data-period aria-live="polite"></span></p></div><div class="page-actions"><button type="button" data-refresh class="btn">Làm mới</button></div></header>
+  <div class="stats-filters" role="group" aria-label="Bộ lọc thống kê"><label>Lớp<select name="classCode"></select></label><label>Khoảng thời gian<select name="days"><option value="7">7 ngày</option><option value="30" selected>30 ngày</option><option value="90">90 ngày</option></select></label></div>
+  <div data-stats></div><div class="dash stats-dash">
+    <section class="panel"><div class="panel-head"><div><h3>Lượt học theo ngày</h3><p>Số lượt học trong khoảng đã chọn</p></div></div><div data-chart-days></div></section>
+    <section class="panel"><div class="panel-head"><div><h3>Tỷ lệ đúng theo lớp</h3><p>Tỷ lệ câu trả lời đúng</p></div></div><div data-chart-classes></div></section>
+    <section class="panel"><div class="panel-head"><div><h3>Bài còn sai nhiều</h3><p>Số câu trả lời sai theo bài</p></div></div><div data-chart-topics></div></section>
+    <section class="panel"><div class="panel-head"><div><h3>Phân bố kết quả học sinh</h3><p>Số học sinh theo tỷ lệ đúng</p></div></div><div data-chart-bands></div></section>
   </div>
-  <div class="gv-report-filters" role="group" aria-label="Bộ lọc báo cáo">
-    <label>Lớp học<select name="classCode"></select></label>
-    <label>Thời gian<select name="days"><option value="7">7 ngày qua</option><option value="30" selected>30 ngày qua</option><option value="90">90 ngày qua</option></select></label>
-    <label>Loại lượt<select name="source"><option value="all">Tất cả lượt</option><option value="assigned">Có mã bài giao</option><option value="other">Các lượt khác</option></select></label>
-  </div>
-  <div data-stats></div>
-  <div class="gv-report-grid"><div data-trend></div><div data-distribution></div></div>
-  <div class="gv-report-grid gv-report-grid-detail"><div data-topics></div><div data-students></div></div>
-  <details class="gv-report-method"><summary>Cách tính và phạm vi dữ liệu</summary>
-    <ul><li>Tỷ lệ đúng bằng tổng số câu đúng chia cho tổng số câu đã làm. Một học sinh có thể có nhiều lượt học.</li>
-    <li>Kỳ trước là khoảng thời gian ngay liền trước, có cùng số ngày. Báo cáo tính ngày theo giờ Việt Nam. Lượt cũ thiếu mốc giờ dùng ngày lưu trên thiết bị.</li>
-    <li>Gợi ý hỗ trợ áp dụng khi học sinh đã làm ít nhất 10 câu và đúng dưới 60%. Chủ đề được gợi ý ôn lại khi có từ 2 em, ít nhất 10 câu đã trả lời và tỷ lệ đúng dưới 70%.</li>
-    <li>Báo cáo dùng lịch sử đã đồng bộ của học sinh đang kết nối. Lượt học trên thiết bị sẽ xuất hiện sau khi được đồng bộ. Nhóm “Có mã bài giao” gồm các lượt có lưu mã bài giao.</li></ul>
-  </details>`;
+  <details class="stats-details"><summary>Chi tiết học sinh và chủ đề</summary><div class="gv-report-grid"><div data-distribution></div><div data-topics></div></div><div data-students></div></details>
+  <div hidden><div data-trend></div></div>`;
   renderClassOptions();
   render();
 
-  root.querySelector('.gv-report-filters').addEventListener('change', ({ target }) => {
+  root.querySelector('.stats-filters').addEventListener('change', ({ target }) => {
     state[target.name] = target.name === 'days' ? Number(target.value) : target.value;
     Object.assign(state, { bucket: null, band: '', topic: '', moreTopics: false });
     render();

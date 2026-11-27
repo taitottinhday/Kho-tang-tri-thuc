@@ -24,8 +24,8 @@ const fs = require('fs'), os = require('os'), path = require('path');
   try {
     await b.goto(base + 'giao-vien/', 1500);
     await b.eval(`document.querySelector('#loginUser').value='lethiquynhhue'; document.querySelector('#loginPass').value=${JSON.stringify(pw || '')}; document.querySelector('#loginBtn').click(); return 1`);
-    ok(await until(`!document.querySelector('#app').hidden && document.querySelector('.scope-note')`), 'Cô Quỳnh Huệ đăng nhập');
-    ok(await b.eval(`return /7 lớp/.test(document.querySelector('.scope-note').textContent)`), 'Cô thấy đủ 7 lớp mình phụ trách');
+    ok(await until(`!document.querySelector('#app').hidden && document.querySelector('.page-head')`), 'Cô Quỳnh Huệ đăng nhập');
+    ok(await b.eval(`return /7 lớp/.test(document.querySelector('.page-head').textContent)`), 'Cô thấy đủ 7 lớp mình phụ trách');
     await b.eval(`location.hash='goi-ten'; return 1`);
     ok(await until(`document.querySelector('#importClass')`), 'Trang Gọi tên có nút “Lấy tên từ lớp”');
     await b.eval(`document.querySelector('#clearLists').click(); document.querySelector('#importClass').click(); return 1`);

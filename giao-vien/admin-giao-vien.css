@@ -83,3 +83,15 @@
 .admin-demo summary small{color:var(--muted);font-size:.82rem}
 .admin-demo p{margin:10px 0 0;font-size:.88rem;color:#4b5b55}
 .admin-demo-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+
+/* Đợt 22: đồng bộ hệ thiết kế */
+.admin-load{margin-bottom:16px}
+.admin-panel{border-radius:var(--r);box-shadow:var(--shadow)}
+.admin-unassigned{margin:0 0 16px;border-color:#f3d19b;background:#fffbf3}
+.admin-grid{margin-top:0}
+.admin-form input,.admin-dialog input,.admin-search input{border-color:#ccd4e1}
+.admin-table thead{background:var(--soft);color:var(--muted)}
+.admin-chip{background:var(--pri-l);border-color:transparent;color:var(--pri-d)}
+.admin-slip{border-color:var(--pri-ring);background:var(--pri-l)}
+.admin-class-option:has(input:checked){border-color:var(--pri);background:var(--pri-l)}
+.admin-class-option input{accent-color:var(--pri)!important}

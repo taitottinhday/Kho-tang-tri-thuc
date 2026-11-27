@@ -19,7 +19,7 @@ const fs = require('fs'), os = require('os'), path = require('path');
   try {
     await b.goto(base + 'giao-vien/', 1500);
     await b.eval(`document.querySelector('#loginUser').value='admin'; document.querySelector('#loginPass').value='${env.TEACHER_PASSWORD}'; document.querySelector('#loginBtn').click(); return 1`);
-    await until(`!document.querySelector('#app').hidden && document.querySelector('.scope-note')`);
+    await until(`!document.querySelector('#app').hidden && document.querySelector('.page-head')`);
     // 1) chưa có lớp nào: nút dẫn sang tự nhập tên
     await b.eval(`location.hash='goi-ten'; return 1`);
     await until(`document.querySelector('[data-open-game=prince]')`);

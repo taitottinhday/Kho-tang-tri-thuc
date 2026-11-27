@@ -350,3 +350,18 @@ Lỗi tìm thấy ở bộ khung (đã sửa): giáo viên thấy/xoá được 
 - Giao diện: `admin-giao-vien.mjs` viết lại (số liệu trường, lớp chưa giao, phiếu đăng nhập + 🎲 mật khẩu, Xoá kèm chuyển lớp, bảng thành thẻ trên điện thoại); `gv.js` (khung “ai đang đăng nhập”, 🔑 Đổi mật khẩu, ghi chú phạm vi xem, Giao/Chuyển lớp ở trang Lớp học); `app.js` + `may-chu.js` thêm ô tên đăng nhập.
 - Kiểm thử mới: `node tests/admin_api.js` (118, tệp + PostgreSQL), `node tests/admin_e2e.js 1366 860` và `390 844` (26/26).
 - (21:50) Thêm: một giáo viên nhiều lớp – nút **Giao lớp** trên dòng giáo viên (đánh dấu nhiều lớp một lần). Nối **Lớp học → Gọi tên**: nút “📋 Lấy tên từ lớp” trong `goi-hoc-sinh.js` (đoán Nữ/Nam theo tên, thầy cô sửa, nhớ theo học sinh). `tests/caller_class_e2e.js` dùng `scripts/seed-demo-classrooms.js` của Codex: 18/18 ở 1366 và 390. `admin_e2e` 31/31. Tệp `.data-local-server*.log` của Codex không commit.
+
+## 🎨 ĐỢT 22 (27-11, khuya) – thầy yêu cầu XÂY LẠI GIAO DIỆN luồng giáo viên + quản trị (chuyên nghiệp, hai luồng khác nhau, có biểu đồ)
+- Claude: hệ thiết kế mới (khối “ĐỢT 22” cuối `giao-vien/gv.css`), khung + menu nhóm (`index.html`), `bieu-do.js` (BieuDo.cot / ngang / tuCo), `gv.js` (Tổng quan giáo viên, Tổng quan trường, Lớp học, Học sinh, Tài liệu, Trợ giúp), `admin-giao-vien.*`.
+- Codex: `thong-ke.*` (Thống kê có biểu đồ), `bai-hoc.js` + `trang-day-hoc.css` (Bài học, Giao bài). Chi tiết trong lệnh giao việc. Không sửa tệp của bên kia; cần gì thì ghi ở đây.
+
+### Codex – cập nhật ĐỢT 22 (27-11)
+- `giao-vien/thong-ke.mjs/css`: đổi sang đầu trang Báo cáo học tập, bộ lọc lớp/khoảng thời gian, KPI và bốn biểu đồ `BieuDo` (lượt theo ngày, đúng theo lớp, bài sai nhiều, phân bố 4 nhóm). Nhãn phạm vi lấy từ vai trò; dữ liệu tiếp tục qua `GV.load` đã lọc quyền.
+- `giao-vien/bai-hoc.js` + `trang-day-hoc.css`: đầu trang Bài học/Giao bài thống nhất, giảm biểu tượng trang trí, tiến độ kèm phần trăm và biểu đồ tỷ lệ nộp; giữ các id giao diện hiện có.
+- Kiểm tra cú pháp `node --check giao-vien/thong-ke.mjs` và `node --check giao-vien/bai-hoc.js`: đạt. Smoke test `buildServer()` riêng: đạt.
+- **Kiểm thử giao diện và ảnh chưa hoàn tất:** `node tests/gv_e2e.js 390 844`, `PG=1 node tests/gv_e2e.js 1366 860`, `node tests/teacher_link_e2e.js` đều bị treo khi khởi chạy Chromium/CDP qua `tests/cdp_driver.js`, trước đầu ra đầu tiên. Thử mở CDP tối thiểu cũng bị treo. Chưa chụp/xem được ảnh trong `qa-results/dot22-codex/`; cần chạy lại các kiểm tra và ảnh khi Chrome/CDP hoạt động. Vì vậy chưa đánh dấu “CODEX XONG ĐỢT 22”.
+
+### Claude – CHỐT ĐỢT 22 (28-11)
+- Đã chạy thay phần Codex bị treo trình duyệt và xem ảnh 1366 + 390. Sửa thêm: nhãn ngày trên biểu đồ không đè nhau, ẩn khung biểu đồ khi chưa giao bài, menu gọn trên màn thấp, bảng giáo viên gọn trên điện thoại.
+- Đạt: server_api 141, admin_api 118, gv_e2e 64×2 (tệp + PostgreSQL), admin_e2e 31×2, caller_class 18, caller_empty 11, demo_data 14, teacher_link (1 lần trượt do thời gian, 3 lần đạt), season_e2e, teacher-games-browser, layout_sweep 0 lỗi, dot22_shots 19×2.
+- Commit local, CHƯA push – chờ thầy nói “push đi”.

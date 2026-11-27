@@ -15,7 +15,7 @@ const fs = require('fs'), os = require('os'), path = require('path');
   let pass = 0, fail = 0;
   const ok = (c, n, x) => { c ? pass++ : fail++; console.log((c ? '  ✓ ' : '  ✗ ') + n + (c || x === undefined ? '' : ' — ' + JSON.stringify(x).slice(0, 400))); };
   const until = (expr, ms) => b.eval(`for (let i=0;i<${Math.ceil((ms || 6000) / 100)};i++){ if (${expr}) return true; await new Promise(r=>setTimeout(r,100)); } return false;`);
-  const login = async (user, pw) => { await b.eval(`document.querySelector('#loginUser').value=${JSON.stringify(user)}; document.querySelector('#loginPass').value=${JSON.stringify(pw)}; document.querySelector('#loginBtn').click(); return 1`); return until(`!document.querySelector('#app').hidden && document.querySelector('.scope-note')`); };
+  const login = async (user, pw) => { await b.eval(`document.querySelector('#loginUser').value=${JSON.stringify(user)}; document.querySelector('#loginPass').value=${JSON.stringify(pw)}; document.querySelector('#loginBtn').click(); return 1`); return until(`!document.querySelector('#app').hidden && document.querySelector('.page-head')`); };
   const status = () => b.eval(`return document.querySelector('[data-demo-status]').textContent`);
   try {
     await b.goto(base + 'giao-vien/', 1500);
@@ -34,7 +34,7 @@ const fs = require('fs'), os = require('os'), path = require('path');
     await b.eval(`document.querySelector('#logout').click(); return 1`);
     await until(`!document.querySelector('#login').hidden`);
     ok(await login('lethiquynhhue', pw), 'Cô Quỳnh Huệ đăng nhập bằng mật khẩu trên phiếu');
-    ok(await b.eval(`return /7 lớp/.test(document.querySelector('.scope-note').textContent)`), 'Cô thấy 7 lớp');
+    ok(await b.eval(`return /7 lớp/.test(document.querySelector('.page-head').textContent)`), 'Cô thấy 7 lớp');
     await b.eval(`location.hash='thong-ke'; return 1`);
     ok(await until(`!/Đang tải/.test(document.querySelector('#view').textContent) && document.querySelector('#view').textContent.length > 200`, 15000), 'Trang Thống kê mở được với dữ liệu 7 lớp');
     await b.shot(path.join(out, 'thong-ke-' + w + '.png'));
