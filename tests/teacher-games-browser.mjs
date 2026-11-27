@@ -80,7 +80,7 @@ try {
       const pose = key === 'prince' ? 'document.querySelector("#callerCinema[data-canh^=ht-] .phim-nhung .ph-shot img.base")' : 'document.querySelector("#callerCinema[data-canh^=sut-] .phim-nhung .ph-shot img.base")';
       await captureMotion(image, pose, key === 'penalty' ? 55 : 48);
       check(await browser.eval('return !document.querySelector("#gameStage").classList.contains("is-running") || !document.querySelector(".caller-student.is-done")'), name + ' does not mark the selected name before the result');
-      check(await until(`document.querySelector('#resultOverlay').classList.contains('is-shown')`, 26000), name + ' story reaches the reveal');
+      check(await until(`document.querySelector('#resultOverlay').classList.contains('is-shown')`, 180000), name + ' story reaches the reveal');
       check(await browser.eval('const imgs=[...document.querySelectorAll("#callerCinema .ph-shot img.base")]; return imgs.length>0 && imgs.every(i=>i.complete && i.naturalWidth>0)'), name + ' shows real 3D film frames');
       selectedByGame[key] = await browser.eval(`return [...document.querySelectorAll('.caller-result-person b')].map(item=>item.textContent)`);
       check(selectedByGame[key].length === requested, name + ' completes a ' + requested + '-student turn', selectedByGame[key]);
@@ -95,9 +95,9 @@ try {
 
   await browser.eval(`document.querySelector('#liveCount').value='3';document.querySelector('#liveCount').dispatchEvent(new Event('change'));document.querySelector('#liveSpeed').value='10';document.querySelector('#liveSpeed').dispatchEvent(new Event('change'));document.querySelector('#startStory').click();return 1`);
   await captureMotion('detective', 'document.querySelector("#callerCinema[data-canh^=tt-] .phim-nhung .ph-shot img.base")', 45);
-  check(await until('document.querySelector(".cp-target strong, .cp-card strong, .cp-surface strong")', 20000), 'A name card or magnifier tag appears on the film stage');
+  check(await until('document.querySelector(".cp-target strong, .cp-card strong, .cp-surface strong")', 180000), 'A name card or magnifier tag appears on the film stage');
   check(await until('!document.querySelector(".caller-cinema-evidence").hidden'), 'Detective moves from the entrance into the magnifier and clue sequence');
-  check(await until(`document.querySelector('#resultOverlay').classList.contains('is-shown')`, 26000), 'Detective story reaches the reveal');
+  check(await until(`document.querySelector('#resultOverlay').classList.contains('is-shown')`, 180000), 'Detective story reaches the reveal');
   const result = await browser.eval(`return {winners:[...document.querySelectorAll('.caller-result-person b')].map(item=>item.textContent),history:document.querySelector('#todayCount').textContent,round:document.querySelector('#roundProgress').textContent}`);
   check(result.winners.length === 3 && new Set(result.winners).size === 3, 'Three different students are revealed', result);
   selectedByGame.detective = result.winners;
@@ -140,13 +140,13 @@ try {
     document.querySelector('#startStory').click();
     return 1;
   `);
-  check(await until('document.querySelector(".cp-surface.scroll")', 19000), 'The prince unrolls a golden scroll with a name in a three-name turn');
+  check(await until('document.querySelector(".cp-surface.scroll")', 180000), 'The prince unrolls a golden scroll with a name in a three-name turn');
   await browser.sleep(850); // chờ hiệu ứng viết chữ (phóng từ 1.6 về 1) xong rồi mới đo
   const scroll = await browser.eval('const c=document.querySelector(".cp-surface.scroll").getBoundingClientRect(); const s=document.querySelector("#gameStage").getBoundingClientRect(); const n=document.querySelector(".cp-surface strong"); const r=n.getBoundingClientRect(); return { name: n.textContent, fits: c.left>=s.left-1 && c.right<=s.right+1 && r.top>=s.top-1 && r.bottom<=s.bottom+1 && n.scrollWidth<=n.clientWidth+1, box:[c.left,c.right,s.left,s.right,c.height], font: getComputedStyle(n).fontSize }');
   await browser.shot(path.join(out, 'prince-mobile-scroll.png'));
   console.log('   scroll', JSON.stringify(scroll));
   check(longNames.includes(scroll.name) && scroll.fits, 'The scroll shows one of the chosen long names and fits on mobile', scroll);
-  check(await until('document.querySelector("#resultOverlay").classList.contains("is-shown")', 20000), 'The three-name prince animation completes');
+  check(await until('document.querySelector("#resultOverlay").classList.contains("is-shown")', 180000), 'The three-name prince animation completes');
   const longResult = await browser.eval(`return {
     names:[...document.querySelectorAll('#resultNames .caller-result-person b')].map(name => name.textContent),
     focus:document.activeElement.id,

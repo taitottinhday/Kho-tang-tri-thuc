@@ -1,5 +1,8 @@
 import { createCinema } from './caller-phim.mjs';
 import { makeRoster, parseNames, reserveDraw, completeDraw, restoreStudent, normalizeDailyState, buildDetectiveClues, secureShuffle } from './goi-hoc-sinh-core.mjs';
+const SPEEDS = [60, 90, 120]; // giây cho một lượt gọi – học sinh tiểu học cần đọc chậm
+const OLD_SPEED = { 10: 60, 15: 60, 20: 90, 25: 60, 35: 90 }; // máy đang lưu nhịp cũ → nhịp mới
+const PACE = { 60: 1, 90: 1.25, 120: 1.5 }; // nhịp chậm thì mỗi câu đứng lâu hơn
 
 /* Three classroom stories share one roster and one calling round. */
 const KEY = 'vuonchu.callerGames.v1';
@@ -32,11 +35,11 @@ function readSaved() {
     return {
       lists: { girls: String(value.lists?.girls || ''), boys: String(value.lists?.boys || '') },
       count: [1, 2, 3].includes(Number(value.count)) ? Number(value.count) : 1,
-      seconds: [10, 15, 20].includes(Number(value.seconds)) ? Number(value.seconds) : 15,
+      seconds: SPEEDS.includes(Number(value.seconds)) ? Number(value.seconds) : OLD_SPEED[Number(value.seconds)] || 60,
       sound: value.sound === true,
       daily: normalizeDailyState(value.daily, localDate())
     };
-  } catch { return { lists: { girls: '', boys: '' }, count: 1, seconds: 15, sound: false, daily: normalizeDailyState(null, localDate()) }; }
+  } catch { return { lists: { girls: '', boys: '' }, count: 1, seconds: 60, sound: false, daily: normalizeDailyState(null, localDate()) }; }
 }
 
 async function page(view) {
@@ -85,7 +88,7 @@ async function page(view) {
             <label class="caller-list-field boys-field"><span class="caller-list-label"><b>👦 Danh sách Nam</b><small><strong id="boysCount">0</strong> bạn</small></span><textarea id="boysNames" rows="5" placeholder="Dán hoặc nhập tên, mỗi dòng một bạn&#10;Ví dụ:&#10;Lê Minh Khang&#10;Phạm Gia Bảo"></textarea></label>
             <div class="caller-list-field all-field"><span class="caller-list-label"><b>🌟 Cả lớp</b><small><strong id="allCount">0</strong> bạn · tự gộp</small></span><pre id="allNamesPreview">Danh sách Nữ và Nam sẽ tự gộp ở đây.</pre></div>
           </div>
-          <div class="caller-common-settings"><div class="caller-choice"><span class="caller-setting-label">Gọi bao nhiêu bạn?</span><div class="caller-segment" data-setting="count"><button type="button" data-value="1">1 bạn</button><button type="button" data-value="2">2 bạn</button><button type="button" data-value="3">3 bạn</button></div></div><div class="caller-choice"><span class="caller-setting-label">Nhịp của lượt chơi</span><div class="caller-segment caller-speed" data-setting="seconds"><button type="button" data-value="10"><b>Nhanh</b><small>10 giây</small></button><button type="button" data-value="15"><b>Vừa</b><small>15 giây</small></button><button type="button" data-value="20"><b>Hồi hộp</b><small>20 giây</small></button></div></div></div>
+          <div class="caller-common-settings"><div class="caller-choice"><span class="caller-setting-label">Gọi bao nhiêu bạn?</span><div class="caller-segment" data-setting="count"><button type="button" data-value="1">1 bạn</button><button type="button" data-value="2">2 bạn</button><button type="button" data-value="3">3 bạn</button></div></div><div class="caller-choice"><span class="caller-setting-label">Nhịp của lượt chơi</span><div class="caller-segment caller-speed" data-setting="seconds"><button type="button" data-value="60"><b>Vừa</b><small>1 phút</small></button><button type="button" data-value="90"><b>Chậm</b><small>1,5 phút</small></button><button type="button" data-value="120"><b>Hồi hộp</b><small>2 phút</small></button></div></div></div>
           <div class="caller-setup-foot"><span>🔒 Tên chỉ lưu trong trình duyệt này, không gửi lên máy chủ.</span><button id="clearLists" type="button">Xóa danh sách</button></div>
         </section>
 
@@ -94,7 +97,7 @@ async function page(view) {
       </section>
 
       <section class="caller-play" id="callerPlay" hidden>
-        <header class="caller-play-top"><button class="caller-home-button" id="backHome" type="button">← Chọn trò khác</button><div class="caller-play-title"><span id="playGameIcon">✦</span><div><b id="playGameName"></b><small id="playGameSubtitle"></small></div></div><div class="caller-play-tools"><label class="caller-count-live"><span>Số bạn</span><select id="liveCount"><option value="1">1 bạn</option><option value="2">2 bạn</option><option value="3">3 bạn</option></select></label><label class="caller-count-live"><span>Nhịp chơi</span><select id="liveSpeed"><option value="10">Nhanh · 10s</option><option value="15">Vừa · 15s</option><option value="20">Hồi hộp · 20s</option></select></label><label class="caller-sound"><input type="checkbox" id="soundToggle"><span>♫</span><b>Âm thanh</b></label><button class="caller-tool-icon" id="fullscreenToggle" type="button" title="Toàn màn hình">⛶</button></div></header>
+        <header class="caller-play-top"><button class="caller-home-button" id="backHome" type="button">← Chọn trò khác</button><div class="caller-play-title"><span id="playGameIcon">✦</span><div><b id="playGameName"></b><small id="playGameSubtitle"></small></div></div><div class="caller-play-tools"><label class="caller-count-live"><span>Số bạn</span><select id="liveCount"><option value="1">1 bạn</option><option value="2">2 bạn</option><option value="3">3 bạn</option></select></label><label class="caller-count-live"><span>Nhịp chơi</span><select id="liveSpeed"><option value="60">Vừa · 1 phút</option><option value="90">Chậm · 1,5 phút</option><option value="120">Hồi hộp · 2 phút</option></select></label><label class="caller-sound"><input type="checkbox" id="soundToggle"><span>♫</span><b>Âm thanh</b></label><button class="caller-tool-icon" id="fullscreenToggle" type="button" title="Toàn màn hình">⛶</button></div></header>
         <section class="caller-stage" id="gameStage" aria-label="Sân khấu hoạt hình">
           <div class="caller-cinema" id="callerCinema">
           <div class="caller-cinema-world" aria-hidden="true">
@@ -120,7 +123,7 @@ async function page(view) {
         <section class="caller-board-wrap" aria-label="Danh sách sân khấu">
           <h3>Học sinh trong lượt này</h3>
           <div class="caller-name-board" id="nameBoard" role="list" aria-label="Tên học sinh"></div>
-          <div class="caller-no-names" id="noNames" hidden><b>Sân khấu đang chờ tên học sinh</b><small>Chọn trò khác để quay lại và nhập danh sách lớp.</small></div>
+          <div class="caller-no-names" id="noNames" hidden><b>Sân khấu đang chờ tên học sinh</b><small>Bấm “📋 Thêm danh sách” bên dưới để lấy tên từ lớp hoặc tự nhập tên.</small></div>
         </section>
       </section>
     </main>`;
@@ -178,8 +181,9 @@ async function page(view) {
     $('#roundProgress', root).innerHTML = 'Lượt <b>' + used + '</b>/<i>' + list.length + '</i> · <u>Làm mới</u>';
     $('#roundProgress', root).disabled = busy || !used;
     $('#stageStatus', root).textContent = !list.length ? 'Thêm danh sách để mở sân khấu' : left ? 'Còn ' + left + ' bạn chưa được gọi trong lượt này' : 'Cả nhóm đã có lượt — làm mới để bắt đầu vòng mới';
-    $('#playHint', root).textContent = !list.length ? 'Hãy thêm tên ở danh sách trước khi chơi.' : left ? 'Mỗi bạn một lượt trong vòng hiện tại.' : 'Nhóm này đã hết lượt. Bạn có thể chọn trò khác hoặc làm mới lượt gọi.';
-    startButton.disabled = busy || !left;
+    const need = meta.scope === 'girls' ? 'Trò này gọi các bạn nữ – cần danh sách Nữ. ' : meta.scope === 'boys' ? 'Trò này gọi các bạn nam – cần danh sách Nam. ' : '';
+    $('#playHint', root).textContent = !list.length ? need + 'Bấm “Thêm danh sách” để lấy tên từ lớp hoặc tự nhập.' : left ? 'Mỗi bạn một lượt trong vòng hiện tại.' : 'Nhóm này đã hết lượt. Bạn có thể chọn trò khác hoặc làm mới lượt gọi.';
+    startButton.disabled = busy || (!left && list.length > 0); // chưa có tên: nút mở chỗ thêm danh sách
     skipButton.hidden = !busy;
     $('#backHome', root).disabled = busy;
     $('#liveCount', root).disabled = busy;
@@ -187,7 +191,7 @@ async function page(view) {
     const again = $('#playAgain', root);
     again.disabled = busy;
     again.hidden = !left;
-    startButton.querySelector('b').textContent = busy ? 'Đang diễn ra…' : !list.length ? 'Chưa có danh sách' : left ? meta.start : 'Đã hết lượt trong vòng';
+    startButton.querySelector('b').textContent = busy ? 'Đang diễn ra…' : !list.length ? '📋 Thêm danh sách' : left ? meta.start : 'Đã hết lượt trong vòng';
     const button = $('#roundProgress', root);
     button.title = left ? 'Bấm để làm mới lượt gọi' : 'Bắt đầu một vòng mới';
   }
@@ -349,7 +353,27 @@ async function page(view) {
     };
     effects[effect]?.();
   }
-  async function typeDialogue(text, duration = 520) {
+  /* Thời gian đọc cho học sinh tiểu học: tính theo số TIẾNG trong câu (lớp 1 đọc chậm). */
+  function readTime(text) {
+    const words = String(text).trim().split(/\s+/).filter(Boolean).length;
+    return Math.round(Math.min(8000, Math.max(2600, 1600 + words * 480)) * (PACE[settings.seconds] || 1));
+  }
+  let lineUntil = 0, dialogueChain = Promise.resolve(), dialogueEpoch = 0;
+  /* Xếp hàng lời thoại: câu sau chỉ hiện khi câu trước đã đứng đủ thời gian đọc. Rời trò / bấm “Hiện kết quả” thì bỏ hàng chờ. */
+  function typeDialogue(text, duration = 520) {
+    const epoch = dialogueEpoch, signal = storyRun?.controller.signal;
+    const run = dialogueChain.then(async () => {
+      if (epoch !== dialogueEpoch || signal?.aborted) return;
+      const wait = lineUntil - performance.now();
+      if (wait > 0) await new Promise(resolve => { const t = setTimeout(resolve, wait); signal?.addEventListener('abort', () => { clearTimeout(t); resolve(); }, { once: true }); });
+      if (epoch !== dialogueEpoch || signal?.aborted) return;
+      await typeNow(text, Math.max(duration, Math.min(2200, Array.from(String(text)).length * 40)));
+      lineUntil = performance.now() + readTime(text);
+    });
+    dialogueChain = run.catch(() => {});
+    return run;
+  }
+  async function typeNow(text, duration) {
     const sequence = ++dialogueSequence;
     const box = $('#dialogueBox', root); const target = $('#dialogueText', root);
     if (matchMedia('(prefers-reduced-motion: reduce)').matches) { target.textContent = text; return; }
@@ -377,10 +401,13 @@ async function page(view) {
       frameId = requestAnimationFrame(frame);
     });
   }
+  /* Lời thoại phải ĐỌC KỊP: gõ chữ vừa phải rồi đứng yên một lúc (câu dài đứng lâu hơn) trước khi sang nhịp sau.
+     Nhịp “Hồi hộp” giữ lâu hơn; nút “Hiện kết quả” vẫn cắt ngang được ngay. */
   async function say(text, duration) {
     const signal = storyRun?.controller.signal;
-    await typeDialogue(text, duration);
+    await typeDialogue(text, duration || 520);
     signal?.throwIfAborted();
+    await delay(Math.max(0, lineUntil - performance.now())); // đứng yên cho cả lớp đọc xong
   }
   function setEmotion(students, className = 'is-candidate') {
     $$('.caller-student', board).forEach(tile => tile.classList.remove('is-candidate', 'is-winner', 'is-pointed'));
@@ -433,9 +460,10 @@ async function page(view) {
     await delay(wait);
   }
   async function interlude(game, name, wait = 650) {
+    const began = performance.now();
     await say(pickLine(game, name), Math.min(540, wait));
     tone(game === 'penalty' ? 440 : game === 'detective' ? 310 : 660, .08, .025, 'sine');
-    await delay(Math.max(50, wait - 500));
+    await delay(Math.max(50, wait - (performance.now() - began)));
   }
 
   async function playPrince(batch, pool, totalMs, timeLeft) {
@@ -471,29 +499,34 @@ async function page(view) {
   async function playPenalty(batch, pool, totalMs, timeLeft) {
     scene?.enter();
     await say('Trận đấu đang ở phút quyết định… Đặt bóng nào!', 620); tone(190, .22, .04, 'square');
-    const extraBuildUp = Math.max(0, totalMs - (batch.length * 3450 + 1800)) / batch.length;
     const decoys = secureShuffle(pool.filter(student => !batch.some(winner => winner.id === student.id)));
+    const reactions = ['Đổi chân rồi!', 'Bóng dội cột! Vẫn đang lăn…', 'Thủ môn đổ người! Bóng tuột tay mất rồi!'];
+    let aim = randomIndex(Math.max(1, decoys.length));
     for (let index = 0; index < batch.length; index++) {
-      const falseAim = decoys.length ? decoys[(index * 2 + randomIndex(decoys.length)) % decoys.length] : batch[index];
-      scene?.prepareShot();
-      await say('Cầu thủ lùi lại… thủ môn đang đoán hướng sút!', 480);
-      if (extraBuildUp > 250) await delay(extraBuildUp * .5);
-      setEmotion([falseAim], 'is-candidate');
-      scene?.travel(falseAim);
-      const trick = randomIndex(3);
-      const reaction = ['Đổi chân rồi!', 'Bóng dội cột! Vẫn đang lăn…', 'Thủ môn đổ người! Bóng tuột tay mất rồi!'][trick];
-      void typeDialogue('Sút về phía ' + falseAim.name + ' à?!', 400);
-      scene?.fakeShot(trick, () => { void typeDialogue(reaction, 290); });
-      await delay((trick === 0 ? 830 : 1360) + extraBuildUp * .5);
+      /* mỗi cú sút thật có 1–4 cú sút lừa tuỳ thời gian; mỗi cú lừa khoảng 11 giây kể cả lúc đọc */
+      const kicksLeft = batch.length - index;
+      const fakes = Math.max(1, Math.min(4, Math.floor((timeLeft() / kicksLeft - 9000) / 11000)));
+      for (let f = 0; f < fakes; f++) {
+        const falseAim = decoys.length ? decoys[aim++ % decoys.length] : batch[index];
+        scene?.prepareShot();
+        await say(f === 0 ? 'Cầu thủ lùi lại… thủ môn đang đoán hướng sút!' : 'Lại lùi lấy đà… cả sân im phăng phắc!', 480);
+        setEmotion([falseAim], 'is-candidate');
+        scene?.travel(falseAim);
+        await say('Sút về phía ' + falseAim.name + ' à?!', 400);
+        const trick = randomIndex(3);
+        scene?.fakeShot(trick);
+        await delay(trick === 0 ? 450 : 1150);
+        await say(reactions[trick], 290);
+      }
       if (index === batch.length - 1) {
-        if (timeLeft() > 2750) {
+        if (timeLeft() > 9000) {
           await say('Cả sân đang nín thở chờ cú sút cuối…', 490);
-          await delay(Math.max(0, timeLeft() - 2190));
+          await delay(Math.max(0, timeLeft() - 6500));
         }
         await spotlight(1540, () => scene?.scoreShot(index, true, batch[index]));
       } else {
         scene?.scoreShot(index, false, batch[index]);
-        await delay(Math.max(1320, scene?.revealWait?.() || 0)); // đủ lâu để đọc tên trước cú sút sau
+        await delay(Math.max(2600, scene?.revealWait?.() || 0)); // đủ lâu để đọc tên trước cú sút sau
       }
       setEmotion([batch[index]], 'is-pointed');
     }
@@ -538,6 +571,7 @@ async function page(view) {
       }
       for (const [index, clue] of clues.entries()) {
         if (clue.remaining.length === 1) await considerDecoy();
+        const clueBegan = performance.now();
         await say('Manh mối ' + (index + 1) + ': ' + clue.text, Math.min(530, clueTime * .68));
         scene?.stampClue(clue);
         survivors = clue.remaining;
@@ -546,7 +580,7 @@ async function page(view) {
           if (candidateIds.has(tile.dataset.id) && !survivorIds.has(tile.dataset.id)) tile.classList.add('is-eliminated');
         });
         setEmotion(survivors.length > 1 ? [survivors[randomIndex(survivors.length)]] : []);
-        await delay(clueTime - Math.min(530, clueTime * .68));
+        await delay(Math.max(600, clueTime - (performance.now() - clueBegan)));
       }
       await considerDecoy();
       if (caseIndex === batch.length - 1) {
@@ -599,6 +633,7 @@ async function page(view) {
     hashDay();
     if (settings.daily.pending) { await recoverDraw(settings.daily.pending); return; }
     const meta = GAME[activeGame];
+    if (!getGameRoster().length) { addNames(); return; }
     const pool = remaining(meta.scope);
     if (!pool.length) { updateGameStats(); return; }
     const id = globalThis.crypto?.randomUUID?.() || Date.now() + ':' + randomIndex(1000000);
@@ -638,7 +673,7 @@ async function page(view) {
     if (!GAME[key]) return;
     if (scene) { scene.destroy(); scene = null; }
     activeGame = key;
-    dialogueSequence++;
+    dialogueSequence++; dialogueEpoch++; lineUntil = 0;
     const meta = GAME[key];
     home.hidden = true; play.hidden = false;
     $('#playGameIcon', root).textContent = meta.icon;
@@ -657,7 +692,7 @@ async function page(view) {
   function goHome() {
     if (busy) return;
     stopMusic();
-    dialogueSequence++;
+    dialogueSequence++; dialogueEpoch++; lineUntil = 0;
     if (scene) { scene.destroy(); scene = null; }
     activeGame = ''; play.hidden = true; home.hidden = false; setRoster();
   }
@@ -683,6 +718,14 @@ async function page(view) {
   $('#refreshRound', root).onclick = refreshToday;
   $('#clearLists', root).onclick = () => { $('#girlsNames', root).value = ''; $('#boysNames', root).value = ''; setRoster(); };
   $('#importClass', root).onclick = () => importFromClass().catch(error => window.GV?.fail?.(error));
+  /* chưa có tên khi đang ở màn chơi: mở thẳng hộp lấy tên, không bắt thầy cô tự tìm đường quay lại */
+  function addNames() { if (window.GV?.load) importFromClass().catch(() => typeNames()); else typeNames(); }
+  function typeNames() {
+    const scope = GAME[activeGame]?.scope;
+    if (activeGame && !busy) goHome();
+    const box = $(scope === 'boys' ? '#boysNames' : '#girlsNames', root);
+    requestAnimationFrame(() => { box.scrollIntoView({ block: 'center', behavior: 'smooth' }); box.focus({ preventScroll: true }); });
+  }
   /* Nối luồng Lớp học → Gọi tên: lấy tên học sinh đã kết nối với lớp, chia Nữ / Nam.
      Máy chủ không lưu giới tính nên đoán theo tên, thầy cô bấm sửa; lựa chọn được nhớ theo từng học sinh trên máy này. */
   async function importFromClass() {
@@ -690,7 +733,8 @@ async function page(view) {
     if (!GV?.load) return;
     const [classes, students] = await Promise.all([GV.load('classes', true), GV.load('students', true)]);
     if (!classes.length) {
-      GV.dialog('<h2>📋 Lấy tên từ lớp</h2><p>Thầy cô chưa phụ trách lớp nào. Tạo lớp ở mục <a href="#lop" data-close>Lớp học</a> (hoặc nhờ quản trị giao lớp), cho học sinh nhập mã lớp, rồi quay lại đây.</p><div class="actions"><button class="btn primary" data-close>Đã hiểu</button></div>');
+      const d0 = GV.dialog('<h2>📋 Thêm danh sách</h2><p>Thầy cô chưa phụ trách lớp nào trên máy chủ, nên chưa lấy tên từ lớp được. Thầy cô có thể <b>tự nhập tên</b> (mỗi dòng một bạn), hoặc tạo lớp ở mục <a href="#lop" data-close>Lớp học</a> / nhờ quản trị giao lớp.</p><div class="actions"><button class="btn" data-close>Đóng</button><button class="btn primary" id="ciType">✍️ Tự nhập tên</button></div>');
+      $('#ciType', d0).onclick = () => { d0.close(); typeNames(); };
       return;
     }
     const saved = (() => { try { return JSON.parse(localStorage.getItem(GENDER_KEY) || '{}') || {}; } catch { return {}; } })();
@@ -699,7 +743,8 @@ async function page(view) {
       '<p class="hint">Trò <b>Hoàng tử</b> gọi các bạn nữ, <b>Sút phạt đền</b> gọi các bạn nam, <b>Thám tử</b> gọi cả lớp. Máy đoán Nữ/Nam theo tên – thầy cô bấm để sửa những bạn đoán sai.</p>' +
       '<div class="caller-import-head"><b id="ciCount"></b><span><button type="button" class="btn sm" data-all="nu">Tất cả Nữ</button><button type="button" class="btn sm" data-all="nam">Tất cả Nam</button></span></div>' +
       '<div class="caller-import-list" id="ciList"></div>' +
-      '<p class="hint">Danh sách hiện tại trên trang sẽ được thay bằng danh sách lớp này.</p><div class="actions"><button type="button" class="btn" data-close>Huỷ</button><button class="btn primary" id="ciOk">Đưa vào danh sách</button></div></form>');
+      '<p class="hint">Danh sách hiện tại trên trang sẽ được thay bằng danh sách lớp này.</p><div class="actions"><button type="button" class="btn" id="ciType">✍️ Tự nhập tên</button><button type="button" class="btn" data-close>Huỷ</button><button class="btn primary" id="ciOk">Đưa vào danh sách</button></div></form>');
+    $('#ciType', d).onclick = () => { d.close(); typeNames(); };
     let rows = [];
     const draw = () => {
       const code = $('#ciClass', d).value;

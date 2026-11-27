@@ -46,7 +46,7 @@ const fs = require('fs'), os = require('os'), path = require('path');
       await b.eval(`document.querySelector('#backHome')?.click(); document.querySelector('[data-open-game=${game}]').click(); return 1`);
       await until(`document.querySelectorAll('.caller-student').length > 0`);
       await b.eval(`document.querySelector('#liveCount').value='1'; document.querySelector('#liveCount').dispatchEvent(new Event('change')); document.querySelector('#startStory').click(); return 1`);
-      ok(await until(`document.querySelector('#resultOverlay').classList.contains('is-shown')`, 60000), 'Trò ' + game + ' chạy đến bảng kết quả');
+      ok(await until(`document.querySelector('#resultOverlay').classList.contains('is-shown')`, 180000), 'Trò ' + game + ' chạy đến bảng kết quả');
       const winner = await b.eval(`return document.querySelector('#resultNames b')?.textContent || ''`);
       const list = await b.eval(`return document.querySelector('#${scope === 'girls' ? 'girlsNames' : scope === 'boys' ? 'boysNames' : 'girlsNames'}').value + '\\n' + ${scope === 'all' ? "document.querySelector('#boysNames').value" : "''"}`);
       ok(winner && list.split('\n').includes(winner), 'Trò ' + game + ' gọi đúng một bạn trong lớp vừa lấy', winner);
