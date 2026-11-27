@@ -8,7 +8,7 @@ const path = require('node:path');
 async function main() {
   const width = Number(process.argv[2] || 390), height = Number(process.argv[3] || 844);
   const browser = await launch(width, height);
-  const out = path.join('qa-results', 'vuon-truyen');
+  const out = path.join('qa-results', 'vuon-truyen-canh-dong');
   fs.mkdirSync(out, { recursive: true });
   const click = selector => browser.eval('document.querySelector(' + JSON.stringify(selector) + ').click()');
   try {
@@ -82,11 +82,13 @@ async function main() {
             const sprite = document.querySelector('.forest-panel.is-open .forest-traveler-sprite img');
             return { stride: sprite?.getAnimations().some(animation => animation.animationName === 'chaseStride'),
               escorts: [...document.querySelectorAll('.forest-escort img')].filter(img => img.getAnimations().some(animation => animation.animationName === 'chaseStride')).length,
+              parallax: document.querySelector('.forest-near').getAnimations().some(animation => animation.animationName === 'forestNearSlide'),
+              travel: document.querySelector('.forest-traveler-path').getAnimations().some(animation => animation.animationName === 'forestPass'),
               wait: document.querySelector('#plCont').disabled, feedback: !document.querySelector('#plSheet').hidden };
           `);
-          assert.deepEqual(motion, { stride:true, escorts:mode === 'royal' ? 2 : 0, wait:true, feedback:true });
+          assert.deepEqual(motion, { stride:true, escorts:mode === 'royal' ? 2 : 0, parallax:true, travel:true, wait:true, feedback:true });
           if (width === 390 && chapter === chapters[0] && i === 0) {
-            await browser.sleep(385);
+            await browser.sleep(650);
             await browser.shot(path.join(out, 'qua-chot-' + mode + '-' + width + '.png'));
           }
           await browser.eval(`
@@ -107,11 +109,25 @@ async function main() {
           ids:points.map(b => b.dataset.storyRelic), fits:points.every(b => b.offsetWidth >= 44 && b.getBoundingClientRect().right <= innerWidth) };
       `);
       assert.deepEqual(mapState, { view:'story-grove', map, ids:chapters, fits:true });
+      assert.ok(await browser.eval(`
+        const canvas = document.querySelector('.forest-ambient');
+        await new Promise(resolve => setTimeout(resolve, 170));
+        const first = canvas.toDataURL();
+        await new Promise(resolve => setTimeout(resolve, 140));
+        return canvas.width >= 240 && first !== canvas.toDataURL();
+      `), 'Mặt nước và ánh sáng đổi khung ngay trên bản đồ');
       if (width === 390) await browser.shot(path.join(out, 'ban-do-' + mode + '-' + width + '.png'));
       for (const id of chapters) {
         const hotspot = '[data-story-relic="' + id + '"]';
-        await click(hotspot);
-        assert.equal(await browser.eval(`return document.querySelector('.forest-grove-stage').dataset.discovery`), id);
+        const turn = await browser.eval(`
+          const stage = document.querySelector('.forest-grove-stage');
+          document.querySelector(${JSON.stringify(hotspot)}).click();
+          const camera = stage.querySelector('.forest-map-camera').getAnimations().find(animation => animation.id === 'story-map-approach');
+          const busy = stage.getAttribute('aria-busy') === 'true' && document.querySelector('#modalRoot').hidden;
+          if (camera) await camera.finished;
+          return { focused:stage.dataset.discovery, busy, camera:!!camera, reader:!!document.querySelector('.forest-reader') };
+        `);
+        assert.deepEqual(turn, { focused:id, busy:true, camera:true, reader:true });
         const intro = await browser.eval(`return document.querySelector('.forest-reader h2').textContent`);
         titles.add(intro);
         assert.ok(await browser.eval(`return document.querySelector('.forest-reader-back').disabled`));
@@ -131,7 +147,11 @@ async function main() {
             await browser.sleep(320);
             if (width === 390) await browser.shot(path.join(out, 'truyen-' + mode + '-' + width + '.png'));
             await click('.forest-reader-back');
-            assert.equal(await browser.eval(`return document.querySelector('.forest-reader-count').textContent`), 'Trang 1 / 3');
+            const back = await browser.eval(`
+              return { count:document.querySelector('.forest-reader-count').textContent,
+                paper:getComputedStyle(document.querySelector('.turn-back .forest-paper')).animationName };
+            `);
+            assert.deepEqual(back, { count:'Trang 1 / 3', paper:'forestPaperTurn' });
             await click('.forest-reader-next');
           }
           await click('.forest-reader-next');

@@ -1,8 +1,8 @@
 /* Truyện tranh của Thỏ Lá, lời thoại và khu rừng mở bằng ba bảo vật. */
 .forest-book,.forest-grove{--book-ink:#163d32;--book-paper:#fff9ec;--book-green:#22654a;--book-deep:#102f29;--book-gold:#ffe08c}
-.forest-skin-rabbit{--route-accent:#22654a;--route-shade:#113830;--route-glow:#fff0a4;--crossing-art:url('assets/chase-forest.webp')}
-.forest-skin-football{--route-accent:#146a72;--route-shade:#093a4c;--route-glow:#bcfff2;--crossing-art:url('assets/vuon-truyen/island-passage.webp')}
-.forest-skin-royal{--route-accent:#594684;--route-shade:#251c49;--route-glow:#ffe5a5;--crossing-art:url('assets/vuon-truyen/palace-passage.webp')}
+.forest-skin-rabbit{--route-accent:#22654a;--route-shade:#113830;--route-glow:#fff0a4;--crossing-art:url('assets/chase-forest.webp');--crossing-near:url('assets/vuon-truyen/forest-near.webp');--travel-ground:26%}
+.forest-skin-football{--route-accent:#146a72;--route-shade:#093a4c;--route-glow:#bcfff2;--crossing-art:url('assets/vuon-truyen/coastal-track.webp');--crossing-near:url('assets/vuon-truyen/coast-near.webp');--travel-ground:22%}
+.forest-skin-royal{--route-accent:#594684;--route-shade:#251c49;--route-glow:#ffe5a5;--crossing-art:url('assets/vuon-truyen/royal-track.webp');--crossing-near:url('assets/vuon-truyen/royal-near.webp');--travel-ground:23%}
 .forest-picker{margin-bottom:14px;padding:clamp(13px,3.5vw,24px);border:1px solid #d5dfc0;border-radius:22px;background:var(--book-paper);color:var(--book-ink);box-shadow:0 8px 24px #1a2d2233}
 .forest-picker h1{margin:0;font:950 clamp(25px,6vw,38px)/1.08 Nunito,sans-serif}
 .forest-picker>p{margin:6px 0 13px;font-size:clamp(12px,3vw,15px);line-height:1.37}
@@ -62,25 +62,32 @@
 .forest-dialogue p{margin:3px 0 0;color:#2a473e;font-size:clamp(12px,2.8vw,15px);line-height:1.35}
 .forest-light{position:absolute;inset:0;pointer-events:none;background:linear-gradient(108deg,transparent 34%,#ffd68566 49%,#fff4bda6 50%,transparent 67%);opacity:0;transform:translateX(-90%)}
 .forest-panel.is-open .forest-light{animation:forestOpening .88s ease-out both}
-.forest-crossing{position:absolute;inset:0;z-index:1;overflow:hidden;pointer-events:none;visibility:hidden}
-.forest-crossing::before{position:absolute;inset:0;content:"";background:linear-gradient(0deg,#142a258a,transparent 43%,#072a3742),var(--crossing-art) center 72%/cover no-repeat}
-.forest-panel.is-open .forest-crossing::before{animation:forestParallax .98s ease-out both}
-.forest-traveler{position:absolute;left:0;bottom:5%;width:clamp(96px,23vw,138px);aspect-ratio:5/4;transform:translateX(-148%);--walk-cycle:.44s}
-.forest-skin-football .forest-traveler{aspect-ratio:17/15;--walk-cycle:.52s}
-.forest-skin-royal .forest-traveler{width:clamp(102px,24vw,142px);aspect-ratio:256/249;--walk-cycle:.67s}
-.forest-traveler-shadow{position:absolute;bottom:1%;left:15%;width:71%;height:7%;border-radius:50%;background:#112d23a1;filter:blur(3px)}
+.forest-crossing{position:absolute;inset:0;z-index:1;overflow:hidden;pointer-events:none;visibility:hidden;--travel-width:clamp(98px,25vw,150px);--walk-cycle:.43s}
+.forest-crossing::before{position:absolute;inset:-3% -10%;content:"";background:linear-gradient(0deg,#12232075,transparent 41%,#101a4036),var(--crossing-art) center 60%/cover no-repeat}
+.forest-near{position:absolute;z-index:2;inset:auto -13% -4% -13%;height:28%;background:var(--crossing-near) center bottom/100% 100% no-repeat;filter:drop-shadow(0 -2px 3px #10221925)}
+.forest-traveler-path{position:absolute;inset:0;transform:translate3d(calc(-1.6 * var(--travel-width)),0,0)}
+.forest-traveler{position:absolute;left:0;bottom:var(--travel-ground);width:var(--travel-width);aspect-ratio:5/4}
+.forest-skin-football .forest-crossing{--walk-cycle:.54s}
+.forest-skin-football .forest-traveler{aspect-ratio:17/15}
+.forest-skin-royal .forest-crossing{--travel-width:clamp(102px,26vw,152px);--walk-cycle:.73s}
+.forest-skin-royal .forest-traveler{aspect-ratio:256/249}
+.forest-traveler-shadow{position:absolute;bottom:-1%;left:13%;width:74%;height:7%;border-radius:50%;background:#172619a8;filter:blur(3px);transform:skewX(-19deg)}
+.forest-trail{position:absolute;left:24%;bottom:2%;width:7px;height:3px;border-radius:100%;opacity:0;background:#ffe0a6;box-shadow:-12px 3px 0 -1px #dca575,5px -4px 0 -1px #ffedb9,-7px -5px 0 -1px #ecc489;filter:blur(.5px)}
 .forest-traveler-sprite{position:absolute;inset:0;overflow:hidden}
 .forest-escort{position:absolute;bottom:0;width:39%;aspect-ratio:46/59;overflow:hidden}
 .forest-escort-rear{left:-35%;bottom:-2%}
 .forest-escort-front{right:-35%;bottom:5%;--stride-phase:-.28s}
 :is(.forest-traveler-sprite,.forest-escort) img{display:block;width:600%;height:100%;max-width:none}
-.forest-traveler-ball{position:absolute;right:-12%;bottom:6%;width:16%;aspect-ratio:1;border-radius:50%;background:radial-gradient(circle at 43% 45%,#203c44 0 17%,transparent 20%),radial-gradient(circle at 3% 41%,#203c44 0 17%,transparent 20%),radial-gradient(circle at 82% 82%,#203c44 0 20%,transparent 23%),radial-gradient(circle at 31% 21%,#fff,#bfd5dc);box-shadow:0 3px 4px #0c271e70}
-.forest-panel.is-open .forest-crossing{visibility:visible;animation:forestCrossingLight .98s ease-out both}
-.forest-panel.is-open .forest-traveler{animation:forestPass .94s cubic-bezier(.27,.2,.52,1) both}
+.forest-traveler-ball{position:absolute;right:-15%;bottom:0;width:15%;aspect-ratio:1;border-radius:50%;background:radial-gradient(circle at 43% 45%,#203c44 0 17%,transparent 20%),radial-gradient(circle at 3% 41%,#203c44 0 17%,transparent 20%),radial-gradient(circle at 82% 82%,#203c44 0 20%,transparent 23%),radial-gradient(circle at 31% 21%,#fff,#bfd5dc);box-shadow:0 3px 3px #202e2370}
+.forest-panel.is-open .forest-crossing{visibility:visible;animation:forestCrossingLight var(--pass-duration) linear both}
+.forest-panel.is-open .forest-crossing::before{animation:forestParallax var(--pass-duration) ease-out both}
+.forest-panel.is-open .forest-near{animation:forestNearSlide var(--pass-duration) ease-out both}
+.forest-panel.is-open .forest-traveler-path{animation:forestPass var(--pass-duration) cubic-bezier(.35,.28,.54,1) both}
 .forest-panel.is-open .forest-traveler-sprite img{animation:chaseStride var(--walk-cycle) step-end infinite}
 .forest-panel.is-open .forest-escort img{animation:chaseStride .63s step-end var(--stride-phase,0s) infinite}
-.forest-panel.is-open .forest-traveler-shadow{animation:questStepWeight var(--walk-cycle) linear infinite}
-.forest-panel.is-open .forest-traveler-ball{animation:journeyDribble var(--walk-cycle) linear infinite}
+.forest-panel.is-open .forest-traveler-shadow{animation:forestFootWeight var(--walk-cycle) linear infinite}
+.forest-panel.is-open .forest-trail{animation:forestFootDust var(--walk-cycle) ease-out infinite}
+.forest-panel.is-open .forest-traveler-ball{animation:forestBallRoll var(--walk-cycle) linear infinite}
 .forest-reading .word-token{min-height:36px;padding-inline:8px}
 .forest-relic{display:flex;align-items:center;gap:12px;width:fit-content;margin:12px auto;padding:9px 15px;border:1px solid #e2c882;border-radius:14px;background:#fff4cd;color:#4d3b1f;text-align:left}
 .forest-relic>span{flex:none;font-size:29px;line-height:1}
@@ -92,7 +99,9 @@
 .forest-grove-heading p{margin:0;color:#324e42;font-size:14px;line-height:1.45}
 .forest-grove-heading .world-back{margin:0}
 .forest-grove-stage{position:relative;isolation:isolate;overflow:hidden;border-radius:20px;background:#112d2a;border:1px solid #e3c977}
-.forest-grove-stage>img{display:block;width:100%;aspect-ratio:3/2;object-fit:cover}
+.forest-map-camera{position:relative;isolation:isolate}
+.forest-map-camera>img{display:block;width:100%;aspect-ratio:3/2;object-fit:cover}
+.forest-ambient{position:absolute;z-index:0;inset:0;width:100%;height:100%;pointer-events:none}
 .forest-hotspot{position:absolute;z-index:2;left:var(--place-x);top:var(--place-y);display:grid;place-items:center;width:clamp(44px,6vw,62px);aspect-ratio:1;padding:0;border:2px solid var(--route-glow);border-radius:50%;background:var(--route-shade);color:#fff;box-shadow:0 0 13px var(--route-glow),0 3px 12px #162821;transform:translate(-50%,-50%);font-size:clamp(20px,4vw,28px);cursor:pointer}
 .forest-hotspot::before{position:absolute;inset:-6px;content:"";border:1px solid var(--route-glow);border-radius:inherit;animation:forestBeacon 2.4s var(--beacon-delay,0s) ease-out infinite;pointer-events:none}
 .forest-hotspot:nth-of-type(2){--beacon-delay:-.8s}
@@ -115,6 +124,13 @@ html[data-theme=night] .forest-reader .modal-head{background:var(--reader-paper)
 .forest-reader .modal-head p{color:var(--reader-note)}
 .forest-reader .modal-close{width:44px;height:44px;background:var(--reader-soft);color:var(--reader-ink);cursor:pointer}
 .modal-card.forest-reader .modal-body{padding:0}
+.forest-reader-page{overflow:hidden;background:var(--reader-soft)}
+.forest-paper{position:relative;background:var(--reader-paper);transform-origin:left center}
+.forest-reader-page.turn-back .forest-paper{transform-origin:right center;--turn-angle:-13deg;--turn-offset:-3%}
+.forest-reader-page.turn-forward .forest-paper{--turn-angle:13deg;--turn-offset:3%}
+.forest-reader-page.is-turning .forest-paper{animation:forestPaperTurn .36s cubic-bezier(.22,.75,.38,1) both}
+.forest-reader-page.is-turning .forest-paper::after{position:absolute;inset:0;background:linear-gradient(90deg,#15192361,transparent 74%);pointer-events:none;content:"";animation:forestPageShade .36s ease-out both}
+.forest-reader-page.turn-back .forest-paper::after{transform:scaleX(-1)}
 .forest-reader-art{display:block;width:100%;height:clamp(150px,43vw,240px);object-fit:cover;object-position:50% 35%;background:#2c5842}
 .forest-reader-text{padding:14px clamp(14px,4vw,28px) 10px;font:500 clamp(15px,3.9vw,18px)/1.6 var(--font-read,Nunito),sans-serif;animation:forestReveal .22s ease-out both}
 .forest-reader-text h3{margin:0 0 6px;color:inherit;font:900 clamp(17px,4.3vw,21px)/1.25 Nunito,sans-serif}
@@ -129,9 +145,15 @@ html[data-theme=night] .forest-reader .modal-head{background:var(--reader-paper)
 
 @keyframes forestCamera{from{transform:scale(1.095) translateX(-1.2%)}to{transform:scale(1)}}
 @keyframes forestOpening{17%{opacity:.95}to{opacity:0;transform:translateX(85%)}}
-@keyframes forestPass{from{left:0;transform:translateX(-148%) scale(.94)}to{left:100%;transform:translateX(42%) scale(1.05)}}
-@keyframes forestCrossingLight{0%,100%{opacity:0}15%,82%{opacity:1}}
-@keyframes forestParallax{from{transform:scale(1.09) translateX(2%)}to{transform:scale(1.09) translateX(-3%)}}
+@keyframes forestPass{from{transform:translate3d(calc(-1.6 * var(--travel-width)),0,0)}to{transform:translate3d(110%,0,0)}}
+@keyframes forestCrossingLight{0%,100%{opacity:0}13%,84%{opacity:1}}
+@keyframes forestParallax{from{transform:translate3d(7%,0,0)}to{transform:translate3d(-7%,0,0)}}
+@keyframes forestNearSlide{from{transform:translate3d(8%,0,0)}to{transform:translate3d(-10%,0,0)}}
+@keyframes forestFootWeight{0%,49%,100%{transform:skewX(-19deg) scaleX(.95);opacity:1}24%,74%{transform:skewX(-19deg) scaleX(.78);opacity:.57}}
+@keyframes forestFootDust{0%,67%,100%{opacity:0;transform:translateX(0) scale(.6)}76%{opacity:.72}99%{opacity:0;transform:translate(-15px,-6px) scale(1.45)}}
+@keyframes forestBallRoll{0%{transform:translate(-5px,0) rotate(0)}20%{transform:translate(-2px,-3px) rotate(69deg)}50%{transform:translate(9px,0) rotate(208deg)}100%{transform:translate(-5px,0) rotate(360deg)}}
+@keyframes forestPaperTurn{from{opacity:.62;transform:perspective(850px) rotateY(var(--turn-angle)) translateX(var(--turn-offset))}to{opacity:1;transform:none}}
+@keyframes forestPageShade{from{opacity:.75}to{opacity:0}}
 @keyframes forestBeacon{0%{opacity:.82;transform:scale(.92)}82%,100%{opacity:0;transform:scale(1.48)}}
 @keyframes forestReveal{from{opacity:.4;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
 @keyframes forestBadge{from{transform:scale(.55) rotate(-16deg)}to{transform:scale(1) rotate(0)}}
@@ -149,8 +171,14 @@ html[data-theme=night] .forest-reader .modal-head{background:var(--reader-paper)
 body.calm :is(.forest-stage>img,.forest-panel.is-open .forest-light,.forest-relic>span,.forest-reader-text,.forest-grove-stage[data-discovery] .forest-magic,.forest-crossing,.forest-crossing *),body.calm .forest-crossing::before{animation:none!important}
 body.calm .forest-hotspot::before{animation:none;opacity:.65}
 body.calm .forest-panel.is-open .forest-crossing{visibility:hidden}
+body.calm .forest-ambient{visibility:hidden}
+body.calm .forest-reader-page.is-turning .forest-paper,body.calm .forest-reader-page.is-turning .forest-paper::after{animation:none;opacity:1}
+body.calm .forest-reader-page.is-turning .forest-paper::after{content:none}
 @media(prefers-reduced-motion:reduce){
   :is(.forest-stage>img,.forest-panel.is-open .forest-light,.forest-relic>span,.forest-reader-text,.forest-grove-stage[data-discovery] .forest-magic,.forest-crossing,.forest-crossing *),.forest-crossing::before{animation:none!important}
   .forest-hotspot::before{animation:none;opacity:.65}
   .forest-panel.is-open .forest-crossing{visibility:hidden}
+  .forest-ambient{visibility:hidden}
+  .forest-reader-page.is-turning .forest-paper,.forest-reader-page.is-turning .forest-paper::after{animation:none}
+  .forest-reader-page.is-turning .forest-paper::after{content:none}
 }

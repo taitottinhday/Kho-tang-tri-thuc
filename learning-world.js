@@ -3,7 +3,7 @@
 const StoryQuest = (() => {
   const MASCOT = 'assets/tho-tham-hiem-vuon-chu.png';
   const routes = window.STORY_ROUTES;
-  const passDelay = 980;
+  const passDelay = 1570;
   const stories = new Map(routes.flatMap(route => route.chapters.map((chapter, index) => [chapter.id, { chapter, route, index }])));
   const routeFor = id => routes.find(route => route.id === id);
   const currentRoute = () => routeFor(S.storyCharacter) || routes[0];
@@ -114,9 +114,10 @@ const StoryQuest = (() => {
     const escorts = route.id === 'royal' ? ['rear', 'front'].map(position =>
       '<span class="forest-escort forest-escort-' + position + '"><img src="assets/quest/guard-stride.webp" alt=""></span>'
     ).join('') : '';
-    return '<div class="forest-crossing" aria-hidden="true"><span class="forest-traveler"><span class="forest-traveler-shadow"></span>' +
+    return '<div class="forest-crossing" aria-hidden="true" style="--pass-duration:' + (passDelay - 60) + 'ms">' +
+      '<div class="forest-traveler-path"><span class="forest-traveler"><span class="forest-traveler-shadow"></span><span class="forest-trail"></span>' +
       '<span class="forest-traveler-sprite"><img src="' + route.stride + '" alt=""></span>' + escorts +
-      (route.id === 'football' ? '<span class="forest-traveler-ball"></span>' : '') + '</span></div>';
+      (route.id === 'football' ? '<span class="forest-traveler-ball"></span>' : '') + '</span></div><div class="forest-near"></div></div>';
   }
   function playerFrame(q) {
     const { route, chapter } = stories.get(q.storyId);
@@ -163,14 +164,15 @@ const StoryQuest = (() => {
     if (!routeOpen(route)) return '<section class="world-panel"><h1>' + esc(route.destination) + '</h1><p>Em cần tìm đủ ba bảo vật của chuyến đi này để mở bản đồ.</p><button class="world-back" data-view="stories">Về Vườn truyện</button></section>';
     return '<div class="learning-world forest-grove forest-skin-' + route.skin + '"><div class="forest-grove-heading"><button class="world-back" data-view="stories">← Vườn truyện</button>' +
       '<h1>' + esc(route.destination) + '</h1><p>Chạm một điểm sáng hoặc chọn truyện bên dưới.</p></div>' +
-      '<div class="forest-grove-stage"><img src="' + routeArt(route, 'map') + '" alt="' + esc(route.mapAlt) + '">' +
+      '<div class="forest-grove-stage"><div class="forest-map-camera"><img src="' + routeArt(route, 'map') + '" alt="' + esc(route.mapAlt) + '">' +
+      '<canvas class="forest-ambient" aria-hidden="true"></canvas>' +
       '<span class="forest-magic" aria-hidden="true"></span>' +
       route.chapters.map(chapter => '<button type="button" class="forest-hotspot" data-story-relic="' + chapter.id + '" style="--place-x:' + chapter.point[0] + '%;--place-y:' + chapter.point[1] + '%" aria-haspopup="dialog" aria-label="Đọc truyện ' +
-        esc(chapter.tale.title) + '">' + chapter.icon + '</button>').join('') + '</div>' +
+        esc(chapter.tale.title) + '">' + chapter.icon + '</button>').join('') + '</div></div>' +
       '<div class="forest-tale-list">' + route.chapters.map(chapter => '<button class="forest-tale-link" type="button" data-tale-link="' +
         chapter.id + '" aria-haspopup="dialog"><span aria-hidden="true">' + chapter.icon + '</span><b>' + esc(chapter.tale.title) + '</b><span aria-hidden="true">›</span></button>').join('') + '</div></div>';
   }
-  function openTale(route, chapter, opener) {
+  function openTale(route, chapter, opener, camera) {
     const tale = chapter.tale;
     openModal(esc(tale.title), esc(chapter.relic), '<div class="forest-reader-page"></div>' +
       '<nav class="forest-reader-controls" aria-label="Lật trang truyện"><button type="button" class="forest-reader-back">‹ Trang trước</button>' +
@@ -182,13 +184,14 @@ const StoryQuest = (() => {
     const next = reader.querySelector('.forest-reader-next');
     let pageIndex = 0;
 
-    function showPage() {
+    function showPage(direction) {
       const page = tale.pages[pageIndex], last = pageIndex === tale.pages.length - 1;
       const scene = chapter.scenes[pageIndex];
-      pageRoot.innerHTML = '<img class="forest-reader-art" src="' + storyArt(chapter, pageIndex) + '" alt="' +
+      pageRoot.className = 'forest-reader-page' + (direction ? ' is-turning turn-' + direction : '');
+      pageRoot.innerHTML = '<div class="forest-paper"><img class="forest-reader-art" src="' + storyArt(chapter, pageIndex) + '" alt="' +
         esc(route.name + ' cùng ' + scene.guide + ' tại ' + scene.place) + '">' +
         '<article class="forest-reader-text"><h3 tabindex="-1">' + esc(page.heading) + '</h3>' +
-        page.paragraphs.map(paragraph => '<p>' + esc(paragraph) + '</p>').join('') + '</article>';
+        page.paragraphs.map(paragraph => '<p>' + esc(paragraph) + '</p>').join('') + '</article></div>';
       count.textContent = 'Trang ' + (pageIndex + 1) + ' / ' + tale.pages.length;
       pageRoot.querySelector('h3').setAttribute('aria-description', count.textContent);
       back.disabled = pageIndex === 0;
@@ -198,20 +201,27 @@ const StoryQuest = (() => {
       if (!last) new Image().src = storyArt(chapter, pageIndex + 1);
     }
 
-    back.onclick = () => { if (pageIndex > 0) { pageIndex--; showPage(); } };
+    back.onclick = () => { if (pageIndex > 0) { pageIndex--; showPage('back'); } };
     next.onclick = () => {
       if (pageIndex === tale.pages.length - 1) closeModal();
-      else { pageIndex++; showPage(); }
+      else { pageIndex++; showPage('forward'); }
     };
-    onModalClose = () => { if (opener.isConnected) opener.focus({ preventScroll: true }); };
+    onModalClose = () => {
+      if (camera?.playState === 'finished') {
+        camera.reverse();
+        camera.finished.then(() => camera.cancel(), () => {});
+      }
+      if (opener.isConnected) opener.focus({ preventScroll: true });
+    };
     showPage();
   }
   function bindGrove() {
     const stage = $('.forest-grove-stage');
     if (!stage) return;
     const route = currentRoute(), hotspots = [...stage.querySelectorAll('[data-story-relic]')];
-    $$('.forest-grove [data-story-relic],.forest-grove [data-tale-link]').forEach(button => button.onclick = () => {
-      if (!routeOpen(route) || !$('#modalRoot').hidden) return;
+    window.StoryCinema?.mount(stage, route.id);
+    $$('.forest-grove [data-story-relic],.forest-grove [data-tale-link]').forEach(button => button.onclick = async () => {
+      if (!routeOpen(route) || !$('#modalRoot').hidden || stage.hasAttribute('aria-busy')) return;
       const { chapter } = stories.get(button.dataset.storyRelic || button.dataset.taleLink);
       hotspots.forEach(choice => choice.classList.toggle('is-selected', choice.dataset.storyRelic === chapter.id));
       const magic = stage.querySelector('.forest-magic');
@@ -219,8 +229,16 @@ const StoryQuest = (() => {
       stage.style.setProperty('--place-y', chapter.point[1] + '%');
       magic.replaceWith(magic.cloneNode());
       stage.dataset.discovery = chapter.id;
-      openTale(route, chapter, button);
       sfx('good');
+      const camera = button.dataset.storyRelic && window.StoryCinema?.approach(stage, chapter.point);
+      if (camera) {
+        stage.setAttribute('aria-busy', 'true');
+        try { await camera.finished; }
+        catch { return; }
+        finally { stage.removeAttribute('aria-busy'); }
+      }
+      if (stage.isConnected && $('#modalRoot').hidden) openTale(route, chapter, button, camera);
+      else camera?.cancel();
     });
   }
   function beginAdaptive(id = S.adaptiveCharacter) {
