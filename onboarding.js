@@ -56,7 +56,8 @@ function showWelcome() {
       : '<p class="wl-sub">Tạo hồ sơ để bắt đầu hành trình. Không cần email hay mật khẩu.</p>') +
     '<button class="primary-btn big wl-create" id="wlCreate">＋ Tạo hồ sơ mới</button>' +
     '<button class="soft-btn big wl-guest" id="wlGuest">Học thử (không lưu tiến độ)</button>' +
-    '<p class="wl-note">Tiến độ được lưu ngay trên thiết bị này. Có thể đặt mã PIN 4 số để giữ hồ sơ của riêng em.</p></section></div>';
+    '<p class="wl-note">Tiến độ được lưu ngay trên thiết bị này. Có thể đặt mã PIN 4 số để giữ hồ sơ của riêng em.</p>' +
+    '<a class="wl-teacher" href="giao-vien/"><span aria-hidden="true">👩‍🏫</span><span>Thầy cô · Quản trị</span><b>Đăng nhập →</b></a></section></div>';
   document.body.classList.add('welcome-open'); $('.app-shell').inert = true;
   $$('[data-pick]', w).forEach(b => b.onclick = () => pickProfile(b.dataset.pick));
   $('#wlCreate').onclick = () => showCreate(true);

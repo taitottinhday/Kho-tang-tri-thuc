@@ -1017,3 +1017,10 @@ html[data-theme=night] .diag-log{background:#22394f;border-color:#35526e;color:#
   .ar-row .ar-bar{grid-column:1/-1;grid-row:2}
 }
 html[data-theme=night] .w-bad{color:#ffb894}
+/* Lối vào trang giáo viên / quản trị ngay ở màn chào (thầy cô không cần tạo hồ sơ học sinh) */
+.wl-teacher{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:2px;padding:11px 12px;border:1.5px dashed #c9d8e8;border-radius:14px;color:#1d3557;font-size:14px;font-weight:700;text-decoration:none;transition:background .15s,border-color .15s}
+.wl-teacher b{color:#c2334d;font-weight:900;white-space:nowrap}
+.wl-teacher:hover,.wl-teacher:focus-visible{background:#f3f7fc;border-color:#9fb8d4}
+html[data-theme=night] .wl-teacher{color:#eef5fb;border-color:#3d5873}
+html[data-theme=night] .wl-teacher b{color:#ffb3c1}
+html[data-theme=night] .wl-teacher:hover{background:#22384f}
