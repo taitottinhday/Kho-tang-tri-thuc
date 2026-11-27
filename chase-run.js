@@ -11,10 +11,14 @@ window.ChaseRun = (() => {
       '<div class="chase-hud"><span class="chase-title"><i>🏁</i> THỎ LÁ CHẠY TRỐN</span><span class="chase-safe" data-chase-safe>Cách sói ' + safe + '%</span></div>' +
       '<div class="chase-meter" role="progressbar" aria-label="Khoảng cách an toàn với sói" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + safe + '"><span data-chase-meter></span><b>AN TOÀN</b></div>' +
       '<div class="chase-track" aria-hidden="true"><span class="chase-bush bush-one">🌿</span><span class="chase-bush bush-two">🌱</span><span class="chase-dust dust-one">✦</span><span class="chase-dust dust-two">✧</span>' +
-      '<div class="chase-runner chase-wolf"><img src="assets/chase-wolf.webp" alt="" /><span class="chase-paw"></span></div>' +
-      '<div class="chase-runner chase-rabbit"><img src="assets/chase-rabbit.webp" alt="" /><span class="chase-paw"></span><span class="chase-speed-lines"></span></div></div>' +
+      runner('wolf') + runner('rabbit') + '</div>' +
       '<div class="chase-feedback" data-chase-feedback aria-live="polite">' + race.feedback + '</div>' +
       '<div class="chase-escape" data-chase-escape aria-live="polite">🌟 THỎ LÁ ĐÃ THOÁT! 🌟</div></section>';
+  }
+  function runner(animal) {
+    return '<div class="chase-runner chase-' + animal + '"><span class="chase-paw"></span>' +
+      '<span class="chase-stride"><img src="assets/chase-' + animal + '-stride.webp" alt="" /></span>' +
+      (animal === 'rabbit' ? '<span class="chase-speed-lines"></span>' : '') + '</div>';
   }
   function answer(q, correct) {
     const race = q.race || (q.race = { gap:26, rabbitX:54, wolfX:28, feedback:'', escaped:false });
@@ -33,8 +37,7 @@ window.ChaseRun = (() => {
     if (last && q.correct === q.items.length) {
       race.escaped = true;
       race.gap = 80;
-      race.rabbitX = 113;
-      race.wolfX = 40;
+      race.rabbitX = 123;
       race.feedback = 'Em trả lời đúng hết — Thỏ Lá chạy thoát rồi! 🎉';
     }
     const root = document.querySelector('.chase-run');
@@ -42,12 +45,9 @@ window.ChaseRun = (() => {
     root.style.setProperty('--rabbit-x', race.rabbitX + '%');
     root.style.setProperty('--wolf-x', wolfX(race) + '%');
     root.style.setProperty('--safe', Math.round(race.gap / 80 * 100) + '%');
-    root.style.setProperty('--rabbit-speed', correct ? '.44s' : '1.5s');
-    root.style.setProperty('--wolf-speed', correct ? '1.1s' : '.56s');
-    root.classList.remove('is-correct','is-wrong','is-escaped');
-    void root.offsetWidth;
-    root.classList.add(correct ? 'is-correct' : 'is-wrong');
-    if (race.escaped) root.classList.add('is-escaped');
+    root.classList.toggle('is-correct', correct);
+    root.classList.toggle('is-wrong', !correct);
+    root.classList.toggle('is-escaped', race.escaped);
     const safe = root.querySelector('[data-chase-safe]');
     const meter = root.querySelector('[data-chase-meter]');
     const progress = root.querySelector('.chase-meter');

@@ -1,5 +1,5 @@
 /* Ảnh nền nhiều lớp + nhân vật chạy liên tục cho Thỏ Lá và Sói. */
-.chase-run{--rabbit-x:54%;--wolf-x:28%;--safe:32%;--rabbit-speed:.72s;--wolf-speed:.85s;position:relative;isolation:isolate;width:100%;height:clamp(155px,24vw,220px);overflow:hidden;margin:0 0 14px;border:1px solid rgba(37,86,52,.22);border-radius:19px;background:#75bd70;box-shadow:0 9px 22px rgba(39,79,48,.18),inset 0 0 0 3px rgba(255,255,255,.18);color:#fff}
+.chase-run{--rabbit-x:54%;--wolf-x:28%;--safe:32%;--rabbit-speed:.58s;--wolf-speed:.68s;position:relative;isolation:isolate;width:100%;height:clamp(155px,24vw,220px);overflow:hidden;margin:0 0 14px;border:1px solid rgba(37,86,52,.22);border-radius:19px;background:#75bd70;box-shadow:0 9px 22px rgba(39,79,48,.18),inset 0 0 0 3px rgba(255,255,255,.18);color:#fff}
 .chase-backdrop,.chase-backdrop::after{position:absolute;z-index:-2;inset:0;overflow:hidden}
 .chase-backdrop img{position:absolute;top:-9%;left:-5%;width:110%;height:120%;max-width:none;object-fit:cover;animation:chaseForestDrift 22s ease-in-out infinite alternate;filter:saturate(1.04)}
 .chase-backdrop::after{content:"";z-index:1;background:linear-gradient(180deg,rgba(19,61,45,.17),transparent 47%,rgba(32,69,34,.08)),linear-gradient(90deg,rgba(26,67,40,.08),transparent 36%,rgba(20,64,39,.08))}
@@ -14,15 +14,16 @@
 .chase-track::before{content:"";position:absolute;left:-10%;right:-10%;bottom:17%;height:17%;border-radius:50% 50% 0 0;background:linear-gradient(180deg,rgba(247,195,103,.88),rgba(182,115,51,.9));box-shadow:0 -8px 0 rgba(233,199,115,.33),0 -15px 0 rgba(81,125,57,.35);transform:perspective(160px) rotateX(9deg);}
 .chase-track::after{content:"";position:absolute;z-index:1;left:-30%;right:-30%;bottom:20%;height:4px;background:repeating-linear-gradient(90deg,rgba(255,242,191,.95) 0 34px,transparent 34px 80px);filter:drop-shadow(0 2px 1px rgba(87,67,34,.35));animation:chaseRoadRun 1s linear infinite}
 .chase-run.is-wrong .chase-track::after{animation-duration:2.2s}.chase-run.is-correct .chase-track::after{animation-duration:.38s}.chase-run.is-escaped .chase-track::after{animation-duration:.23s}
-.chase-runner{position:absolute;z-index:2;bottom:20%;display:block;transition:left .85s cubic-bezier(.2,.8,.2,1);will-change:left,transform;filter:drop-shadow(0 7px 5px rgba(35,57,30,.33))}
-.chase-runner img{display:block;width:100%;height:100%;object-fit:contain;max-width:none}
-.chase-wolf{left:var(--wolf-x);width:clamp(90px,15vw,152px);height:clamp(62px,11vw,118px);animation:chaseWolfRun var(--wolf-speed) ease-in-out infinite}
-.chase-rabbit{left:var(--rabbit-x);width:clamp(82px,12vw,125px);height:clamp(80px,13vw,138px);animation:chaseRabbitRun var(--rabbit-speed) ease-in-out infinite}
-.chase-run.is-wrong .chase-rabbit{animation-duration:1.7s}.chase-run.is-wrong .chase-wolf{animation-duration:.49s;transform:scale(1.06)}
-.chase-run.is-correct .chase-rabbit{animation-duration:.36s}.chase-run.is-correct .chase-wolf{animation-duration:1.25s}
-.chase-run.is-escaped .chase-rabbit{left:112%;animation:chaseEscape 1.65s cubic-bezier(.2,.8,.2,1) both}
-.chase-run.is-escaped .chase-wolf{left:4%;animation:chaseWolfSurprised .7s ease-in-out 2 both}
-.chase-paw{position:absolute;left:15%;right:5%;bottom:-5px;height:9px;border-radius:50%;background:rgba(34,52,32,.3);filter:blur(4px);animation:chaseShadow .4s ease-in-out infinite alternate}
+.chase-runner{position:absolute;z-index:2;bottom:17%;aspect-ratio:5/3;transform:translateX(-50%);transition:left .72s cubic-bezier(.24,.7,.34,1)}
+.chase-wolf{left:var(--wolf-x);bottom:19%;width:clamp(112px,18vw,170px);--stride-speed:var(--wolf-speed)}
+.chase-rabbit{left:var(--rabbit-x);z-index:3;width:clamp(94px,15vw,143px);aspect-ratio:5/4;--stride-speed:var(--rabbit-speed)}
+.chase-stride{position:absolute;inset:0;display:block;overflow:hidden}
+.chase-stride img{display:block;width:600%;height:100%;max-width:none;animation:chaseStride var(--stride-speed) step-end infinite}
+.chase-run.is-wrong{--rabbit-speed:.88s;--wolf-speed:.45s}
+.chase-run.is-correct{--rabbit-speed:.4s;--wolf-speed:.77s}
+.chase-run.is-escaped{--rabbit-speed:.31s;--wolf-speed:1s}
+.chase-run.is-escaped .chase-rabbit{transition:left .74s cubic-bezier(.42,0,.8,1)}
+.chase-paw{position:absolute;left:20%;right:17%;bottom:0;height:8px;border-radius:50%;background:rgba(34,52,32,.38);filter:blur(3px);animation:chaseShadow var(--stride-speed) ease-in-out infinite}
 .chase-speed-lines{position:absolute;z-index:-1;left:-29px;top:42%;width:35px;height:21px;border-top:2px solid rgba(255,250,224,.9);border-bottom:2px solid rgba(255,250,224,.75);transform:skewX(-27deg);opacity:0;transition:opacity .2s}
 .chase-run.is-correct .chase-speed-lines{opacity:1;animation:chaseLines .32s linear infinite}
 .chase-bush{position:absolute;z-index:4;bottom:10%;font-size:clamp(18px,3vw,28px);filter:drop-shadow(0 3px 2px rgba(27,60,31,.2));animation:chaseBushSway 1.8s ease-in-out infinite alternate}
@@ -32,18 +33,27 @@
 .chase-feedback{position:absolute;z-index:6;left:50%;bottom:7px;max-width:calc(100% - 20px);padding:5px 11px;border:1px solid rgba(255,255,255,.65);border-radius:99px;background:rgba(25,61,39,.71);color:#fff;font:900 9px/1.2 Nunito,sans-serif;text-align:center;text-shadow:0 1px 2px rgba(0,0,0,.25);box-shadow:0 3px 9px rgba(25,58,34,.2);transform:translateX(-50%);backdrop-filter:blur(6px);transition:background .25s}
 .chase-run.is-wrong .chase-feedback{background:rgba(125,61,39,.82)}.chase-run.is-correct .chase-feedback{background:rgba(34,111,74,.82)}
 .chase-escape{position:absolute;z-index:7;left:50%;top:50%;padding:10px 17px;border:2px solid rgba(255,255,255,.9);border-radius:99px;background:linear-gradient(110deg,#fff4b2,#fff);color:#397546;font:1000 clamp(13px,2.2vw,22px)/1 Nunito,sans-serif;letter-spacing:.02em;white-space:nowrap;box-shadow:0 8px 25px rgba(35,78,36,.28);opacity:0;transform:translate(-50%,-35%) scale(.65);pointer-events:none}
-.chase-run.is-escaped .chase-escape{animation:chaseWinPop .5s .82s cubic-bezier(.16,1.3,.4,1) both}
+.chase-run.is-escaped .chase-escape{animation:chaseWinPop .42s .64s cubic-bezier(.16,1.3,.4,1) both}
 .chase-run.is-escaped .chase-feedback{background:rgba(34,111,74,.92)}
 @keyframes chaseForestDrift{from{transform:scale(1.04) translateX(0)}to{transform:scale(1.1) translateX(-2.2%)}}
 @keyframes chaseRoadRun{to{transform:translateX(-80px)}}
-@keyframes chaseRabbitRun{0%,100%{transform:translateY(0) rotate(-2deg)}25%{transform:translateY(-11px) rotate(3deg)}50%{transform:translateY(1px) rotate(-1deg)}75%{transform:translateY(-7px) rotate(2deg)}}
-@keyframes chaseWolfRun{0%,100%{transform:translateY(1px) scaleX(1)}38%{transform:translateY(-9px) scaleX(1.025)}72%{transform:translateY(0) scaleX(.98)}}
-@keyframes chaseShadow{to{transform:scaleX(.72);opacity:.58}}
+/* Duỗi thân, chạm chân trước, thu chân, rồi đạp bằng chân sau. */
+@keyframes chaseStride{
+  0%{transform:translateX(0)}
+  16.667%{transform:translateX(-16.666667%)}
+  33.333%{transform:translateX(-33.333333%)}
+  50%{transform:translateX(-50%)}
+  66.667%{transform:translateX(-66.666667%)}
+  83.333%,100%{transform:translateX(-83.333333%)}
+}
+@keyframes chaseShadow{0%,100%{transform:scaleX(.78);opacity:.64}27%,73%{transform:scaleX(1);opacity:1}50%{transform:scaleX(.87);opacity:.76}}
 @keyframes chaseLines{to{transform:translateX(-10px) skewX(-27deg);opacity:.35}}
 @keyframes chaseBushSway{to{transform:rotate(7deg) translateY(-2px)}}
 @keyframes chaseDust{0%{opacity:0;transform:translate(0,8px) scale(.5)}35%{opacity:.9}100%{opacity:0;transform:translate(-35px,-22px) scale(1.3)}}
-@keyframes chaseEscape{to{transform:translateX(220px) translateY(-12px) rotate(4deg)}}
-@keyframes chaseWolfSurprised{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(-7px) scale(1.06)}}
 @keyframes chaseWinPop{to{opacity:1;transform:translate(-50%,-50%) scale(1)}}
-@media(max-width:520px){.chase-run{height:150px;border-radius:15px;margin-bottom:10px}.chase-backdrop img{width:138%;left:-19%;height:120%}.chase-hud{top:7px;left:7px;right:7px}.chase-title,.chase-safe{min-height:22px;padding:4px 7px;font-size:7px}.chase-meter{top:34px;left:9px;right:9px;height:7px}.chase-meter>b{font-size:4px;line-height:6px}.chase-track::before{bottom:17%;height:16%}.chase-track::after{bottom:20%}.chase-wolf{width:100px;height:73px}.chase-rabbit{width:86px;height:88px}.chase-bush{bottom:10%;font-size:18px}.chase-feedback{bottom:6px;padding:5px 8px;font-size:8px}.chase-escape{padding:9px 12px;font-size:13px}}
-@media(prefers-reduced-motion:reduce){.chase-backdrop img,.chase-track::after,.chase-wolf,.chase-rabbit,.chase-paw,.chase-bush,.chase-dust{animation-duration:2s!important;transition-duration:.35s!important}.chase-run.is-escaped .chase-rabbit{animation-duration:.8s!important}.chase-run.is-escaped .chase-escape{animation-duration:.3s!important}}
+@media(max-width:520px){.chase-run{height:150px;border-radius:15px;margin-bottom:10px}.chase-backdrop img{width:138%;left:-19%;height:120%}.chase-hud{top:7px;left:7px;right:7px}.chase-title,.chase-safe{min-height:22px;padding:4px 7px;font-size:7px}.chase-meter{top:34px;left:9px;right:9px;height:7px}.chase-meter>b{font-size:4px;line-height:6px}.chase-track::before{bottom:17%;height:16%}.chase-track::after{bottom:20%}.chase-bush{bottom:10%;font-size:18px}.chase-feedback{bottom:6px;padding:5px 8px;font-size:8px}.chase-escape{padding:9px 12px;font-size:13px}}
+@media(prefers-reduced-motion:reduce){
+  .chase-backdrop img,.chase-track::after,.chase-stride img,.chase-paw,.chase-bush,.chase-dust,.chase-run.is-correct .chase-speed-lines{animation:none}
+  .chase-runner,.chase-meter>span,.chase-run.is-escaped .chase-rabbit{transition:none}
+  .chase-run.is-escaped .chase-escape{animation:none;opacity:1;transform:translate(-50%,-50%)}
+}
