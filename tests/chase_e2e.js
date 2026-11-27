@@ -69,9 +69,40 @@ async function main() {
       race:document.querySelector('.lesson-complete')?.textContent.includes('Thỏ Lá đã chạy thoát khỏi sói')||false
     };`);
     assert(result.race, 'kết quả ghi nhận Thỏ đã thoát');
-    if (browser.errors.length) throw Error('Lỗi trình duyệt: '+browser.errors.join('\n'));
     await browser.shot(path.join(out,'race-'+width+'.png'));
-    console.log(width+'×'+height+': '+first.generated+' câu sinh · 5 câu mới · đúng/sai và thoát sói đạt.');
+
+    await browser.eval("document.querySelector('#again').click();");
+    await answer(browser, false);
+    await answer(browser, true);
+    const warned = await answer(browser, false, false);
+    assert(!warned.caught && warned.mistakes === 2 && warned.feedback.includes('Sai thêm một câu'), 'câu sai thứ hai cảnh báo nhưng vẫn cho chơi');
+    await browser.eval("document.querySelector('#plCont').click();");
+    const caught = await answer(browser, false, false);
+    assert(caught.caught && caught.caughtClass && !caught.escaped && caught.gap === 0, 'câu sai thứ ba làm sói bắt kịp');
+    assert(caught.continueLabel === 'Xem kết quả' && caught.continueDisabled, 'chờ cảnh bắt kịp trước khi xem kết quả');
+    await browser.sleep(780);
+    const stopped = await browser.eval(`return {
+      banner:document.querySelector('[data-chase-outcome]').textContent,
+      opacity:getComputedStyle(document.querySelector('[data-chase-outcome]')).opacity,
+      wolfLeft:document.querySelector('.chase-wolf').getBoundingClientRect().left,
+      ready:!document.querySelector('#plCont').disabled,
+      errors:document.querySelector('[data-chase-mistakes]').textContent,
+      safety:document.querySelector('.chase-meter').getAttribute('aria-valuenow')
+    };`);
+    assert(stopped.wolfLeft > caught.wolfLeft + 10, 'sói thật sự lao về phía Thỏ');
+    assert(stopped.banner.includes('SÓI BẮT KỊP') && stopped.opacity === '1' && stopped.ready && stopped.errors === 'Sai 3/3' && stopped.safety === '0', 'hiện kết cục, hết khoảng cách và mở nút xem kết quả');
+    await browser.shot(path.join(out,'caught-'+width+'.png'));
+    await browser.eval("document.querySelector('#plCont').click();");
+    const failed = await browser.eval(`return {
+      summary:document.querySelector('.lesson-complete')?.textContent || '',
+      retry:document.querySelector('#again')?.textContent || '',
+      ended:Q === null
+    };`);
+    assert(failed.ended && failed.summary.includes('Sói đã bắt kịp') && failed.summary.includes('1 / 4 câu đúng') && failed.retry.includes('Thử lại'), 'dừng lượt và chấm theo bốn câu đã làm');
+    await browser.eval("document.querySelector('#again').click();");
+    assert(await browser.eval('return Q.kind === "adaptive" && Q.i === 0 && Q.race.mistakes === 0 && !Q.race.caught;'), 'thử lại mở lượt chạy mới');
+    if (browser.errors.length) throw Error('Lỗi trình duyệt: '+browser.errors.join('\n'));
+    console.log(width+'×'+height+': '+first.generated+' câu sinh · 5 câu mới · chạy thoát, bị bắt kịp và thử lại đều đạt.');
   } finally { await browser.close(); }
 }
 
@@ -86,8 +117,14 @@ async function answer(browser, correct, advance = true) {
     else throw Error('Dạng câu chưa hỗ trợ trong kiểm tra: '+it.loai);
     click('#plCheck');
     const race=document.querySelector('.chase-run');
-    const value={gap:Q.race.gap,wrongClass:race.classList.contains('is-wrong'),escaped:Q.race.escaped,escapeClass:race.classList.contains('is-escaped')};
-    if(${advance}) document.querySelector('#plCont').click();
+    const cont=document.querySelector('#plCont');
+    const value={
+      gap:Q.race.gap,wrongClass:race.classList.contains('is-wrong'),escaped:Q.race.escaped,escapeClass:race.classList.contains('is-escaped'),
+      mistakes:Q.race.mistakes, caught:Q.race.caught, caughtClass:race.classList.contains('is-caught'),
+      feedback:race.querySelector('[data-chase-feedback]').textContent, continueLabel:cont.textContent, continueDisabled:cont.disabled,
+      wolfLeft:race.querySelector('.chase-wolf').getBoundingClientRect().left
+    };
+    if(${advance}) cont.click();
     return value;
   `);
   await browser.sleep(200);

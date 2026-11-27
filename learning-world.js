@@ -58,8 +58,9 @@ const StoryQuest = (() => {
   function adaptivePage() {
     const needs = topicNeeds(), rows = needs.slice(0,3), done = S.adaptiveDay === day();
     const count = pending().length;
+    const catchRule = window.ChaseRun ? ' Sai ' + ChaseRun.missLimit + ' câu thì Sói bắt kịp.' : '';
     return '<div class="learning-world adaptive-world">' +
-      '<section class="world-hero adaptive-hero"><div class="world-hero-copy"><span class="world-kicker">NHIỆM VỤ CỦA RIÊNG EM · LỚP ' + esc(S.grade) + '</span><h1>Thám tử chữ</h1><p>Thỏ Lá chọn câu mới ở nhóm chữ em cần luyện. Mỗi câu đúng giúp Thỏ chạy nhanh hơn sói!</p><button class="world-cta" id="adaptiveStart">' + (done ? 'Ôn thêm cùng Thỏ Lá' : 'Bắt đầu nhiệm vụ · 5 câu') + ' <span>→</span></button><small class="world-reward">' + (done ? 'Nhiệm vụ hôm nay đã hoàn thành' : 'Trả lời đúng cả 5 câu để Thỏ thoát sói!') + '</small></div><div class="world-mascot-wrap"><span class="world-spark spark-a">✦</span><span class="world-spark spark-b">✧</span><img src="' + MASCOT + '" alt="Thỏ Lá đang vẫy tay" /></div><div class="world-cloud cloud-one"></div><div class="world-cloud cloud-two"></div></section>' +
+      '<section class="world-hero adaptive-hero"><div class="world-hero-copy"><span class="world-kicker">NHIỆM VỤ CỦA RIÊNG EM · LỚP ' + esc(S.grade) + '</span><h1>Thám tử chữ</h1><p>Thỏ Lá chọn câu mới ở nhóm chữ em cần luyện. Câu đúng giúp Thỏ chạy nhanh hơn.' + catchRule + '</p><button class="world-cta" id="adaptiveStart">' + (done ? 'Ôn thêm cùng Thỏ Lá' : 'Bắt đầu nhiệm vụ · 5 câu') + ' <span>→</span></button><small class="world-reward">' + (done ? 'Nhiệm vụ hôm nay đã hoàn thành' : 'Trả lời đúng cả 5 câu để Thỏ thoát sói!') + '</small></div><div class="world-mascot-wrap"><span class="world-spark spark-a">✦</span><span class="world-spark spark-b">✧</span><img src="' + MASCOT + '" alt="Thỏ Lá đang vẫy tay" /></div><div class="world-cloud cloud-one"></div><div class="world-cloud cloud-two"></div></section>' +
       '<div class="world-metrics"><div><b>' + count + '</b><span>từ đang chờ ôn</span></div><div><b>' + rows.length + '</b><span>nhóm chữ cần chú ý</span></div><div><b>' + (done ? '✓' : '5') + '</b><span>câu mới mỗi lượt</span></div></div>' +
       '<section class="world-panel"><header><div><small>BẢN ĐỒ DẤU VẾT</small><h2>Thỏ Lá đang giúp em luyện gì?</h2></div><span class="world-panel-icon">🔍</span></header>' +
       (rows.length ? '<div class="weak-list">' + rows.map((row,index) => '<article class="weak-row"><span class="weak-number">0' + (index + 1) + '</span><div><b>' + esc(row.topic.ten) + '</b><small>' + row.count + ' câu đang cần luyện lại</small></div><span class="weak-stamp">' + ['🌱','🌼','🍃'][index] + '</span></article>').join('') + '</div>' : '<div class="world-empty"><span>🌷</span><b>Chưa có dấu vết sai — thật tuyệt!</b><p>Nhiệm vụ sẽ chọn vài câu mới trong các bài em đang học để giữ chữ luôn chắc nhé.</p></div>') +
@@ -102,7 +103,7 @@ const StoryQuest = (() => {
   function bindStories() { document.querySelectorAll('[data-story-start]').forEach(button => button.onclick = () => start(button.dataset.storyStart)); }
   registerView('adaptive','Nhiệm vụ của riêng em',adaptivePage,bindAdaptive);
   registerView('stories','Vườn truyện',storiesPage,bindStories);
-  return { homeCards, playerFrame, complete, start, chapters };
+  return { homeCards, playerFrame, complete, start, chapters, beginAdaptive };
 })();
 window.StoryQuest = StoryQuest;
 if (typeof render === 'function') render(); // app.js dựng trang chủ trước khi nạp các module trò chơi
