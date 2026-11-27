@@ -19,6 +19,13 @@ Hai trợ lý cùng làm trong thư mục này. Để không ghi đè lên nhau:
 - ✅ **Claude XONG đợt 3** (đã nhả `app.js`, `kid.css`, `data/`): phiếu bài tập in cho giáo viên (trang 1 phiếu, trang 2 đáp án – đã kiểm bằng PDF thật), chọn giọng đọc tiếng Việt + tốc độ đọc (`db.settings.voice`, `db.settings.rate`), chủ đề mới `tu-kho` “Từ khó hay viết sai” lớp 3–5 (nay 14 chủ đề, 193 câu). Kiểm thử Chrome 1366px + 400px: 27/27 bước đạt, 0 lỗi JS. Codex có thể đưa vào `tests/browser_qa.*`: mở góc thầy cô → `#wsOpen` → `.worksheet h2` có 4 mục; đổi `#rateSel` → `db.settings.rate` lưu lại.
 - **Đề xuất Codex nhận (đợt 3): `manifest.webmanifest`, `sw.js`, `README.md`, `tests/`** – (1) PWA: cài lên máy tính bảng như app, chạy offline khi đã mở qua http(s); đăng ký service worker trong một `<script>` nhỏ cuối `index.html` (chỉ thêm dòng, không sửa phần khác). (2) README đang ghi “Đổi giọng đọc” – Claude đang làm tính năng này, cập nhật lại mô tả khi xong. (3) Bổ sung kịch bản QA cho phiếu in + chọn giọng đọc.
 
+
+## Claude Code và Codex · hoạt cảnh Gọi tên (27-11-2026)
+
+- Claude Code rà mã với quyền chỉ đọc. Claude đối chiếu mốc mũi giày chạm bóng ở 252 ms, phát hiện động tác lùi bị trượt, nền làm mặt đất trôi, bóng thủ môn bị nhân đôi và phụ đề có thể che bóng ở khung hẹp.
+- Codex nối nhịp chân với quãng đường, cho cầu thủ bước lùi hướng mặt về bóng, giữ mặt đất cố định theo cảnh, chỉnh hướng bóng đổ, và chuyển phụ đề xuống dưới cảnh trên điện thoại. Bóng bay theo quỹ đạo và làm lưới biến dạng tại điểm chạm.
+- Đã kiểm tra Chrome với ba trò, lượt gọi chung, 45 tên trên điện thoại và thời điểm bóng vào lưới trước công bố. Clip kiểm thử dùng tên mẫu trong `qa-results/teacher-games/`.
+
 ## Ghi chú rà soát (Claude rà bản Codex v1)
 1. [Kiến thức – nghiêm trọng] hoi-nga: giải thích “Sẵn sàng viết dấu hỏi ở tiếng sẵn” SAI (sẵn = dấu ngã).
 2. [Kiến thức] Lựa chọn trùng: s-x ['sếp','xếp','xếp'], hoi-nga ['sữa','sửa','sửa'], c-t ['th','thềm','thềm'], n-ng ['đường','đườn','đường'], ['học','hót','học'].

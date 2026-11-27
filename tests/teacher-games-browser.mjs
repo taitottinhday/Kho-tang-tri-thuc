@@ -76,13 +76,16 @@ try {
       const requested = key === 'prince' ? 1 : 2;
       await browser.eval(`document.querySelector('#liveCount').value='${requested}';document.querySelector('#liveCount').dispatchEvent(new Event('change'));document.querySelector('#liveSpeed').value='10';document.querySelector('#liveSpeed').dispatchEvent(new Event('change'));document.querySelector('#startStory').click();return 1`);
       const pose = key === 'prince'
-        ? 'document.querySelector("#callerCinema .caller-performer--prince[data-motion=run]")'
-        : 'document.querySelector("#callerCinema .caller-performer--striker[data-motion=run]")';
-      await captureMotion(image, pose, key === 'penalty' ? 40 : 26);
+        ? 'document.querySelector("#callerCinema .caller-performer--prince[data-motion=run][data-gait]")'
+        : 'document.querySelector("#callerCinema .caller-performer--striker[data-motion=focus]")';
+      await captureMotion(image, pose, key === 'penalty' ? 55 : 48);
       check(await browser.eval('return !document.querySelector("#gameStage").classList.contains("is-running") || !document.querySelector(".caller-student.is-done")'), name + ' does not mark the selected name before the result');
       check(await until(`document.querySelector('#resultOverlay').classList.contains('is-shown')`, 26000), name + ' story reaches the reveal');
       selectedByGame[key] = await browser.eval(`return [...document.querySelectorAll('.caller-result-person b')].map(item=>item.textContent)`);
       check(selectedByGame[key].length === requested, name + ' completes a ' + requested + '-student turn', selectedByGame[key]);
+      if (key === 'penalty') {
+        check(await browser.eval('return document.querySelector("#callerCinema").classList.contains("has-goal")'), 'The final ball reaches the net before the reveal');
+      }
       await browser.sleep(750);
       await browser.shot(path.join(out, image + '-result.png'));
       await browser.eval(`document.querySelector('#backHome').click();return 1`);
@@ -90,7 +93,7 @@ try {
   }
 
   await browser.eval(`document.querySelector('#liveCount').value='3';document.querySelector('#liveCount').dispatchEvent(new Event('change'));document.querySelector('#liveSpeed').value='10';document.querySelector('#liveSpeed').dispatchEvent(new Event('change'));document.querySelector('#startStory').click();return 1`);
-  await captureMotion('detective', 'document.querySelector("#callerCinema .caller-performer--detective[data-motion=run]")', 32);
+  await captureMotion('detective', 'document.querySelector("#callerCinema .caller-performer--detective[data-locomotion=driven]")', 45);
   check(await until('!document.querySelector(".caller-cinema-evidence").hidden'), 'Detective moves from the entrance into the magnifier and clue sequence');
   check(await until(`document.querySelector('#resultOverlay').classList.contains('is-shown')`, 26000), 'Detective story reaches the reveal');
   const result = await browser.eval(`return {winners:[...document.querySelectorAll('.caller-result-person b')].map(item=>item.textContent),history:document.querySelector('#todayCount').textContent,round:document.querySelector('#roundProgress').textContent}`);
@@ -118,6 +121,10 @@ try {
   const mobileStage = await browser.eval('const frame=document.querySelector("#gameStage").getBoundingClientRect(); const cinema=document.querySelector("#callerCinema").getBoundingClientRect(); const dialogue=document.querySelector("#dialogueBox").getBoundingClientRect(); return { frame:frame.right, cinema:cinema.right, dialogue:dialogue.right }');
   check(mobileStage.cinema <= mobileStage.frame + 1 && mobileStage.dialogue <= mobileStage.frame, 'Mobile camera and dialogue fit inside the frame', mobileStage);
   await browser.shot(path.join(out, 'detective-mobile-45.png'));
+  await browser.eval('document.querySelector("#backHome").click(); document.querySelector("[data-open-game=penalty]").click()');
+  const mobileFootball = await browser.eval('const ball=document.querySelector(".caller-cinema-ball").getBoundingClientRect(); const caption=document.querySelector("#dialogueBox").getBoundingClientRect(); return { ball:ball.bottom, caption:caption.top }');
+  check(mobileFootball.ball <= mobileFootball.caption, 'Mobile captions sit below the ball', mobileFootball);
+  await browser.shot(path.join(out, 'penalty-mobile.png'));
   check(browser.errors.length === 0, 'No uncaught browser errors', browser.errors);
   console.log('Screenshots: ' + out);
 } finally {

@@ -98,13 +98,12 @@
   inset: 0;
   pointer-events: none;
 }
-.caller-cinema-world { z-index: 0; transform-origin: center 63%; }
+.caller-cinema-world { z-index: 0; bottom: var(--caller-caption-room, 0px); transform-origin: center 63%; }
 .caller-cinema-backdrop {
   inset: -1.5%;
   background-position: center 52%;
   background-size: cover;
   transform: scale(1.02);
-  animation: callerCinematicDrift 21s ease-in-out infinite alternate;
 }
 .scene-office .caller-cinema-backdrop { background-position: center 67%; }
 .scene-garden .caller-cinema-atmosphere {
@@ -136,14 +135,57 @@
   width: var(--actor-width, 32%);
   translate: -50% 0;
   transform-origin: 50% 92%;
-  filter: drop-shadow(0 4px 4px #100f1e42);
+  isolation: isolate;
 }
-.caller-performer-facing { transition: transform .16s ease; }
+.caller-cinema-actors .caller-performer::before {
+  position: absolute;
+  z-index: -1;
+  left: calc(var(--shadow-offset, 50%) + 12%);
+  bottom: calc(var(--shadow-ground, 1%) + 1%);
+  width: calc(var(--shadow-width, 50%) + 26%);
+  height: var(--shadow-thickness, 7%);
+  border-radius: 50%;
+  background: radial-gradient(ellipse, #1913239c 9%, #1b152664 37%, transparent 72%);
+  opacity: calc(var(--ground-force, .84) * .36);
+  transform: translateX(-50%) skewX(-35deg);
+  pointer-events: none;
+  content: "";
+}
+.scene-office .caller-cinema-actors .caller-performer::before {
+  left: calc(var(--shadow-offset, 50%) - 12%);
+  transform: translateX(-50%) skewX(35deg);
+}
+.caller-cinema-actors .caller-performer--keeper::before { display: none; }
+.scene-garden .caller-cinema-actors .caller-performer { filter: saturate(.94) drop-shadow(-1px -1px 1px #ffe5b966); }
+.scene-stadium .caller-cinema-actors .caller-performer { filter: saturate(.96) drop-shadow(-1px -1px 1px #90caff6b); }
+.scene-office .caller-cinema-actors .caller-performer { filter: saturate(.94) drop-shadow(1px -1px 1px #ffd18e66); }
 .faces-left .caller-performer-facing { transform: scaleX(-1); }
-.caller-performer--prince { --actor-width: min(41%, 485px); --feet: 10%; }
-.caller-performer--detective { --actor-width: min(31%, 340px); --feet: 11%; }
-.caller-performer--striker { --actor-width: min(26%, 290px); --feet: 10.3%; z-index: 2; }
-.caller-performer--keeper { --actor-width: min(20%, 228px); --feet: 20%; z-index: 1; }
+.caller-performer--prince {
+  --actor-width: min(41%, 485px);
+  --feet: 10%;
+  --shadow-offset: 51%;
+  --shadow-width: 59%;
+  --shadow-ground: 3.1%;
+}
+.caller-performer--detective {
+  --actor-width: min(31%, 340px);
+  --feet: 11%;
+  --shadow-width: 48%;
+  --shadow-offset: 44%;
+  --shadow-ground: 1.8%;
+}
+.caller-performer--striker {
+  --actor-width: min(26%, 290px);
+  --feet: 10.3%;
+  --shadow-width: 47%;
+  z-index: 2;
+}
+.caller-performer--keeper {
+  --actor-width: min(20%, 228px);
+  --feet: 20%;
+  --shadow-width: 51%;
+  z-index: 1;
+}
 .caller-horse-guest .student-chibi { width: 76px; height: 91px; }
 .caller-cinema-goal {
   position: absolute;
@@ -154,6 +196,15 @@
   filter: drop-shadow(0 4px 5px #071c36a1);
 }
 .caller-cinema-goal svg { display: block; width: 100%; }
+.caller-cinema-ball-shadow {
+  position: absolute;
+  z-index: 3;
+  width: clamp(22px, 4.6cqw, 54px);
+  height: clamp(5px, 1.13cqw, 14px);
+  border-radius: 50%;
+  background: radial-gradient(ellipse, #081915e8, transparent 71%);
+  translate: -50% -50%;
+}
 .caller-cinema-ball {
   --ball-scale: 1;
   position: absolute;
@@ -166,21 +217,21 @@
 .caller-cinema-ball::before {
   position: absolute;
   inset: 18% 40% 18% auto;
-  width: 200%;
+  width: 158%;
   border-radius: 80%;
-  background: linear-gradient(90deg, transparent, #81ddff76 65%, #ecffff);
-  filter: blur(4px);
+  background: linear-gradient(90deg, transparent, #b8ddef62 62%, #effafbcc);
+  filter: blur(5px);
   opacity: 0;
-  transform: rotate(11deg);
+  transform: rotate(var(--trail-angle, 0deg));
   transform-origin: right;
   content: "";
 }
-.caller-cinema-ball.in-flight::before { opacity: .88; }
+.caller-cinema-ball.in-flight::before { opacity: .67; }
 .caller-cinema-ball svg {
   position: relative;
   display: block;
   width: 100%;
-  filter: drop-shadow(0 5px 5px #071b31a0);
+  filter: drop-shadow(0 1px 1px #071b3180);
 }
 .caller-cinema .caller-stage-shade {
   background: linear-gradient(180deg, #070e24a8, transparent 28%, transparent 69%, #100d21bf);
@@ -370,7 +421,6 @@
 .caller-page:fullscreen:has(.caller-stage.is-running) .caller-board-wrap { display: none; }
 .caller-page:fullscreen:has(.caller-stage.is-running) .caller-play { grid-template-rows: auto minmax(0, 1fr) auto; }
 
-@keyframes callerCinematicDrift { to { transform: scale(1.09) translate(.45%, -.65%); } }
 @keyframes callerLightBreath { from { opacity: .45; transform: translateX(-1.8%); } to { opacity: .93; transform: translateX(2%); } }
 @keyframes callerWindowRain { to { background-position: 27px 54px; } }
 @keyframes callerImpact { 0% { opacity: 0; } 18% { opacity: .67; } 100% { opacity: 0; } }
@@ -390,12 +440,22 @@
 }
 
 @media (max-width: 560px) {
+  .caller-cinema { --caller-caption-room: 62px; background: #121528; }
+  .caller-cinema::after {
+    position: absolute;
+    z-index: 2;
+    inset: auto 0 0;
+    height: var(--caller-caption-room);
+    background: linear-gradient(180deg, #121528ef, #121528 24%);
+    pointer-events: none;
+    content: "";
+  }
   .caller-game-card { grid-template-columns: minmax(114px, .78fr) 1fr; min-height: 101px; }
   .caller-game-card .game-card-copy { padding: 9px 36px 9px 10px; }
   .caller-game-card .game-card-copy > b { font-size: .82rem; }
   .caller-game-card .game-card-copy > small { font-size: .65rem; }
   .caller-game-card .game-card-action { width: 23px; height: 23px; right: 7px; }
-  .caller-cinema .caller-dialogue { max-width: calc(100% - 18px); padding: 5px 8px; min-height: 41px; }
+  .caller-cinema .caller-dialogue { bottom: 9px; max-width: calc(100% - 18px); padding: 5px 8px; min-height: 41px; }
   .caller-cinema .caller-dialogue p { font-size: .72rem; }
   .caller-cinema .caller-stage-topline > span:nth-child(2) { flex: 1; }
   .caller-cinema .caller-stage-topline > button { flex: none; }

@@ -11,6 +11,89 @@ function linear(id, colors, vector = '0% 0% 84% 100%') {
   return `<linearGradient id="${id}" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}">${colors.map(([at, color]) => stop(at, color)).join('')}</linearGradient>`;
 }
 
+export const PENALTY_KICK_CONTACT_MS = 252;
+export const PENALTY_STRIDE_UNITS = 120;
+export const PENALTY_KEEPER_DIVE_MS = Object.freeze({ push: 235, reach: 470, land: 725, recover: 872 });
+
+const STRIKER_JOINTS = {
+  near: [[132, 216], [128, 253], [129, 298]],
+  far: [[160, 215], [174, 252], [175, 297]]
+};
+
+function interpolate(track, time) {
+  const next = track.findIndex(frame => time <= frame[0] + 1e-8);
+  if (next === 0) return track[0].slice(1);
+  if (next < 0) return track.at(-1).slice(1);
+  const before = track[next - 1];
+  const after = track[next];
+  const amount = (time - before[0]) / (after[0] - before[0]);
+  return before.slice(1).map((value, axis) => value + (after[axis + 1] - value) * amount);
+}
+
+function solveLeg(side, [ankleX, ankleY, pitch], [bodyX, bodyY]) {
+  const [hip, knee, ankle] = STRIKER_JOINTS[side];
+  const [upperX, upperY] = knee.map((coordinate, index) => coordinate - hip[index]);
+  const [lowerX, lowerY] = ankle.map((coordinate, index) => coordinate - knee[index]);
+  const thigh = Math.hypot(upperX, upperY);
+  const calf = Math.hypot(lowerX, lowerY);
+  const dx = ankleX - bodyX - hip[0];
+  const dy = ankleY - bodyY - hip[1];
+  const heading = Math.atan2(dy, dx);
+  const distance = Math.max(Math.abs(thigh - calf) + .2, Math.min(thigh + calf - .2, Math.hypot(dx, dy)));
+  const clampedX = Math.cos(heading) * distance;
+  const clampedY = Math.sin(heading) * distance;
+  const kneeOffset = Math.acos((thigh ** 2 + distance ** 2 - calf ** 2) / (2 * thigh * distance));
+  const hipAngle = heading - kneeOffset;
+  const shinAngle = Math.atan2(clampedY - thigh * Math.sin(hipAngle), clampedX - thigh * Math.cos(hipAngle));
+  const toDegrees = 180 / Math.PI;
+  const thighRotation = (hipAngle - Math.atan2(upperY, upperX)) * toDegrees;
+  const shinRotation = (shinAngle - Math.atan2(lowerY, lowerX)) * toDegrees - thighRotation;
+  return [thighRotation, shinRotation, pitch - thighRotation - shinRotation];
+}
+
+const runFoot = [
+  [0, 24, 0, -8], [.10, 12, 0, 0], [.33, -16, 0, 0], [.43, -28, -4, 20],
+  [.57, -24, -25, 42], [.72, -4, -41, 20], [.87, 23, -24, -19], [1, 24, 0, -8]
+];
+const runBody = [[0, 0, -2], [.16, -2, 5], [.35, 0, -2], [.50, 1, -8], [.66, 0, 5], [.85, -1, -2], [1, 0, -2]];
+const strikeBody = [[0, 0, 0], [.14, -1, 3], [.24, -6, 6], [.32, 2, 4], [.36, 11, 2], [.49, 15, 2], [.62, 15, -3], [.76, 11, 2], [.89, 7, 4], [1, 7, 0]];
+const strikeFoot = [
+  [0, 130, 298, 0], [.14, 118, 291, 14], [.24, 98, 262, 47], [.32, 114, 277, 20],
+  [.36, 176, 291, -4.5], [.49, 205, 251, -39], [.62, 196, 262, -26], [.76, 174, 285, -11],
+  [.89, 153, 298, 2], [1, 140, 298, 0]
+];
+const plantFoot = [[0, 175, 297, 0], [.76, 175, 297, 0], [.89, 168, 290, 13], [1, 173, 297, 0]];
+
+function strikerLegAnimation(mode) {
+  // The foot's trajectory is solved in stage coordinates before converting to joint rotations.
+  // The opposite boot stays on the same patch of turf as the torso moves during the strike.
+  const tracks = { body: [], nearLeg: [], nearShin: [], nearBoot: [], farLeg: [], farShin: [], farBoot: [] };
+  const run = mode === 'Run';
+  const count = 50;
+  const format = number => number.toFixed(3);
+  for (let index = 0; index <= count; index++) {
+    const progress = index / count;
+    const [x, y] = interpolate(run ? runBody : strikeBody, progress);
+    const at = index * 100 / count + '%';
+    tracks.body.push(`${at}{transform:translate(${format(x)}px,${format(y)}px)}`);
+    for (const side of ['near', 'far']) {
+      let target;
+      if (run) {
+        const phase = side === 'near' ? progress : (progress + .5) % 1;
+        const [offset, lift, pitch] = interpolate(runFoot, phase);
+        target = side === 'near' ? [126 + offset, 298 + lift, pitch] : [151 + offset, 297 + lift, pitch];
+      } else {
+        target = interpolate(side === 'near' ? strikeFoot : plantFoot, progress);
+      }
+      const joints = solveLeg(side, target, [x, y]);
+      ['Leg', 'Shin', 'Boot'].forEach((joint, jointIndex) => {
+        tracks[side + joint].push(`${at}{transform:rotate(${format(joints[jointIndex])}deg)}`);
+      });
+    }
+  }
+  return Object.entries(tracks).map(([part, frames]) => `@keyframes cgStriker${mode}${part[0].toUpperCase() + part.slice(1)}{${frames.join('')}}`).join('\n');
+}
+
 const strikerMotion = `
   .cg-striker-shadow { transform-origin: 154px 313px; }
   .cg-striker-body { transform-origin: 148px 213px; }
@@ -26,37 +109,49 @@ const strikerMotion = `
   .cg-striker-near-leg { transform-origin: 132px 216px; }
   .cg-striker-far-shin { transform-origin: 174px 252px; }
   .cg-striker-near-shin { transform-origin: 128px 253px; }
-  .cg-striker-speed { opacity: 0; transform-origin: 150px 180px; }
+  .cg-striker-far-boot { transform-origin: 175px 297px; }
+  .cg-striker-near-boot { transform-origin: 129px 298px; }
   .cg-striker-cheer { opacity: 0; }
 
-  .caller-performer[data-motion="run"] .cg-striker-body { animation: cgStrikerRun .36s ease-in-out infinite; }
-  .caller-performer[data-motion="run"] .cg-striker-trunk { animation: cgStrikerLean .36s ease-in-out infinite; }
-  .caller-performer[data-motion="run"] .cg-striker-near-leg { animation: cgStrikerStride .36s cubic-bezier(.45,.05,.55,.95) infinite; }
-  .caller-performer[data-motion="run"] .cg-striker-far-leg { animation: cgStrikerStride .36s cubic-bezier(.45,.05,.55,.95) -.18s infinite; }
-  .caller-performer[data-motion="run"] .cg-striker-near-shin { animation: cgStrikerShin .36s ease-in-out infinite; }
-  .caller-performer[data-motion="run"] .cg-striker-far-shin { animation: cgStrikerShin .36s ease-in-out -.18s infinite; }
-  .caller-performer[data-motion="run"] .cg-striker-near-arm { animation: cgStrikerArms .36s ease-in-out -.18s infinite; }
-  .caller-performer[data-motion="run"] .cg-striker-far-arm { animation: cgStrikerArms .36s ease-in-out infinite; }
-  .caller-performer[data-motion="run"] .cg-striker-near-fore { transform: rotate(-24deg); }
-  .caller-performer[data-motion="run"] .cg-striker-far-fore { transform: rotate(-19deg); }
+  .caller-performer[data-motion="run"] .cg-striker-body { animation: cgStrikerRunBody .48s linear infinite; }
+  .caller-performer[data-motion="run"] .cg-striker-trunk { animation: cgStrikerLean .48s linear infinite; }
+  .caller-performer[data-motion="run"] .cg-striker-near-leg { animation: cgStrikerRunNearLeg .48s linear infinite; }
+  .caller-performer[data-motion="run"] .cg-striker-far-leg { animation: cgStrikerRunFarLeg .48s linear infinite; }
+  .caller-performer[data-motion="run"] .cg-striker-near-shin { animation: cgStrikerRunNearShin .48s linear infinite; }
+  .caller-performer[data-motion="run"] .cg-striker-far-shin { animation: cgStrikerRunFarShin .48s linear infinite; }
+  .caller-performer[data-motion="run"] .cg-striker-near-boot { animation: cgStrikerRunNearBoot .48s linear infinite; }
+  .caller-performer[data-motion="run"] .cg-striker-far-boot { animation: cgStrikerRunFarBoot .48s linear infinite; }
+  .caller-performer[data-motion="run"] .cg-striker-near-arm { animation: cgStrikerNearDrive .48s ease-in-out infinite; }
+  .caller-performer[data-motion="run"] .cg-striker-far-arm { animation: cgStrikerFarDrive .48s ease-in-out infinite; }
+  .caller-performer[data-motion="run"] .cg-striker-near-fore { animation: cgStrikerNearForeDrive .48s ease-in-out infinite; }
+  .caller-performer[data-motion="run"] .cg-striker-far-fore { animation: cgStrikerFarForeDrive .48s ease-in-out infinite; }
+  .caller-performer[data-motion="run"] .cg-striker-skull { animation: cgStrikerStabilizeHead .48s linear infinite; }
   .caller-performer[data-motion="run"] .cg-striker-hair-tip { animation: cgStrikerHair .18s ease-in-out infinite alternate; }
-  .caller-performer[data-motion="run"] .cg-striker-speed { animation: cgRunTrace .36s ease-out infinite; }
+  .caller-performer[data-motion="run"] .cg-striker-shadow { animation: cgStrikerRunShadow .48s linear infinite; }
+  .caller-performer[data-motion="run"][data-gait="paced"] .cg-striker :is(.cg-striker-body,.cg-striker-trunk,.cg-striker-near-leg,.cg-striker-far-leg,.cg-striker-near-shin,.cg-striker-far-shin,.cg-striker-near-boot,.cg-striker-far-boot,.cg-striker-near-arm,.cg-striker-far-arm,.cg-striker-near-fore,.cg-striker-far-fore,.cg-striker-skull,.cg-striker-shadow) {
+    animation-delay: var(--caller-gait-time, 0s);
+    animation-play-state: paused;
+  }
 
   .caller-performer[data-motion="fake"] .cg-striker-body { animation: cgStrikerCheck .69s ease-in-out both; }
   .caller-performer[data-motion="fake"] .cg-striker-near-leg { animation: cgStrikerFeint .69s ease-in-out both; }
   .caller-performer[data-motion="fake"] .cg-striker-near-shin { animation: cgStrikerFeintShin .69s ease-in-out both; }
   .caller-performer[data-motion="fake"] .cg-striker-near-arm { animation: cgStrikerCheckArm .69s ease-in-out both; }
   .caller-performer[data-motion="fake"] .cg-striker-skull { animation: cgStrikerLook .69s ease-in-out both; }
-  .caller-performer[data-motion="fake"] .cg-striker-trunk,
-  .caller-performer:is([data-motion="focus"],[data-motion="kick"],[data-motion="win"]) .cg-striker-trunk { animation: none; }
+  .caller-performer:is([data-motion="fake"],[data-motion="win"]) .cg-striker-trunk { animation: none; }
 
-  .caller-performer:is([data-motion="focus"],[data-motion="kick"]) .cg-striker-body { animation: cgStrikerStrike .70s both; }
-  .caller-performer:is([data-motion="focus"],[data-motion="kick"]) .cg-striker-near-leg { animation: cgStrikerKick .70s both; }
-  .caller-performer:is([data-motion="focus"],[data-motion="kick"]) .cg-striker-near-shin { animation: cgStrikerKickShin .70s both; }
-  .caller-performer:is([data-motion="focus"],[data-motion="kick"]) .cg-striker-far-leg { animation: cgStrikerPlant .70s both; }
+  .caller-performer:is([data-motion="focus"],[data-motion="kick"]) .cg-striker-body { animation: cgStrikerStrikeBody .70s linear both; }
+  .caller-performer:is([data-motion="focus"],[data-motion="kick"]) .cg-striker-near-leg { animation: cgStrikerStrikeNearLeg .70s linear both; }
+  .caller-performer:is([data-motion="focus"],[data-motion="kick"]) .cg-striker-near-shin { animation: cgStrikerStrikeNearShin .70s linear both; }
+  .caller-performer:is([data-motion="focus"],[data-motion="kick"]) .cg-striker-near-boot { animation: cgStrikerStrikeNearBoot .70s linear both; }
+  .caller-performer:is([data-motion="focus"],[data-motion="kick"]) .cg-striker-far-leg { animation: cgStrikerStrikeFarLeg .70s linear both; }
+  .caller-performer:is([data-motion="focus"],[data-motion="kick"]) .cg-striker-far-shin { animation: cgStrikerStrikeFarShin .70s linear both; }
+  .caller-performer:is([data-motion="focus"],[data-motion="kick"]) .cg-striker-far-boot { animation: cgStrikerStrikeFarBoot .70s linear both; }
+  .caller-performer:is([data-motion="focus"],[data-motion="kick"]) .cg-striker-trunk { animation: cgStrikerStrikeTorso .70s both; }
+  .caller-performer:is([data-motion="focus"],[data-motion="kick"]) .cg-striker-skull { animation: cgStrikerTrackBall .70s both; }
   .caller-performer:is([data-motion="focus"],[data-motion="kick"]) .cg-striker-near-arm { animation: cgStrikerBalance .70s both; }
   .caller-performer:is([data-motion="focus"],[data-motion="kick"]) .cg-striker-far-arm { animation: cgStrikerBalanceFar .70s both; }
-  .caller-performer:is([data-motion="focus"],[data-motion="kick"]) .cg-striker-speed { animation: cgKickTrace .70s both; }
+  .caller-performer:is([data-motion="focus"],[data-motion="kick"]) .cg-striker-near-fore { animation: cgStrikerStrikeElbow .70s both; }
 
   .caller-performer[data-motion="win"] .cg-striker-body { animation: cgStrikerJump 1.08s ease-in-out 2; }
   .caller-performer[data-motion="win"] .cg-striker-near-arm { animation: cgStrikerCheerNear 1.08s ease-in-out 2; }
@@ -68,44 +163,24 @@ const strikerMotion = `
 
   @keyframes cgStrikerBreathe { 50% { transform: rotate(1.6deg) translateY(-2px); } }
   @keyframes cgStrikerBlink { 0%, 38%, 42%, 78%, 82%, 100% { scale: 1; } 40%, 80% { scale: 1 .08; } }
-  @keyframes cgStrikerRun { 0%, 50%, 100% { transform: translateY(0) rotate(9deg); } 25%, 75% { transform: translateY(-12px) rotate(6deg); } }
-  @keyframes cgStrikerLean { 0%, 50%, 100% { transform: rotate(7deg); } 25%, 75% { transform: rotate(12deg) translateY(-1px); } }
-  @keyframes cgStrikerStride { 0%, 100% { transform: rotate(-37deg); } 47% { transform: rotate(42deg); } 68% { transform: rotate(27deg); } }
-  @keyframes cgStrikerShin { 0%, 100% { transform: rotate(11deg); } 31% { transform: rotate(6deg); } 56% { transform: rotate(49deg); } 77% { transform: rotate(67deg); } }
-  @keyframes cgStrikerArms { 0%, 100% { transform: rotate(-31deg); } 50% { transform: rotate(32deg); } }
+  @keyframes cgStrikerLean { 0%, 50%, 100% { transform: rotate(12deg); } 16%, 66% { transform: rotate(17deg) skewX(-1.6deg); } 37%, 84% { transform: rotate(13deg); } }
+  @keyframes cgStrikerStabilizeHead { 0%,50%,100% { transform: rotate(-9deg); } 16%, 66% { transform: rotate(-14deg) translateY(-2px); } }
+  @keyframes cgStrikerNearDrive { 0%,100% { transform: rotate(41deg); } 45% { transform: rotate(-52deg); } }
+  @keyframes cgStrikerFarDrive { 0%,100% { transform: rotate(-32deg); } 50% { transform: rotate(43deg); } }
+  @keyframes cgStrikerNearForeDrive { 0%,100% { transform: rotate(-57deg); } 45% { transform: rotate(-82deg); } }
+  @keyframes cgStrikerFarForeDrive { 0%,100% { transform: rotate(-52deg); } 50% { transform: rotate(-23deg); } }
+  @keyframes cgStrikerRunShadow { 0%,50%,100% { opacity: .76; } 17%,67% { opacity: .97; transform: scaleX(1.035); } 45%,94% { opacity: .53; transform: scaleX(.83); } }
   @keyframes cgStrikerHair { to { transform: rotate(-10deg); } }
-  @keyframes cgRunTrace { 0% { opacity: .1; transform: translateX(9px); } 40% { opacity: .55; } 100% { opacity: 0; transform: translateX(-19px); } }
   @keyframes cgStrikerCheck { 28% { transform: translate(-9px,5px) rotate(-12deg); } 56% { transform: translate(10px,-7px) rotate(19deg); } 80% { transform: translate(5px,3px) rotate(-5deg); } }
   @keyframes cgStrikerFeint { 28% { transform: rotate(24deg); } 55% { transform: rotate(-26deg); } 79% { transform: rotate(8deg); } }
   @keyframes cgStrikerFeintShin { 38% { transform: rotate(39deg); } 67% { transform: rotate(10deg); } }
   @keyframes cgStrikerCheckArm { 31% { transform: rotate(39deg); } 69% { transform: rotate(57deg); } }
   @keyframes cgStrikerLook { 45% { transform: rotate(-15deg); } 78% { transform: rotate(9deg); } }
-  @keyframes cgStrikerStrike {
-    0% { transform: rotate(0deg); }
-    23% { transform: translate(-7px,4px) rotate(-14deg); animation-timing-function: cubic-bezier(.68,.02,.89,.27); }
-    36% { transform: translate(12px,3px) rotate(5deg); }
-    54% { transform: translate(17px,-14px) rotate(17deg); }
-    79% { transform: translate(10px,6px) rotate(9deg); }
-    100% { transform: translate(9px,0) rotate(4deg); }
-  }
-  @keyframes cgStrikerKick {
-    0% { transform: rotate(0deg); }
-    23% { transform: rotate(48deg); animation-timing-function: cubic-bezier(.7,.06,.88,.38); }
-    36% { transform: rotate(-29deg); }
-    53% { transform: rotate(-91deg); }
-    77% { transform: rotate(-34deg); }
-    100% { transform: rotate(-12deg); }
-  }
-  @keyframes cgStrikerKickShin {
-    23% { transform: rotate(75deg); animation-timing-function: cubic-bezier(.7,.06,.88,.38); }
-    36% { transform: rotate(-11deg); }
-    53% { transform: rotate(-6deg); }
-    80% { transform: rotate(20deg); }
-  }
-  @keyframes cgStrikerPlant { 25% { transform: rotate(4deg); } 43% { transform: rotate(-5deg); } 62% { transform: rotate(13deg); } }
-  @keyframes cgStrikerBalance { 25% { transform: rotate(35deg); } 43% { transform: rotate(83deg); } 68% { transform: rotate(59deg); } }
-  @keyframes cgStrikerBalanceFar { 25% { transform: rotate(-18deg); } 46% { transform: rotate(-49deg); } 71% { transform: rotate(-32deg); } }
-  @keyframes cgKickTrace { 0%,24%,83%,100% { opacity: 0; } 39% { opacity: .9; } 68% { opacity: .22; transform: translateX(-22px); } }
+  @keyframes cgStrikerStrikeTorso { 0% { transform: rotate(8deg); } 24% { transform: rotate(-11deg) scaleX(.95); } 36% { transform: rotate(12deg) scaleX(.98); } 52% { transform: rotate(22deg) scaleX(.94); } 78% { transform: rotate(10deg); } 100% { transform: rotate(3deg); } }
+  @keyframes cgStrikerTrackBall { 0% { transform: rotate(3deg); } 24% { transform: rotate(21deg) translateY(3px); } 36% { transform: rotate(9deg); } 62% { transform: rotate(-10deg); } 100% { transform: rotate(0); } }
+  @keyframes cgStrikerBalance { 15% { transform: rotate(31deg); } 24% { transform: rotate(53deg); } 36% { transform: rotate(77deg); } 53% { transform: rotate(93deg); } 75% { transform: rotate(36deg); } }
+  @keyframes cgStrikerBalanceFar { 24% { transform: rotate(-39deg) translateY(-3px); } 36% { transform: rotate(-67deg); } 55% { transform: rotate(-49deg); } 82% { transform: rotate(-7deg); } }
+  @keyframes cgStrikerStrikeElbow { 23% { transform: rotate(-24deg); } 36% { transform: rotate(-5deg); } 60% { transform: rotate(-50deg); } 90% { transform: rotate(-17deg); } }
   @keyframes cgStrikerJump { 0%,100% { transform: translateY(0); } 18%,82% { transform: translateY(3px) scaleY(.97); } 48% { transform: translateY(-30px) rotate(-5deg); } }
   @keyframes cgStrikerCheerNear { 0%,100% { transform: rotate(0); } 33%,60% { transform: rotate(117deg); } }
   @keyframes cgStrikerCheerFar { 0%,100% { transform: rotate(0); } 38%,64% { transform: rotate(-126deg); } }
@@ -113,7 +188,7 @@ const strikerMotion = `
   @keyframes cgStrikerShadow { 50% { opacity: .42; transform: scaleX(.71); } }
 
   @media (prefers-reduced-motion: reduce) { .cg-striker * { animation: none !important; } }
-`;
+` + strikerLegAnimation('Run') + '\n' + strikerLegAnimation('Strike');
 
 export function strikerMarkup() {
   const id = 'striker' + ++artworkId;
@@ -121,25 +196,22 @@ export function strikerMarkup() {
   return `<svg class="cg-striker" viewBox="0 0 300 330" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
     <style>${strikerMotion}</style>
     <defs>
-      ${linear(id + '-skin', [[0, '#ffdeb2'], [.52, '#f6b378'], [1, '#ce7458']])}
-      ${linear(id + '-skin-shadow', [[0, '#edb07e'], [1, '#ba6d57']])}
-      ${linear(id + '-hair', [[0, '#516482'], [.37, '#263752'], [.75, '#182540'], [1, '#0f1632']])}
-      ${linear(id + '-jersey', [[0, '#fff3a1'], [.32, '#ffd648'], [.72, '#f4aa2e'], [1, '#d17827']])}
-      ${linear(id + '-shorts', [[0, '#4d6179'], [.64, '#263957'], [1, '#162746']])}
-      ${linear(id + '-socks', [[0, '#fff8dc'], [.5, '#e5edf1'], [1, '#8fa3c3']])}
-      ${linear(id + '-boot', [[0, '#b2ffe3'], [.32, '#55d9b8'], [.7, '#1f917f'], [1, '#144f60']])}
+      ${linear(id + '-skin', [[0, '#fff1cb'], [.32, '#ffd29d'], [.66, '#e49b6b'], [.9, '#a66050'], [1, '#c18c61']], '16% 6% 83% 100%')}
+      ${linear(id + '-skin-shadow', [[0, '#f4bc89'], [.46, '#cb8c68'], [1, '#8f514b']])}
+      ${linear(id + '-hair', [[0, '#57698c'], [.22, '#384962'], [.61, '#1c263d'], [.85, '#131c2e'], [1, '#253747']])}
+      ${linear(id + '-jersey', [[0, '#fff8b8'], [.29, '#f9d86c'], [.65, '#dfa439'], [.88, '#a05f24'], [1, '#b8843e']])}
+      ${linear(id + '-shorts', [[0, '#577187'], [.46, '#2f465d'], [.8, '#1a2c45'], [1, '#2e4856']])}
+      ${linear(id + '-socks', [[0, '#fbf7e4'], [.42, '#edf4f4'], [1, '#90a8be']])}
+      ${linear(id + '-boot', [[0, '#b2ffe3'], [.27, '#63c8ad'], [.65, '#26786f'], [1, '#123c51']])}
       ${linear(id + '-iris', [[0, '#473249'], [.55, '#733f49'], [1, '#aa6847']])}
       <radialGradient id="${id}-blush"><stop stop-color="#ed6c67" stop-opacity=".62"/><stop offset="1" stop-color="#ed6c67" stop-opacity="0"/></radialGradient>
+      <radialGradient id="${id}-face-bounce" cx="45%" cy="100%" r="73%"><stop stop-color="#ffdc9f" stop-opacity=".43"/><stop offset="1" stop-color="#ffdc9f" stop-opacity="0"/></radialGradient>
       <radialGradient id="${id}-shadow"><stop stop-color="#05192b" stop-opacity=".68"/><stop offset="1" stop-color="#05192b" stop-opacity="0"/></radialGradient>
       <pattern id="${id}-mesh" width="6" height="6" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r=".62" fill="#773c20" opacity=".18"/></pattern>
     </defs>
 
     <ellipse class="cg-striker-shadow" cx="154" cy="316" rx="82" ry="10" fill="${paint('shadow')}"/>
-    <g class="cg-striker-speed" fill="none" stroke-linecap="round">
-      <path d="M51 172h44m-68 14h31m-12 12h51m-34 61h37" stroke="#d8fff1" stroke-width="2.5" opacity=".53"/>
-      <path d="M35 210h39m-12 13h25" stroke="#79edcf" stroke-width="4" opacity=".45"/>
-    </g>
-    <g class="cg-striker-body" stroke="#182a47" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">
+    <g class="cg-striker-body" stroke="#253043" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
       <g class="cg-striker-far-leg">
         <path d="M145 205q22-11 30 6l8 28q-9 17-27 15l-13-23Z" fill="${paint('shorts')}"/>
         <path d="m165 221 9 21" stroke="#e6a344" stroke-width="3" opacity=".82"/>
@@ -147,9 +219,12 @@ export function strikerMarkup() {
           <path d="M161 248q10 3 18-7l1 23-13 4Z" fill="${paint('skin-shadow')}"/>
           <path d="M163 263q10 4 17-1l3 34-14 8-7-9Z" fill="${paint('socks')}"/>
           <path d="m164 271 15-2m-15 8 16-2" stroke="#526889" stroke-width="2.1"/>
-          <path d="M169 297q8 1 14-5l8 7 14 3q7 3 8 8 1 6-10 6h-32q-7-1-7-8Z" fill="${paint('boot')}"/>
-          <path d="M166 309q23 3 43-1l1 4-5 4h-34Z" fill="#21394d"/>
-          <path d="m182 299 6 4m-2-5 6 3" stroke="#a1f0c5" stroke-width="1.4"/>
+          <g class="cg-striker-far-boot">
+            <path d="M169 297q8 1 14-5l8 7 14 3q7 3 8 8 1 6-10 6h-32q-7-1-7-8Z" fill="${paint('boot')}"/>
+            <path d="M166 309q23 3 43-1l1 4-5 4h-34Z" fill="#21394d"/>
+            <path d="m182 299 6 4m-2-5 6 3" stroke="#a1f0c5" stroke-width="1.4"/>
+            <circle data-run-contact="far" cx="172" cy="316" r="1" fill="none" stroke="none"/>
+          </g>
         </g>
       </g>
 
@@ -172,6 +247,7 @@ export function strikerMarkup() {
         <path d="M166 171q6-4 13-3l-1 10-8 5-6-5Z" fill="#f9efbf" stroke-width="1.5"/>
         <path d="m170 176 2-3 2 3 3-1-2 3h-5l-2-3Z" fill="#489080" stroke="none"/>
         <path d="M126 215q15 5 44-3m-41-17 8 1" fill="none" stroke="#ad5d36" stroke-width="1.4" opacity=".68"/>
+        <path d="M116 159q-5 8-2 18m12-29 8-2m-15 71q8 5 12 5m37-71 8 5" stroke="#fff2b1" stroke-width="1.45" opacity=".63" fill="none"/>
         <g class="cg-striker-near-arm">
           <path d="M115 149q11-6 19 6 4 7 1 13l-12 17-17-7 3-17Z" fill="${paint('jersey')}"/>
           <path d="m107 175 18 6-4 7-17-7Z" fill="#fff5d6"/>
@@ -185,6 +261,7 @@ export function strikerMarkup() {
           <path d="M105 78q14-27 48-31 32 0 46 23l-9 42-16 16-51 6-20-20Z" fill="${paint('hair')}"/>
           <path d="M112 96q-12-9-17 3-2 12 12 19l8-1Z" fill="${paint('skin-shadow')}"/>
           <path d="M112 80q14-23 45-25 30 2 34 26l2 15 5 7-1 6-8 3q-2 14-14 23-9 7-26 6-21-3-32-18-10-15-5-43Z" fill="${paint('skin')}"/>
+          <path d="M113 105q10 8 23 7 20 0 26-7 4 6 18 9l7-1q-2 11-13 22-12 8-26 7-26-6-35-25Z" fill="${paint('face-bounce')}" stroke="none"/>
           <path d="M170 76q11 0 18 6m-52 4q9-5 19-3" fill="none" stroke="#302b49" stroke-width="3.1"/>
           <g class="cg-striker-eye">
             <path d="M137 96q8-10 19-3 4 3 3 9-14 5-22-1Zm34-4q7-7 15 0l1 8q-10 4-16-1Z" fill="#fff7e2" stroke-width="1.4"/>
@@ -223,11 +300,15 @@ export function strikerMarkup() {
           <path d="M119 263q12 4 21-1l-1 39-18 5-5-17Z" fill="${paint('socks')}"/>
           <path d="M120 271q11 4 19-1m-20 7 19-1" stroke="#5a7899" stroke-width="2"/>
           <path d="M121 283v14" stroke="#f5fffa" stroke-width="1.25" opacity=".74"/>
-          <path d="M120 297q10 3 18-5l11 8 17 2q9 1 12 9 0 6-9 7h-45q-10-1-10-8Z" fill="${paint('boot')}"/>
-          <path d="M115 310q25 5 61-1l1 4-6 5h-47Z" fill="#23394f"/>
-          <path d="M130 319v2m17-2v2m17-2v2" stroke="#294256" stroke-width="3.1"/>
-          <path d="m140 298 7 4m-2-5 9 4m-13 2 11 3m-22-4 7 5" stroke="#e3ffe8" stroke-width="1.7"/>
-          <path d="m158 305 9 1" stroke="#e3ffe8" stroke-width="1.3" opacity=".7"/>
+          <g class="cg-striker-near-boot">
+            <path d="M120 297q10 3 18-5l11 8 17 2q9 1 12 9 0 6-9 7h-45q-10-1-10-8Z" fill="${paint('boot')}"/>
+            <path d="M115 310q25 5 61-1l1 4-6 5h-47Z" fill="#23394f"/>
+            <path d="M130 319v2m17-2v2m17-2v2" stroke="#294256" stroke-width="3.1"/>
+            <path d="m140 298 7 4m-2-5 9 4m-13 2 11 3m-22-4 7 5" stroke="#e3ffe8" stroke-width="1.7"/>
+            <path d="m158 305 9 1" stroke="#e3ffe8" stroke-width="1.3" opacity=".7"/>
+            <circle data-kick-contact cx="177" cy="309" r="1" fill="none" stroke="none"/>
+            <circle data-run-contact="near" cx="126" cy="318" r="1" fill="none" stroke="none"/>
+          </g>
         </g>
       </g>
     </g>
@@ -237,7 +318,7 @@ export function strikerMarkup() {
 const keeperMotion = `
   .cg-keeper-mirror { transform-origin: 150px 165px; }
   .cg-keeper-shadow { transform-origin: 150px 316px; }
-  .cg-keeper-body { transform-origin: 150px 208px; animation: cgKeeperReady 1.18s ease-in-out infinite; }
+  .cg-keeper-body { transform-origin: 150px 208px; animation: cgKeeperReady 1.6s ease-in-out infinite; }
   .cg-keeper-trunk { transform-origin: 150px 209px; }
   .cg-keeper-skull { transform-origin: 150px 140px; animation: cgKeeperScan 3.7s ease-in-out infinite; }
   .cg-keeper-eyes { transform-box: fill-box; transform-origin: center; animation: cgKeeperBlink 4.8s 1s infinite; }
@@ -249,24 +330,29 @@ const keeperMotion = `
   .cg-keeper-surprise { opacity: 0; }
 
   .caller-performer[data-direction="left"] .cg-keeper-mirror { transform: scaleX(-1); }
-  .caller-performer[data-motion="run"] .cg-keeper-body { animation: cgKeeperHop .37s ease-in-out infinite; }
-  .caller-performer[data-motion="run"] .cg-keeper-leg { animation: cgKeeperStep .37s ease-in-out infinite alternate; }
-  .caller-performer[data-motion="run"] .cg-keeper-leg-right { animation-delay: -.37s; }
-  .caller-performer[data-motion="run"] .cg-keeper-reach { animation: cgKeeperGloves .37s ease-in-out infinite alternate; }
+  .caller-performer[data-motion="run"] .cg-keeper-body { animation: cgKeeperHop .65s ease-in-out infinite; }
+  .caller-performer[data-motion="run"] .cg-keeper-leg { animation: cgKeeperStep .65s ease-in-out infinite; }
+  .caller-performer[data-motion="run"] .cg-keeper-leg-right { animation-delay: -.325s; }
+  .caller-performer[data-motion="run"] .cg-keeper-knee { animation: cgKeeperReadyKnee .65s ease-in-out infinite; }
+  .caller-performer[data-motion="run"] .cg-keeper-reach { animation: cgKeeperGloves .65s ease-in-out infinite alternate; }
 
-  .caller-performer:is([data-motion="fake"],[data-motion="dive"]) .cg-keeper-body { animation: cgKeeperDive .91s both; }
-  .caller-performer:is([data-motion="fake"],[data-motion="dive"]) .cg-keeper-reach { animation: cgKeeperDiveArm .91s both; }
+  .caller-performer:is([data-motion="fake"],[data-motion="dive"]) .cg-keeper-body { animation: cgKeeperDive .98s both; }
+  .caller-performer:is([data-motion="fake"],[data-motion="dive"]) .cg-keeper-trunk { animation: cgKeeperDiveTorso .98s both; }
+  .caller-performer:is([data-motion="fake"],[data-motion="dive"]) .cg-keeper-reach { animation: cgKeeperDiveArm .98s both; }
   .caller-performer:is([data-motion="fake"],[data-motion="dive"]) .cg-keeper-reach-right { animation-name: cgKeeperDiveLead; }
-  .caller-performer:is([data-motion="fake"],[data-motion="dive"]) .cg-keeper-elbow { animation: cgKeeperDiveForearm .91s both; }
-  .caller-performer:is([data-motion="fake"],[data-motion="dive"]) .cg-keeper-leg { animation: cgKeeperDiveLeg .91s both; }
+  .caller-performer:is([data-motion="fake"],[data-motion="dive"]) .cg-keeper-elbow { animation: cgKeeperDiveForearm .98s both; }
+  .caller-performer:is([data-motion="fake"],[data-motion="dive"]) .cg-keeper-leg { animation: cgKeeperDiveLeg .98s both; }
   .caller-performer:is([data-motion="fake"],[data-motion="dive"]) .cg-keeper-leg-right { animation-name: cgKeeperDiveOtherLeg; }
-  .caller-performer:is([data-motion="fake"],[data-motion="dive"]) .cg-keeper-knee { animation: cgKeeperDiveKnee .91s both; }
-  .caller-performer:is([data-motion="fake"],[data-motion="dive"]) .cg-keeper-shadow { animation: cgKeeperDiveShadow .91s both; }
-  .caller-performer:is([data-motion="fake"],[data-motion="dive"]) .cg-keeper-skull { animation: cgKeeperDiveFace .91s both; }
+  .caller-performer:is([data-motion="fake"],[data-motion="dive"]) .cg-keeper-knee { animation: cgKeeperDiveKnee .98s both; }
+  .caller-performer:is([data-motion="fake"],[data-motion="dive"]) .cg-keeper-shadow { animation: cgKeeperDiveShadow .98s both; }
+  .caller-performer:is([data-motion="fake"],[data-motion="dive"]) .cg-keeper-skull { animation: cgKeeperDiveFace .98s both; }
 
-  .caller-performer:is([data-motion="focus"],[data-motion="catch"]) .cg-keeper-body { animation: cgKeeperReach .73s ease-out both; }
+  .caller-performer:is([data-motion="focus"],[data-motion="catch"]) .cg-keeper-body { animation: cgKeeperReach .73s both; }
   .caller-performer:is([data-motion="focus"],[data-motion="catch"]) .cg-keeper-reach { animation: cgKeeperFocusArm .73s both; }
-  .caller-performer:is([data-motion="focus"],[data-motion="catch"]) .cg-keeper-reach-right { animation-delay: -.06s; }
+  .caller-performer:is([data-motion="focus"],[data-motion="catch"]) .cg-keeper-reach-right { animation-name: cgKeeperFocusLead; }
+  .caller-performer:is([data-motion="focus"],[data-motion="catch"]) .cg-keeper-elbow { animation: cgKeeperSoften .73s both; }
+  .caller-performer:is([data-motion="focus"],[data-motion="catch"]) .cg-keeper-leg { animation: cgKeeperStepIn .73s both; }
+  .caller-performer:is([data-motion="focus"],[data-motion="catch"]) .cg-keeper-leg-right { animation-name: cgKeeperStepThrough; }
   .caller-performer[data-motion="win"] .cg-keeper-body { animation: cgKeeperSit 1s both; }
   .caller-performer[data-motion="win"] .cg-keeper-reach { animation: cgKeeperHandsUp 1s both; }
   .caller-performer[data-motion="win"] .cg-keeper-elbow { animation: cgKeeperHandsBend 1s both; }
@@ -274,29 +360,39 @@ const keeperMotion = `
   .caller-performer[data-motion="win"] .cg-keeper-neutral { opacity: 0; }
   .caller-performer[data-motion="win"] .cg-keeper-surprise { opacity: 1; }
 
-  @keyframes cgKeeperReady { 50% { transform: translateY(3px) scaleY(.982); } }
+  @keyframes cgKeeperReady { 50% { transform: translateY(3px) scaleY(.974); } }
   @keyframes cgKeeperScan { 18%, 48% { transform: rotate(-3deg); } 76%, 92% { transform: rotate(3.5deg) translateX(2px); } }
   @keyframes cgKeeperBlink { 0%, 73%, 79%, 100% { scale: 1; } 76% { scale: 1 .05; } }
   @keyframes cgKeeperGloves { to { transform: rotate(5deg); } }
-  @keyframes cgKeeperHop { 50% { transform: translateY(-7px) rotate(1.8deg); } }
-  @keyframes cgKeeperStep { to { transform: rotate(-7deg); } }
+  @keyframes cgKeeperHop { 0%,100% { transform: translate(-3px,3px) scaleY(.972); } 18%,68% { transform: translate(0,-4px) scaleY(1.008); } 50% { transform: translate(3px,3px) scaleY(.972); } }
+  @keyframes cgKeeperStep { 0%,100% { transform: rotate(3deg); } 18% { transform: rotate(-4deg); } 52% { transform: rotate(1deg); } }
+  @keyframes cgKeeperReadyKnee { 0%,50%,100% { transform: rotate(-3deg); } 18%,68% { transform: rotate(4deg); } }
   @keyframes cgKeeperDive {
     0% { transform: none; }
-    22% { transform: translate(-10px,8px) rotate(-8deg) scaleY(.93); animation-timing-function: cubic-bezier(.13,.61,.34,1); }
-    54% { transform: translate(24px,-25px) rotate(69deg); }
-    74% { transform: translate(29px,-12px) rotate(61deg); }
-    100% { transform: translate(38px,20px) rotate(45deg); }
+    14% { transform: translate(-8px,8px) rotate(-4deg) scaleY(.93); animation-timing-function: cubic-bezier(.76,.15,.86,.61); }
+    24% { transform: translate(9px,-5px) rotate(23deg) scaleY(1.03); animation-timing-function: cubic-bezier(.14,.63,.32,1); }
+    48% { transform: translate(47px,-26px) rotate(74deg); animation-timing-function: cubic-bezier(.55,.08,.9,.64); }
+    65% { transform: translate(65px,48px) rotate(84deg); animation-timing-function: cubic-bezier(.6,.31,.8,.52); }
+    74% { transform: translate(71px,83px) rotate(90deg) scaleX(1.025); }
+    81% { transform: translate(75px,82px) rotate(82deg); }
+    89% { transform: translate(64px,65px) rotate(59deg); }
+    100% { transform: translate(56px,40px) rotate(31deg); }
   }
-  @keyframes cgKeeperDiveArm { 24% { transform: rotate(17deg); } 51%,72% { transform: rotate(102deg); } 100% { transform: rotate(63deg); } }
-  @keyframes cgKeeperDiveLead { 24% { transform: rotate(-13deg); } 51%,75% { transform: rotate(64deg); } 100% { transform: rotate(34deg); } }
-  @keyframes cgKeeperDiveForearm { 23% { transform: rotate(33deg); } 49%,72% { transform: rotate(-10deg); } 100% { transform: rotate(12deg); } }
-  @keyframes cgKeeperDiveLeg { 20% { transform: rotate(11deg); } 55% { transform: rotate(-15deg); } 100% { transform: rotate(-19deg); } }
-  @keyframes cgKeeperDiveOtherLeg { 20% { transform: rotate(14deg); } 55% { transform: rotate(-24deg); } 100% { transform: rotate(-16deg); } }
-  @keyframes cgKeeperDiveKnee { 50% { transform: rotate(13deg); } 80%,100% { transform: rotate(27deg); } }
-  @keyframes cgKeeperDiveFace { 23% { transform: rotate(7deg); } 52% { transform: rotate(-26deg); } 100% { transform: rotate(-16deg); } }
-  @keyframes cgKeeperDiveShadow { 56% { transform: translateX(30px) scaleX(.8); opacity: .46; } 100% { transform: translateX(40px) scaleX(1.06); } }
-  @keyframes cgKeeperReach { 0% { transform: translate(25px,10px) rotate(44deg); } 40% { transform: translate(8px,-10px) rotate(-10deg); } 70% { transform: translate(-10px,2px) rotate(-14deg); } 100% { transform: translate(-3px,0) rotate(-6deg); } }
-  @keyframes cgKeeperFocusArm { 0% { transform: rotate(32deg); } 57% { transform: rotate(49deg); } 100% { transform: rotate(20deg); } }
+  @keyframes cgKeeperDiveTorso { 14% { transform: rotate(-5deg) scaleX(.98); } 24% { transform: rotate(9deg); } 48% { transform: rotate(7deg) scaleX(.93); } 74% { transform: rotate(-6deg) scaleX(.96); } 100% { transform: rotate(-3deg); } }
+  @keyframes cgKeeperDiveArm { 14% { transform: rotate(24deg); } 24% { transform: rotate(38deg); } 48%,65% { transform: rotate(112deg); } 74% { transform: rotate(83deg); } 89%,100% { transform: rotate(58deg); } }
+  @keyframes cgKeeperDiveLead { 14% { transform: rotate(-16deg); } 24% { transform: rotate(35deg); } 48%,64% { transform: rotate(68deg); } 74% { transform: rotate(39deg); } 89%,100% { transform: rotate(31deg); } }
+  @keyframes cgKeeperDiveForearm { 14% { transform: rotate(26deg); } 24% { transform: rotate(8deg); } 48%,64% { transform: rotate(-17deg); } 74% { transform: rotate(24deg); } 100% { transform: rotate(38deg); } }
+  @keyframes cgKeeperDiveLeg { 14% { transform: rotate(10deg) translate(1px,-1px); } 24% { transform: rotate(-10deg); } 48% { transform: rotate(-23deg); } 74% { transform: rotate(-16deg); } 100% { transform: rotate(-12deg); } }
+  @keyframes cgKeeperDiveOtherLeg { 14% { transform: rotate(14deg); } 24% { transform: rotate(3deg) translateY(4px); } 48% { transform: rotate(-27deg); } 74% { transform: rotate(-9deg); } 100% { transform: rotate(-23deg); } }
+  @keyframes cgKeeperDiveKnee { 14% { transform: rotate(12deg); } 24% { transform: rotate(-9deg); } 48% { transform: rotate(-4deg); } 76% { transform: rotate(24deg); } 100% { transform: rotate(43deg); } }
+  @keyframes cgKeeperDiveFace { 14% { transform: rotate(5deg); } 24% { transform: rotate(-8deg); } 48% { transform: rotate(-22deg); } 74% { transform: rotate(-15deg); } 100% { transform: rotate(-9deg); } }
+  @keyframes cgKeeperDiveShadow { 24% { transform: translateX(12px); opacity: .82; } 48% { transform: translateX(51px) scaleX(1.33); opacity: .45; } 74% { transform: translateX(86px) scale(1.42,1.3); opacity: 1; } 100% { transform: translateX(53px) scaleX(1.21); opacity: .88; } }
+  @keyframes cgKeeperReach { 0% { transform: none; } 15% { transform: translate(-5px,6px) rotate(-5deg) scaleY(.946); } 41% { transform: translate(22px,-12px) rotate(30deg); } 67% { transform: translate(24px,12px) rotate(21deg) scaleY(.928); } 100% { transform: translate(19px,5px) rotate(9deg); } }
+  @keyframes cgKeeperFocusArm { 14% { transform: rotate(16deg); } 42% { transform: rotate(64deg); } 67% { transform: rotate(47deg); } 100% { transform: rotate(27deg); } }
+  @keyframes cgKeeperFocusLead { 14% { transform: rotate(1deg); } 42% { transform: rotate(54deg); } 67% { transform: rotate(29deg); } 100% { transform: rotate(15deg); } }
+  @keyframes cgKeeperSoften { 14% { transform: rotate(18deg); } 42% { transform: rotate(-14deg); } 67%,100% { transform: rotate(37deg); } }
+  @keyframes cgKeeperStepIn { 15% { transform: rotate(7deg); } 42% { transform: rotate(-8deg); } 67%,100% { transform: rotate(13deg); } }
+  @keyframes cgKeeperStepThrough { 15% { transform: rotate(11deg); } 42% { transform: rotate(-19deg); } 67%,100% { transform: rotate(4deg); } }
   @keyframes cgKeeperSit { 22% { transform: translateY(-10px) rotate(-7deg); } 62% { transform: translateY(8px) scaleY(.95); } 100% { transform: translateY(4px) scaleY(.98); } }
   @keyframes cgKeeperHandsUp { 40%,100% { transform: rotate(74deg); } }
   @keyframes cgKeeperHandsBend { 40%,100% { transform: rotate(47deg); } }

@@ -263,7 +263,7 @@ async function page(view) {
     tick(); musicTimer = setInterval(tick, activeGame === 'detective' ? 610 : 490);
   }
   function stopMusic() { clearInterval(musicTimer); musicTimer = 0; }
-  function soundEffect(effect) {
+  function soundEffect(effect, { strength = 1, pan = 0, surface = '' } = {}) {
     if (!savedSound.checked || disposed) return;
     const ctx = soundContext();
     if (!ctx) return;
@@ -280,20 +280,35 @@ async function page(view) {
       filter.type = 'bandpass';
       filter.frequency.value = frequency;
       filter.Q.value = q;
-      envelope.gain.setValueAtTime(volume, ctx.currentTime);
+      envelope.gain.setValueAtTime(volume * strength, ctx.currentTime);
       envelope.gain.exponentialRampToValueAtTime(.0001, ctx.currentTime + duration);
-      sample.connect(filter).connect(envelope).connect(ctx.destination);
+      sample.connect(filter).connect(envelope);
+      if (pan && typeof ctx.createStereoPanner === 'function') {
+        const spatial = ctx.createStereoPanner();
+        spatial.pan.value = Math.max(-.75, Math.min(.75, pan));
+        envelope.connect(spatial).connect(ctx.destination);
+      } else {
+        envelope.connect(ctx.destination);
+      }
       sample.start();
       sample.stop(ctx.currentTime + duration);
     }
     const effects = {
-      hoof() { tone(113, .09, .034, 'triangle'); tone(164, .08, .019, 'sine', .045); noise(.14, .12, 650); },
-      step() { noise(.09, .08, 320); },
+      hoof() {
+        tone(95 + Math.random() * 24, .075, .044 * strength, 'triangle');
+        noise(.11, .15, 510 + Math.random() * 210);
+        noise(.07, .063, 1480, 1.5);
+      },
+      step() {
+        const wood = surface === 'office';
+        tone(wood ? 102 : 74, .073, .043 * strength);
+        noise(.095, .105, (wood ? 740 : 390) + Math.random() * 125);
+      },
       fanfare() { [440, 554, 659].forEach((note, i) => tone(note, .22, .036, 'triangle', i * .095)); },
       whistle() { tone(1660, .24, .033); tone(1880, .12, .018, 'sine', .075); },
       paper() { noise(.27, .12, 1650); },
       swerve() { noise(.26, .11, 1320); tone(330, .13, .019, 'triangle'); },
-      kick() { noise(.24, .19, 430); tone(85, .16, .057, 'triangle'); },
+      kick() { noise(.16, .21, 430); noise(.055, .11, 1420); tone(76, .13, .066, 'triangle'); },
       post() { tone(840, .22, .039, 'triangle'); tone(1240, .18, .016); },
       catch() { noise(.19, .16, 360); },
       goal() { noise(.7, .18, 940, .3); [587, 784, 988].forEach((note, i) => tone(note, .37, .025, 'triangle', i * .11)); },
@@ -400,9 +415,8 @@ async function page(view) {
       if (scene) scene.winner(makeAvatar(winner));
       tone(700, .2, .04, 'triangle'); await delay(Math.max(590, beat * .35));
     }
-    await delay(Math.max(0, timeLeft() - 900));
-    scene?.depart();
-    await delay(820);
+    await delay(Math.max(0, timeLeft() - 1215));
+    await delay(scene?.depart() || 0);
   }
 
   async function playPenalty(batch, pool, totalMs) {
@@ -421,12 +435,12 @@ async function page(view) {
       const reaction = ['Đổi chân rồi!', 'Bóng dội cột! Vẫn đang lăn…', 'Thủ môn đổ người! Bóng tuột tay mất rồi!'][trick];
       void typeDialogue('Sút về phía ' + falseAim.name + ' à?!', 400);
       scene?.fakeShot(trick, () => { void typeDialogue(reaction, 290); });
-      await delay((trick === 0 ? 720 : 1210) + extraBuildUp * .32);
+      await delay((trick === 0 ? 830 : 1360) + extraBuildUp * .32);
       if (index === batch.length - 1) {
-        await spotlight(1450, () => scene?.scoreShot(index, true, batch[index]));
+        await spotlight(1540, () => scene?.scoreShot(index, true, batch[index]));
       } else {
         scene?.scoreShot(index, false, batch[index]);
-        await delay(1110);
+        await delay(1320);
       }
       setEmotion([batch[index]], 'is-pointed');
     }

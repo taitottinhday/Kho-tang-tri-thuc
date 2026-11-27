@@ -21,20 +21,23 @@ const motionStyles = `
   .cpr-rig .cpr-foot { transform-box:view-box; }
   .cpr-rig .cpr-shadow { transform-origin:center; transform-box:fill-box; }
   .cpr-rig .cpr-presentation { opacity:0; transition:opacity .28s; }
-  .caller-performer[data-motion="run"] .cpr-body { animation:cpr-gallop .61s ease-in-out infinite; }
-  .caller-performer[data-motion="run"] .cpr-head { animation:cpr-drive .61s ease-in-out infinite; }
-  .caller-performer[data-motion="run"] .cpr-rider { animation:cpr-rider .61s ease-in-out infinite; }
-  .caller-performer[data-motion="run"] .cpr-hind { animation:cpr-hind .61s ease-in-out infinite; }
-  .caller-performer[data-motion="run"] .cpr-fore { animation:cpr-fore .61s ease-in-out infinite; animation-delay:-.10s; }
+  .caller-performer[data-motion="run"] .cpr-body { animation:cpr-gallop var(--caller-stride,.62s) ease-in-out infinite; }
+  .caller-performer[data-motion="run"] .cpr-head { animation:cpr-drive var(--caller-stride,.62s) ease-in-out infinite; }
+  .caller-performer[data-motion="run"] .cpr-rider { animation:cpr-rider var(--caller-stride,.62s) ease-in-out infinite; }
+  .caller-performer[data-motion="run"] .cpr-hind { animation:cpr-hind var(--caller-stride,.62s) ease-in-out infinite; }
+  .caller-performer[data-motion="run"] .cpr-fore { animation:cpr-fore var(--caller-stride,.62s) ease-in-out infinite; animation-delay:-.10s; }
   .caller-performer[data-motion="run"] .cpr-far.cpr-hind { animation-delay:-.14s; }
   .caller-performer[data-motion="run"] .cpr-far.cpr-fore { animation-delay:-.22s; }
-  .caller-performer[data-motion="run"] .cpr-hock { animation:cpr-hock .61s ease-in-out infinite; }
-  .caller-performer[data-motion="run"] .cpr-knee { animation:cpr-knee .61s ease-in-out infinite; animation-delay:-.10s; }
+  .caller-performer[data-motion="run"] .cpr-hock { animation:cpr-hock var(--caller-stride,.62s) ease-in-out infinite; }
+  .caller-performer[data-motion="run"] .cpr-knee { animation:cpr-knee var(--caller-stride,.62s) ease-in-out infinite; animation-delay:-.10s; }
   .caller-performer[data-motion="run"] .cpr-far .cpr-hock { animation-delay:-.14s; }
   .caller-performer[data-motion="run"] .cpr-far .cpr-knee { animation-delay:-.22s; }
-  .caller-performer[data-motion="run"] .cpr-tail { animation:cpr-stream .61s ease-in-out infinite; }
-  .caller-performer[data-motion="run"] .cpr-cape { animation:cpr-cape-stream .61s ease-in-out infinite; }
-  .caller-performer[data-motion="run"] .cpr-shadow { animation:cpr-ground .61s ease-in-out infinite; }
+  .caller-performer[data-motion="run"] .cpr-tail { animation:cpr-stream var(--caller-stride,.62s) ease-in-out infinite; }
+  .caller-performer[data-motion="run"] .cpr-cape { animation:cpr-cape-stream var(--caller-stride,.62s) ease-in-out infinite; }
+  .caller-performer[data-motion="run"] .cpr-shadow { animation:cpr-ground var(--caller-stride,.62s) ease-in-out infinite; }
+  .caller-performer[data-gait="grounded"] :is(.cpr-body,.cpr-head,.cpr-rider,.cpr-tail,.cpr-cape,.cpr-hind,.cpr-fore,.cpr-hock,.cpr-knee,.cpr-shadow) {
+    animation:none; transition:none;
+  }
   .caller-performer[data-motion="fake"] .cpr-body { animation:cpr-brake .72s cubic-bezier(.25,.1,.25,1) both; }
   .caller-performer[data-motion="fake"] .cpr-head { animation:cpr-startle .72s ease-out both; }
   .caller-performer[data-motion="fake"] .cpr-rider { transform:rotate(-10deg) translate(-2px,-4px); }
@@ -90,16 +93,149 @@ function horseLeg(which, far, paint) {
   const hoof = fore ? 'M309 300 Q321 303 331 300 L338 309 Q341 314 335 318 H312 Q304 316 308 307Z'
     : 'M150 300 Q163 304 175 300 L183 309 Q185 315 178 318 H152 Q146 315 149 309Z';
   const shine = fore ? 'M318 310 Q326 311 331 307' : 'M158 311 Q166 312 172 308';
-  return `<g transform="${offset}" opacity="${far ? '.93' : '1'}">
+  const limb = (fore ? 'front' : 'hind') + (far ? '-far' : '-near');
+  const tip = fore ? 326 : 169;
+  return `<g data-cpr-leg="${limb}" transform="${offset}" opacity="${far ? '.88' : '1'}">
     <g class="cpr-joint cpr-${which}${far ? ' cpr-far' : ''}" style="transform-origin:${pivot}">
-      <path d="${upper}" fill="${paint}" stroke="${edge}" stroke-width="4"/>
+      <path data-cpr-upper d="${upper}" fill="${paint}" stroke="${edge}" stroke-width="3.1"/>
       <g class="cpr-foot cpr-${fore ? 'knee' : 'hock'}" style="transform-origin:${joint}">
-        <path d="${lower}" fill="${paint}" stroke="${edge}" stroke-width="3.6"/>
-        <path d="${hoof}" fill="#533246" stroke="#442a3d" stroke-width="2"/>
-        <path d="${shine}" fill="none" stroke="#ad6877" stroke-width="2.5"/>
+        <path data-cpr-lower d="${lower}" fill="${paint}" stroke="${edge}" stroke-width="2.6"/>
+        <g data-cpr-shoe>
+          <path d="${hoof}" fill="#382d29" stroke="#2a2228" stroke-width="1.9"/>
+          <path d="${shine}" fill="none" stroke="#b99580" stroke-opacity=".78" stroke-width="2"/>
+          <circle data-hoof="${limb}" cx="${tip}" cy="318" r="1" fill="none" pointer-events="none"/>
+        </g>
       </g>
     </g>
   </g>`;
+}
+
+const HOOF_RIG = {
+  'hind-far': { at: .02, offset: [30, -6], hip: [175, 214], joint: [161, 265], tip: [169, 318], back: true },
+  'hind-near': { at: .13, offset: [0, 0], hip: [175, 214], joint: [161, 265], tip: [169, 318], back: true },
+  'front-far': { at: .34, offset: [-27, -6], hip: [314, 194], joint: [321, 267], tip: [326, 318], back: false },
+  'front-near': { at: .46, offset: [0, 0], hip: [314, 194], joint: [321, 267], tip: [326, 318], back: false }
+};
+const TAU = Math.PI * 2;
+const radians = Math.PI / 180;
+const wrap = value => value - Math.floor(value);
+const smooth = value => value * value * (3 - 2 * value);
+const bounded = (value, min, max) => Math.max(min, Math.min(max, value));
+const len = ([x, y], [a, b]) => Math.hypot(x - a, y - b);
+const r = value => Number(value.toFixed(4));
+
+function mapBone(oldStart, oldEnd, start, end) {
+  const [sx, sy] = oldStart;
+  const [ex, ey] = oldEnd;
+  const dx = ex - sx;
+  const dy = ey - sy;
+  const tx = end[0] - start[0];
+  const ty = end[1] - start[1];
+  const length2 = dx * dx + dy * dy;
+  const a = (dx * tx + dy * ty) / length2;
+  const b = (dx * ty - dy * tx) / length2;
+  return 'matrix(' + [a, b, -b, a, start[0] - a * sx + b * sy, start[1] - b * sx - a * sy].map(r).join(' ') + ')';
+}
+
+function bendJoint(hip, ankle, upper, lower, back) {
+  const dx = ankle[0] - hip[0];
+  const dy = ankle[1] - hip[1];
+  const span = Math.max(Math.hypot(dx, dy), 1);
+  const extension = Math.max(1, span / (upper + lower - 1));
+  const a = upper * extension;
+  const b = lower * extension;
+  const along = bounded((a * a - b * b + span * span) / (2 * span), -a, a);
+  const across = Math.sqrt(Math.max(0, a * a - along * along)) * (back ? 1 : -1);
+  return [hip[0] + (dx * along - dy * across) / span, hip[1] + (dy * along + dx * across) / span];
+}
+
+// Stride phase is driven by actual distance. During stance, hoof travel cancels the
+// actor travel exactly. The body can still rise and pitch above the planted hoof.
+export function createPrinceGait(performer) {
+  const body = performer.querySelector('.cpr-body');
+  if (!body) return null;
+  const head = body.querySelector('.cpr-head');
+  const rider = body.querySelector('.cpr-rider');
+  const tail = body.querySelector('.cpr-tail');
+  const cape = body.querySelector('.cpr-cape');
+  const reins = [...body.querySelectorAll('.cpr-reins')];
+  const shadow = performer.querySelector('.cpr-shadow');
+  const legs = Object.entries(HOOF_RIG).map(([name, rig]) => {
+    const limb = body.querySelector('[data-cpr-leg="' + name + '"]');
+    const ankle = [rig.tip[0] - 4, rig.tip[1] - 16];
+    return {
+      ...rig, ankle,
+      a: len(rig.hip, rig.joint),
+      b: len(rig.joint, ankle),
+      upper: limb.querySelector('[data-cpr-upper]'),
+      lower: limb.querySelector('[data-cpr-lower]'),
+      shoe: limb.querySelector('[data-cpr-shoe]'),
+      marker: limb.querySelector('[data-hoof]'),
+      contact: null
+    };
+  });
+  const animated = [body, head, rider, tail, cape, shadow, ...legs.flatMap(leg => [leg.upper, leg.lower, leg.shoe])];
+  const reinD = reins[0]?.getAttribute('d');
+
+  function step(distance, { stride = 315, lift = 1 } = {}) {
+    const phase = distance / Math.max(96, stride) + .46;
+    const gait = wrap(phase);
+    const amplitude = bounded(lift, 0, 1.2);
+    const swing = gait * TAU;
+    const rise = amplitude * (-8 + 10 * Math.cos((gait - .48) * TAU) + 2.8 * Math.cos((gait - .53) * TAU * 2));
+    const pitch = 5.4 * Math.sin((gait - .17) * TAU) * amplitude;
+    const cos = Math.cos(pitch * radians);
+    const sin = Math.sin(pitch * radians);
+    const contacts = [];
+    performer.dataset.gait = 'grounded';
+
+    body.setAttribute('transform', 'translate(0 ' + r(rise) + ') rotate(' + r(pitch) + ' 242 219)');
+    head.setAttribute('transform', 'rotate(' + r(-pitch * .6 + 3.5 * Math.sin(swing - .9)) + ' 340 180)');
+    rider.setAttribute('transform', 'translate(0 ' + r(3 * Math.cos(swing - 1.65)) + ') rotate(' + r(5.2 - pitch * .75 + 3.3 * Math.sin(swing - .9)) + ' 245 197)');
+    tail.setAttribute('transform', 'rotate(' + r(9 + amplitude * (11 + 7 * Math.sin(swing - 1.7))) + ' 150 209)');
+    cape.setAttribute('transform', 'rotate(' + r(5 + amplitude * (12 + 6 * Math.sin(swing - 1.1))) + ' 226 143)');
+    shadow.setAttribute('opacity', r(bounded(1 + rise / 53, .51, 1)));
+    const reinBend = 192 + rise * .3 + Math.sin(swing - 1.4) * 5;
+    for (const rein of reins) rein.setAttribute('d', 'M289 166 Q317 ' + r(reinBend) + ' 364 175 L395 190');
+
+    for (const leg of legs) {
+      const cycle = phase - leg.at;
+      const frame = wrap(cycle);
+      const contact = Math.floor(cycle + 1e-7);
+      if (frame < .24 && contact !== leg.contact) {
+        leg.contact = contact;
+        contacts.push(leg.marker);
+      }
+      const planted = frame < .24;
+      const span = stride * .24;
+      const travel = bounded((frame - .24) / .76, 0, 1);
+      const x = leg.tip[0] + (planted ? span * .53 - frame * stride : span * (smooth(travel) - .47));
+      const y = leg.tip[1] - (planted ? 0 : amplitude * (leg.back ? 51 : 58) * Math.sin(Math.PI * travel) ** 1.28);
+      const toePitch = planted ? 20 * smooth(bounded((frame - .17) / .07, 0, 1)) : 32 * Math.sin(Math.PI * (travel + .07)) * (1 - travel) - 18 * Math.sin(Math.PI * travel) * travel;
+      const wx = x + leg.offset[0] - 242;
+      const wy = y + leg.offset[1] - 219 - rise;
+      const tip = [wx * cos + wy * sin + 242 - leg.offset[0], -wx * sin + wy * cos + 219 - leg.offset[1]];
+      const shoeAngle = (toePitch - pitch) * radians;
+      const ax = leg.ankle[0] - leg.tip[0];
+      const ay = leg.ankle[1] - leg.tip[1];
+      const ankle = [tip[0] + ax * Math.cos(shoeAngle) - ay * Math.sin(shoeAngle), tip[1] + ax * Math.sin(shoeAngle) + ay * Math.cos(shoeAngle)];
+      const knee = bendJoint(leg.hip, ankle, leg.a, leg.b, leg.back);
+      leg.upper.setAttribute('transform', mapBone(leg.hip, leg.joint, leg.hip, knee));
+      leg.lower.setAttribute('transform', mapBone(leg.joint, leg.ankle, knee, ankle));
+      leg.shoe.setAttribute('transform', 'translate(' + [r(tip[0] - leg.tip[0]), r(tip[1] - leg.tip[1])].join(' ') + ') rotate(' + r(toePitch - pitch) + ' ' + leg.tip.join(' ') + ')');
+    }
+    return contacts;
+  }
+
+  function reset() {
+    delete performer.dataset.gait;
+    for (const node of animated) node.removeAttribute('transform');
+    shadow.removeAttribute('opacity');
+    for (const rein of reins) if (reinD) rein.setAttribute('d', reinD);
+    for (const leg of legs) leg.contact = null;
+  }
+
+  return { step, reset };
 }
 
 export function princeMarkup(index = 0) {
@@ -111,6 +247,8 @@ export function princeMarkup(index = 0) {
     <style>${motionStyles}</style>
     <defs>
       <linearGradient id="${id}horse" x1=".24" y1=".05" x2=".72" y2=".96"><stop stop-color="${costume.light}"/><stop offset=".58" stop-color="${costume.coat}"/><stop offset="1" stop-color="#834052"/></linearGradient>
+      <radialGradient id="${id}barrel" cx=".31" cy=".12" r=".95"><stop stop-color="${costume.light}"/><stop offset=".54" stop-color="${costume.coat}"/><stop offset=".9" stop-color="#6d3b43"/><stop offset="1" stop-color="#563340"/></radialGradient>
+      <linearGradient id="${id}muzzle" x1="0" y1="0" x2=".37" y2=".9"><stop stop-color="${costume.muzzle}"/><stop offset=".88" stop-color="#bf8172"/></linearGradient>
       <linearGradient id="${id}mane" x1=".22" y1=".22" x2=".77" y2=".91"><stop stop-color="${costume.mane}"/><stop offset="1" stop-color="#45293c"/></linearGradient>
       <linearGradient id="${id}cape" x1=".16" y1=".05" x2=".79" y2=".92"><stop stop-color="${costume.capeLight}"/><stop offset="1" stop-color="${costume.cape}"/></linearGradient>
       <linearGradient id="${id}silk" x1=".3" y1=".08" x2=".74" y2=".94"><stop stop-color="${costume.silkLight}"/><stop offset="1" stop-color="${costume.silk}"/></linearGradient>
@@ -130,9 +268,10 @@ export function princeMarkup(index = 0) {
       ${horseLeg('hind', true, costume.coat)}
       ${horseLeg('fore', true, costume.coat)}
       <path d="M221 171 Q252 165 274 173 L272 203 L213 215Z" fill="url(#${id}white)" stroke="#47506b" stroke-width="4"/>
-      <path d="M181 178 C208 175 235 188 263 182 C285 176 301 151 316 132 C331 130 348 145 351 164 C351 196 354 222 324 239 C301 253 283 250 256 250 C216 254 176 262 150 235 C130 211 146 181 181 178Z" fill="${paint}" stroke="${ink}" stroke-width="4.3"/>
-      <path d="M152 215 C143 199 160 184 183 185 C205 183 227 196 246 194 C221 213 182 188 159 218Z" fill="#fff0c5" opacity=".43"/>
-      <path d="M286 233 Q319 226 340 199 Q337 226 317 237 Q304 242 286 233Z" fill="#ffd1a0" opacity=".53"/>
+      <path d="M181 178 C208 175 235 188 263 182 C285 176 301 151 316 132 C331 130 348 145 351 164 C351 196 354 222 324 239 C301 253 283 250 256 250 C216 254 176 262 150 235 C130 211 146 181 181 178Z" fill="url(#${id}barrel)" stroke="${ink}" stroke-width="3.2"/>
+      <path d="M152 215 C143 199 160 184 183 185 C205 183 227 196 246 194 C221 213 182 188 159 218Z" fill="#fff0c5" opacity=".23"/>
+      <path d="M286 233 Q319 226 340 199 Q337 226 317 237 Q304 242 286 233Z" fill="#ffd1a0" opacity=".28"/>
+      <path d="M146 219 Q153 199 177 194 M287 227 Q310 223 320 209 M306 218 Q327 206 335 182" fill="none" stroke="#e1a475" stroke-opacity=".39" stroke-width="2.1"/>
       <path d="M190 238 Q211 245 243 242 M168 228 Q171 231 177 232" fill="none" stroke="#773d49" stroke-opacity=".57" stroke-width="2.7"/>
       ${horseLeg('hind', false, paint)}
       ${horseLeg('fore', false, paint)}
@@ -146,21 +285,20 @@ export function princeMarkup(index = 0) {
         <path d="M289 170 Q300 166 304 154 Q310 144 326 136 M284 179 Q308 171 318 153" fill="none" stroke="#d28473" stroke-width="2.5" opacity=".62"/>
         <path d="M346 126 C338 104 343 86 350 79 Q360 86 364 110 C370 104 378 105 384 108 Q386 91 397 84 Q408 97 397 119 C408 127 406 145 417 154 L430 168 Q441 183 428 195 C419 206 394 207 379 194 L359 176 Q347 185 330 200 Q311 204 300 193 C311 176 310 152 319 140 Q330 128 346 126Z" fill="${paint}" stroke="${ink}" stroke-width="4.5"/>
         <path d="M350 90 Q357 99 359 112 L351 114Q346 100 350 90Z M396 94 Q402 105 393 113 L389 111Z" fill="#e89b91" stroke="#9f5366" stroke-width="1.7"/>
-        <path d="M362 121 Q368 119 371 125 C366 135 370 141 380 149 Q383 153 381 158 C372 155 358 146 357 136 Q357 129 362 121Z" fill="#fff1c8" opacity=".87"/>
-        <path d="M377 174 C384 160 414 155 427 165 Q440 175 431 192 Q414 207 387 196Z" fill="${costume.muzzle}" stroke="#76394b" stroke-width="2.4"/>
+        <path d="M362 121 Q368 119 371 125 C366 135 370 141 380 149 Q383 153 381 158 C372 155 358 146 357 136 Q357 129 362 121Z" fill="#fff1c8" opacity=".67"/>
+        <path d="M377 174 C384 160 414 155 427 165 Q440 175 431 192 Q414 207 387 196Z" fill="url(#${id}muzzle)" stroke="#76394b" stroke-width="1.9"/>
         <path d="M388 173 Q400 167 414 169" fill="none" stroke="#fff5d6" stroke-width="3.6" opacity=".75"/>
-        <ellipse cx="422" cy="177" rx="4.5" ry="3.2" transform="rotate(-19 422 177)" fill="#633449"/>
-        <path d="M410 192 Q420 193 425 187" fill="none" stroke="#79384b" stroke-width="2.8"/>
+        <ellipse cx="421" cy="177" rx="6.2" ry="3.7" transform="rotate(-26 421 177)" fill="#59303a"/>
+        <path d="M408 192 Q419 191 426 186 M415 181l4 1 M408 180l2 1 M423 182l1 1" fill="none" stroke="#79384b" stroke-width="1.8" opacity=".8"/>
         <path d="M330 138 C327 119 339 112 354 117 C363 107 384 108 390 123 Q395 134 387 135 C378 129 369 135 362 137 Q347 140 337 150 L341 138Z" fill="url(#${id}mane)" stroke="${ink}" stroke-width="3.5"/>
         <path d="M337 132 Q355 119 372 121 Q381 118 385 124 M344 136 Q352 130 358 129" fill="none" stroke="#d58e78" stroke-width="2.6" opacity=".72"/>
         <path d="M376 138 Q382 133 390 137" fill="none" stroke="#733c4d" stroke-width="3.5"/>
-        <g class="cpr-eye cpr-horse-eye">
+        <g transform="translate(76 33) scale(.8 .78)"><g class="cpr-eye cpr-horse-eye">
           <path d="M370 146 Q378 138 390 144 Q398 150 391 159 Q381 167 371 159 Q367 153 370 146Z" fill="#fff6e6" stroke="#6a344b" stroke-width="2.8"/>
           <ellipse cx="384" cy="152" rx="7" ry="9" fill="#774a74"/>
           <ellipse cx="385.5" cy="152.5" rx="4.4" ry="6.1" fill="#342238"/>
           <circle cx="387" cy="148" r="2.6" fill="#fffdf3"/><circle cx="381.5" cy="156" r="1.3" fill="#ffcda0"/>
-        </g>
-        <ellipse cx="396" cy="166" rx="12" ry="8" fill="url(#${id}blush)"/>
+        </g></g>
         <path d="M346 130 Q344 154 361 176 Q373 190 394 191 M366 171 Q400 156 419 153" fill="none" stroke="#693245" stroke-width="6.8"/>
         <path d="M346 130 Q344 154 361 176 Q373 190 394 191 M366 171 Q400 156 419 153" fill="none" stroke="#e19b70" stroke-width="2.8"/>
         <circle cx="369" cy="173" r="5.8" fill="url(#${id}gold)" stroke="#8c504b" stroke-width="1.8"/>
