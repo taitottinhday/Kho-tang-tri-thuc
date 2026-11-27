@@ -26,13 +26,46 @@
   const chons = t => pool(t).filter(b => b.loai === 'chon' && b.de.includes('___') && b.luaChon.length >= 2);
   // nhãn của một lựa chọn: “s”, “ươc”, hay “dấu hỏi” khi các lựa chọn chỉ khác dấu thanh
   function labelOf(it, opt) { const others = it.luaChon; return others.every(o => bare(o) === bare(it.dapAn)) ? toneName(opt) : bare(opt); }
-  // cụm 2 tiếng quanh chỗ trống (để từ có nghĩa rõ, tránh “kín” đúng một mình nhưng sai trong câu)
-  function phrase(it, opt) {
+  /* Cụm 2 tiếng CÓ NGHĨA: lấy từ ví dụ của các bài + danh sách soạn tay. Không tự cắt chữ liền nhau trong câu
+     (trước đây ra thẻ vô nghĩa như “từ chuối vào”, “bức tranh ông”). */
+  const CUM_SOAN = ('mặt trăng|con trâu|cây tre|cái trống|bức tranh|quả trứng|con chim|tiếng chuông|nải chuối|ra chơi|chăm chỉ|trường học|' +
+    'buổi sáng|sách vở|ngôi sao|cốc sữa|sân trường|con suối|giọt sương|màu xanh|xe đạp|xinh đẹp|xếp hàng|đĩa xôi|' +
+    'con rùa|rửa tay|rau xanh|khu rừng|cơn gió|cái giường|tờ giấy|dạy học|đôi dép|cây dừa|' +
+    'nắng vàng|cốc nước|nồi canh|nụ hoa|nấu cơm|chiếc lá|bếp lửa|trời lạnh|làng quê|lớp học|' +
+    'con kiến|cái kẹo|kể chuyện|cái kéo|đeo kính|que kem|quả cam|cái quạt|quê hương|con cá|lá cờ|cửa sổ|' +
+    'cái ghế|ghi bài|ghé thăm|đàn gà|bàn gỗ|gói quà|gấu bông|soi gương|gửi thư|nghe giảng|nghỉ ngơi|con nghé|suy nghĩ|đi ngủ|ngõ nhỏ|con ngựa|' +
+    'cái bàn|đàn cò|lá vàng|cái thang|ca hát|bãi cát|bác sĩ|âm nhạc|vườn rau|con đường|cánh diều|thương yêu|vượt qua|uống nước|cái lược|bước đi|' +
+    'bờ biển|tiếng hát|siêng năng|điện thoại|súc miệng|viết bài|hiểu biết|bữa tiệc|xem xiếc|máy bay|ngày hội|chùm vải|con nai|' +
+    'ngọn núi|túi áo|vui vẻ|cái mũi|khuy áo|huy hiệu|chịu khó|cứu hoả|bưu điện|khăn len|đắp chăn|bằng lòng|vâng lời|nâng niu|' +
+    'cái chuông|con chuột|buộc dây|ruộng lúa|cuốn sách|luôn luôn|muốn đi|quyển vở|gia đình|dịu dàng|giữ gìn|rực rỡ|dễ dàng|mạnh mẽ|sạch sẽ|' +
+    'con voi|chú voi|con dê|ngôi nhà|dậy sớm|đi dạo|vỗ tay|trồng rau|đi xuống|uống sữa|cày ruộng|buồng chuối|chuồn chuồn|luống rau|chiếc xuồng|bật điện|con thuyền|tắm biển|đọc truyện|yên tĩnh|' +
+    'sẵn sàng|xuất sắc|chính xác|đơn giản|rơi xuống|màu sắc|trân trọng|chân thành|dũng cảm|viết nghiêng').split('|');
+  let CUM = null;
+  function cumTu() {
+    if (CUM) return CUM;
+    CUM = new Set();
+    const D = window.NGAN_HANG_CHINH_TA || { chuDe: [] };
+    D.chuDe.forEach(t => (t.viDu || []).forEach(v => { const s = norm(v); if (s.split(' ').length === 2) CUM.add(s); }));
+    CUM_SOAN.forEach(s => CUM.add(norm(s)));
+    return CUM;
+  }
+  // cụm mà bản “viết sai” cũng là cụm đúng (cái tai / cái tay, lá cây / ná cây) → không dùng để hỏi đúng–sai
+  const DE_NHAM = new Set(['cái tai', 'cái tay', 'lá cây', 'rửa tay', 'gia đình', 'đeo kính']);
+  function wordAt(it, opt) {
     const toks = it.de.split(' '), k = toks.findIndex(w => w.includes('___'));
     const w = strip(toks[k].replace('___', opt));
-    const prev = k > 0 ? strip(toks[k - 1]) : '', next = k + 1 < toks.length ? strip(toks[k + 1]) : '';
-    const p = [prev, w, next].filter(Boolean).join(' ');
-    return k <= 1 ? p.charAt(0).toLowerCase() + p.slice(1) : p; // chữ đầu câu → viết thường trong cụm từ
+    return { toks, k, w: k === 0 ? w.charAt(0).toLowerCase() + w.slice(1) : w };
+  }
+  // cụm 2 tiếng chứa chỗ trống, với chữ cần điền là opt; không có cụm nào có nghĩa → null
+  function phrase(it, opt) {
+    const { toks, k, w } = wordAt(it, opt), good = norm(wordAt(it, it.dapAn).w);
+    for (const [at, before] of [[k - 1, true], [k + 1, false]]) {
+      const other = at >= 0 && at < toks.length ? strip(toks[at]) : '';
+      if (!other) continue;
+      const key = norm(before ? other + ' ' + good : good + ' ' + other);
+      if (cumTu().has(key) && !DE_NHAM.has(key)) return before ? other.toLowerCase() + ' ' + w : w + ' ' + other;
+    }
+    return null;
   }
 
   /* ---------- 1. Xếp vào giỏ ---------- */
@@ -53,7 +86,8 @@
     const baskets = best.labels.filter(l => (best.byLabel[l] || []).length >= 1).slice(0, 3);
     const per = baskets.length === 3 ? 2 : 3, words = [], seen = new Set();
     baskets.forEach(l => shuffle(best.byLabel[l] || []).forEach(it => {
-      const w = phrase(it, it.dapAn);
+      // Xếp giỏ chỉ hiện chữ ĐÚNG nên một tiếng đứng riêng vẫn rõ ràng
+      const w = phrase(it, it.dapAn) || wordAt(it, it.dapAn).w;
       if (words.filter(x => x.b === l).length < per && !seen.has(w)) { seen.add(w); words.push({ w, b: l, _i: it._i }); }
     }));
     if (words.length < 4) return null;
@@ -176,7 +210,7 @@
   /* ---------- 6. Chọn tất cả cụm từ viết đúng ---------- */
   function makeChonNhieu(t) {
     const list = shuffle(chons(t)), items = [], seen = new Set();
-    for (const it of list) { const g = phrase(it, it.dapAn); if (!seen.has(g)) { seen.add(g); items.push(it); } if (items.length === 4) break; }
+    for (const it of list) { const g = phrase(it, it.dapAn); if (g && !seen.has(g)) { seen.add(g); items.push(it); } if (items.length === 4) break; }
     if (items.length < 4) return null;
     const goodSet = new Set(items.map(it => phrase(it, it.dapAn)));
     const chips = [];

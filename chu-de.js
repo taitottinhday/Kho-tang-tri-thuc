@@ -193,8 +193,7 @@
   function startFx(kind, id) {
     stopFx(); curId = id; if (!kind) return;
     cv = document.createElement('canvas'); cv.className = 'noel-snow cd-fx'; cv.setAttribute('aria-hidden', 'true'); document.body.appendChild(cv); sizeCanvas();
-    const ambient = Boolean(accents[id]);
-    if (ambient) cv.classList.add('cd-ambient-fx');
+    cv.classList.add('cd-ambient-fx'); // luôn vẽ SAU thẻ và chữ: đèn sao, đom đóm không được che nội dung bé đang đọc
     const count = { petal: 26, rose: 22, balloon: 6, bubble: 16, firefly: 22 }[kind] || 20;
     parts = Array.from({ length: Math.round(count * Math.min(1, Math.max(.55, W * H / 700000))) }, () => mk(kind, true));
     if (id === 'trungthu') for (let i = 0; i < 4; i++) parts.push(mk('lantern', true));

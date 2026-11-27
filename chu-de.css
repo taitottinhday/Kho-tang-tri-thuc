@@ -143,3 +143,8 @@ html.cd-painted :is(.voyage-intro h1,.voyage-intro p,.page-heading h1,.page-head
 }
 html.cd-painted:not([data-theme=night]) .sea-chart{box-shadow:0 4px 0 var(--sd),0 14px 30px #152b3a30}
 html.cd-painted .voyage-home .voyage-intro{padding-bottom:clamp(18px,6vw,82px)}
+
+/* Chữ nhỏ trên tiêu đề nằm thẳng trên trời của mùa (tối): đổi sang vàng kem – trước đây tím/đỏ đậm trên nền cùng màu, không đọc được */
+html[data-season]:not([data-season=noel]) :is(.voyage-kicker,.page-heading .eyebrow,.section-title-row .eyebrow){color:#ffeeb8!important;text-shadow:0 1px 2px rgba(0,0,0,.65),0 0 6px rgba(0,0,0,.55)}
+/* Menu bên theo màu của mùa (trước đây vẫn đỏ Noel) */
+html.noel[data-season]:not([data-season=noel]) .nav-item.active{background:linear-gradient(var(--sa),var(--sb));color:#fff}

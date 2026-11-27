@@ -889,3 +889,8 @@
   .caller-cinema>.phim-nhung:has(.cp-card) .ph-caption{display:none}
   .caller-cinema.use-phim .caller-cinema-evidence{transform-origin:top right;scale:.82}
 }
+
+/* Điện thoại: thẻ xếp ngang → ảnh vừa đúng cột của nó. Giữ tỉ lệ 16:9 theo chiều cao làm ảnh rộng hơn cột và đè lên tên trò. */
+@media (max-width: 820px) {
+  .caller-game-card .game-card-scene { aspect-ratio: auto; width: 100%; min-width: 0; align-self: stretch; }
+}

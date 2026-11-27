@@ -253,15 +253,10 @@
     ]
   };
 
-  /* Mỗi từ trong KHO có thêm ngữ cảnh lớp học, sách và trò chơi.
-     Các câu khung dùng “từ ~” để mọi âm/vần đều lắp vào tự nhiên. */
-  var KHUNG_BO_SUNG = [
-    '{ai} viết từ ~ vào vở ô li.',
-    'Cô giáo đọc từ ~ để {ai} đánh vần.',
-    'Trên tấm thẻ của {ai}, từ cần tìm là ~.',
-    '{ai} tìm từ ~ trong trang sách hôm nay.',
-    'Cả nhóm cùng chọn từ ~ trong trò chơi chữ.'
-  ];
+  /* Mỗi từ có thêm SO_BAN_SAO bản của chính các câu có ngữ cảnh (tên bạn nhỏ, người thân đổi mỗi lần).
+     KHÔNG dùng khung chung kiểu “từ cần tìm là ___”: câu không có nghĩa thì bé không biết điền “trống” hay “chống”.
+     Giữ đúng số câu mỗi từ để mã “mã:g<số>” trong sổ ôn không bị lệch quá xa. */
+  var SO_BAN_SAO = 5;
 
   /* Viết hoa tên riêng: lựa chọn sai sinh tự động (viết thường hết / chỉ hoa chữ đầu) */
   var DIA_DANH = ['Hà Nội', 'Huế', 'Đà Nẵng', 'Hạ Long', 'Cần Thơ', 'Sa Pa', 'Hải Phòng', 'Nha Trang', 'Đà Lạt', 'Phú Quốc'];
@@ -299,7 +294,9 @@
   function fromBank(bank) {
     var out = [];
     bank.forEach(function (e) {
-      var word = e[0], part = e[1], sai = e[2], frames = e[3].concat(KHUNG_BO_SUNG), at = word.indexOf(part);
+      var word = e[0], part = e[1], sai = e[2], own = e[3], at = word.indexOf(part);
+      var frames = own.slice();
+      for (var k = 0; k < SO_BAN_SAO; k++) frames.push(own[k % own.length]);
       if (at < 0) return;
       var blanked = word.slice(0, at) + '___' + word.slice(at + part.length);
       frames.forEach(function (f) { out.push(chonItem(f, blanked, part, sai)); });

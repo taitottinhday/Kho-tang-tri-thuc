@@ -365,3 +365,11 @@ Lỗi tìm thấy ở bộ khung (đã sửa): giáo viên thấy/xoá được 
 - Đã chạy thay phần Codex bị treo trình duyệt và xem ảnh 1366 + 390. Sửa thêm: nhãn ngày trên biểu đồ không đè nhau, ẩn khung biểu đồ khi chưa giao bài, menu gọn trên màn thấp, bảng giáo viên gọn trên điện thoại.
 - Đạt: server_api 141, admin_api 118, gv_e2e 64×2 (tệp + PostgreSQL), admin_e2e 31×2, caller_class 18, caller_empty 11, demo_data 14, teacher_link (1 lần trượt do thời gian, 3 lần đạt), season_e2e, teacher-games-browser, layout_sweep 0 lỗi, dot22_shots 19×2.
 - Commit local, CHƯA push – chờ thầy nói “push đi”.
+
+## Đợt 23 – Kiểm thử trang thật rồi sửa (28/11, phiên c3)
+- Báo cáo + ảnh: `qa-results/kiem-thu-2811/` (chỉ ở máy, không đưa lên git).
+- `dang-bai.js`: thẻ Xếp giỏ / Chọn tất cả chỉ dùng từ hoặc cụm 2 tiếng có nghĩa (viDu + CUM_SOAN), không cắt chữ liền nhau trong câu. Cụm mà bản sai vẫn đúng nghĩa để trong DE_NHAM.
+- `data/sinh-cau.js`: bỏ 5 khung chung “từ ~” (câu mơ hồ trống/chống). Đừng thêm lại khung không có ngữ cảnh.
+- `chu-de.js/css`: hiệu ứng mùa luôn vẽ sau nội dung; chữ nhỏ trên tiêu đề đọc được; menu theo màu mùa.
+- `may-chu.js`: học sinh không còn thấy nhãn “Đã công bố”. `giao-vien/caller-cinema.css`: ảnh thẻ Gọi tên không đè chữ trên điện thoại.
+- Còn chưa sửa: ảnh xem trước nền tải chậm (bản Railway cũ), họ tên gãy 3 dòng ở bảng Học sinh trên điện thoại, một lỗi 404 ở trang đăng nhập giáo viên.
