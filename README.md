@@ -31,6 +31,7 @@ Mở `http://localhost:3000` trong trình duyệt. Để học sinh dùng điệ
 - Góc giáo viên có bảng tiến độ, bật mở bài tự do, in báo cáo và sao lưu/khôi phục dữ liệu.
 - **Dành cho thầy cô → Kho câu hỏi** cho phép soạn, chỉnh và công bố từng câu. Nút **Tải mẫu JSON** cung cấp ví dụ cho việc nhập hàng loạt. Tệp nhập vào được kiểm tra trước khi lưu nháp. Với câu nhìn tranh, có thể chọn hình sẵn hoặc tải ảnh PNG, JPEG, WebP.
 - **Quản lý học sinh** cho phép thêm, sửa, lọc hồ sơ theo tên và lớp, xem lịch sử và độ chính xác từng chủ đề, gửi nhận xét vào Hồ sơ của em và tải lịch sử CSV theo bộ lọc hiện tại.
+- **Gọi tên bất ngờ** trong luồng giáo viên: chọn lớp, để Đom Đóm bay qua danh sách và gọi một học sinh. Mặc định mỗi bạn có một lượt trước khi quay lại; lịch sử lượt gọi, hoàn tác, vòng mới, âm thanh và toàn màn hình đều có sẵn.
 - **Tủ thẻ từ** cho học sinh tìm từ theo lớp, nhìn mẫu, che thẻ rồi tự viết. Khi chấm, ứng dụng phân biệt dấu và chữ hoa, chấp nhận các cách mã hoá Unicode tương đương. Những thẻ còn sai xuất hiện trong mục **Ôn lại từ sai** của từng học sinh.
 - Trong **Dành cho thầy cô → Soạn bộ thẻ**, nhập mỗi từ hoặc cụm từ trên một dòng. Có thể lưu nháp, giao bộ thẻ cho một khối lớp trên máy này, xem kết quả từng học sinh và in phiếu A4 từ cùng danh sách. Khi thay nội dung từ, bộ thẻ bắt đầu ghi kết quả cho phiên bản mới.
 - Tiến độ và hồ sơ được lưu trong `localStorage` của trình duyệt; khi kết nối mã lớp, tóm tắt lượt học sẽ đồng bộ với máy chủ.

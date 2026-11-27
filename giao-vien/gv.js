@@ -10,7 +10,7 @@
   const lessonById = id => BANK.chuDe.find(t => t.id === id);
   const TYPES = { choice: 'Chọn cách viết đúng', fill: 'Điền chữ còn thiếu', picture: 'Nhìn tranh chọn từ', listen: 'Nghe – viết từ ngữ', order: 'Xếp tiếng thành cụm từ', sort: 'Chọn nhóm chính tả' };
   const PICTURES = { '1f414': 'gà', '1f407': 'thỏ', '1f986': 'vịt', '1f422': 'rùa', '1f43f': 'sóc', '1f33b': 'hoa hướng dương', '1f34e': 'táo', '1f4da': 'sách' };
-  const PAGES = { 'tong-quan': 'Tổng quan', 'giao-bai': 'Giao bài', lop: 'Lớp học', 'hoc-sinh': 'Học sinh', 'bai-hoc': 'Bài học', 'cau-do': 'Câu đố luyện thêm', 'tai-lieu': 'Tài liệu', 'huong-dan': 'Trợ giúp' };
+  const PAGES = { 'tong-quan': 'Tổng quan', 'giao-bai': 'Giao bài', lop: 'Lớp học', 'goi-ten': 'Gọi tên', 'hoc-sinh': 'Học sinh', 'bai-hoc': 'Bài học', 'cau-do': 'Câu đố luyện thêm', 'tai-lieu': 'Tài liệu', 'huong-dan': 'Trợ giúp' };
   const EXTRA = {}; // trang do tệp khác đăng ký (bai-hoc.js)
   const MAX_DOC = 10 * 1024 * 1024;
 
@@ -158,7 +158,7 @@
     const recent = students.flatMap(s => (s.history || []).slice(0, 5).map(h => ({ s, h }))).sort((a, b) => (parseDay(b.h.d) || 0) - (parseDay(a.h.d) || 0)).slice(0, 10);
     v.innerHTML = storageWarn() +
       (classes.length ? '' : '<div class="okbox">👋 Bắt đầu: vào <a href="#lop">Lớp học</a> tạo lớp để có <b>mã lớp</b>, rồi cho học sinh nhập mã đó trên máy của các em (Cài đặt → Lớp học của em).</div>') +
-      '<div class="quick"><a class="btn primary" href="#giao-bai">📌 Giao bài</a><a class="btn" href="#bai-hoc">📝 Sửa – thêm câu</a><a class="btn" href="#tai-lieu">📚 Tải tài liệu</a><a class="btn" href="#hoc-sinh">👧 Xem học sinh</a></div>' +
+      '<div class="quick"><a class="btn primary" href="#giao-bai">📌 Giao bài</a><a class="btn" href="#goi-ten">✨ Gọi tên bất ngờ</a><a class="btn" href="#bai-hoc">📝 Sửa – thêm câu</a><a class="btn" href="#tai-lieu">📚 Tải tài liệu</a><a class="btn" href="#hoc-sinh">👧 Xem học sinh</a></div>' +
       '<div class="grid g4">' +
       stat(classes.length, 'Lớp học') + stat(students.length, 'Học sinh đã kết nối') + stat(today, 'Học sinh học hôm nay') + stat(help.length, 'Cần quan tâm', help.length ? 'warn' : '') +
       stat(docs.length, 'Tài liệu') + stat(questions.length, 'Câu hỏi của thầy cô') + '</div>' +
@@ -426,6 +426,7 @@
       '<li><b>Học sinh nhập mã một lần</b> trên máy của em: ⚙️ Cài đặt → <b>Lớp học của em</b> → gõ mã → <b>Kết nối</b>.</li>' +
       '<li><b>Giao bài</b> ở mục <a href="#giao-bai">Giao bài</a>, rồi theo dõi ở mục <a href="#hoc-sinh">Học sinh</a>.</li></ol></section>' +
       '<section class="card section"><h2>❓ Câu hỏi thường gặp</h2>' +
+      qa('Tôi muốn gọi ngẫu nhiên một bạn trả lời', 'Vào mục <a href="#goi-ten">Gọi tên</a>, chọn lớp rồi bấm <b>Thả Đom Đóm bay</b>. Mặc định mỗi bạn chỉ được gọi một lần trong vòng; thầy cô có thể hoàn tác, bắt đầu vòng mới, bật âm thanh hoặc chiếu toàn màn hình.') +
       qa('Tôi muốn sửa một câu trong bài học bị chưa ổn', 'Vào <a href="#bai-hoc">Bài học</a> → bấm vào bài → bấm <b>✏️ Sửa</b> ở câu đó. Không muốn dùng nữa thì bấm <b>🙈 Ẩn</b>. Lỡ tay thì bấm <b>↩ Về câu gốc</b>.') +
       qa('Tôi muốn thêm câu của riêng mình', 'Trong từng bài bấm <b>+ Thêm câu</b>. Nếu có nhiều câu, bấm <b>📥 Thêm nhiều câu từ Excel</b>, tải tệp mẫu, điền rồi tải lên.') +
       qa('Tôi muốn gửi phiếu bài tập, bài đọc cho học sinh', 'Vào <a href="#tai-lieu">Tài liệu</a>, kéo tệp vào khung (PDF, Word, PowerPoint, ảnh, âm thanh, tối đa 10 MB). Học sinh xem ở mục <b>Tài liệu của thầy cô</b>.') +
