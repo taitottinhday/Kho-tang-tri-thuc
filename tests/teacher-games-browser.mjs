@@ -125,6 +125,57 @@ try {
   const mobileFootball = await browser.eval('const ball=document.querySelector(".caller-cinema-ball").getBoundingClientRect(); const caption=document.querySelector("#dialogueBox").getBoundingClientRect(); return { ball:ball.bottom, caption:caption.top }');
   check(mobileFootball.ball <= mobileFootball.caption, 'Mobile captions sit below the ball', mobileFootball);
   await browser.shot(path.join(out, 'penalty-mobile.png'));
+  const longNames = ['Nguyễn Hoàng Phương Ngọc Bảo Anh', 'Trần Khánh Linh Bảo Ngọc Ánh Dương', 'Đặng Nguyễn Hoàng Bảo Ngọc Khánh Chi'];
+  await browser.eval(`
+    document.querySelector('#backHome').click();
+    document.querySelector('#girlsNames').value = ${JSON.stringify(longNames.join('\n'))};
+    document.querySelector('#boysNames').value = 'Lê Gia Bảo\\nPhạm Minh Khang';
+    document.querySelector('#girlsNames').dispatchEvent(new Event('input'));
+    document.querySelector('[data-open-game=prince]').click();
+    document.querySelector('#liveCount').value = '3';
+    document.querySelector('#liveCount').dispatchEvent(new Event('change'));
+    document.querySelector('#startStory').click();
+    return 1;
+  `);
+  check(await until('document.querySelector(".caller-horse-guest")', 19000), 'A guest reaches the horse in a three-name turn');
+  check(await until('document.querySelector("#resultOverlay").classList.contains("is-shown")', 20000), 'The three-name prince animation completes');
+  const longResult = await browser.eval(`return {
+    names:[...document.querySelectorAll('#resultNames .caller-result-person b')].map(name => name.textContent),
+    focus:document.activeElement.id,
+    replayHidden:document.querySelector('#playAgain').hidden,
+    resultExitVisible:document.querySelector('#resultHome').getBoundingClientRect().bottom <= document.querySelector('#resultOverlay').getBoundingClientRect().bottom + 1
+  }`);
+  check(longResult.names.length === 3 && longNames.every(name => longResult.names.includes(name)) && longResult.resultExitVisible, 'All three long names and the exit are available on mobile', longResult);
+  check(longResult.focus === 'resultHeading' && longResult.replayHidden, 'Results receive keyboard focus and an exhausted group cannot implicitly restart');
+  await browser.sleep(650);
+  await browser.shot(path.join(out, 'prince-mobile-three-results.png'));
+
+  const pending = await browser.eval(`
+    document.querySelector('#resultHome').click();
+    document.querySelector('[data-open-game=penalty]').click();
+    document.querySelector('#startStory').click();
+    const state = JSON.parse(localStorage.getItem('vuonchu.callerGames.v1')).daily;
+    return { names:state.pending.students.map(student=>student.name), history:state.history.length,
+      countLocked:document.querySelector('#liveCount').disabled, skipVisible:!document.querySelector('#skipStory').hidden };
+  `);
+  check(pending.names.length === 2 && pending.history === 9 && pending.countLocked && pending.skipVisible, 'The pending draw is saved separately and the controls show its state', pending);
+  await browser.send('Page.reload');
+  check(await until('document.querySelector("#resultOverlay")?.classList.contains("is-shown")', 12000), 'Reloading mid-round shows the saved result');
+  const recovered = await browser.eval(`return { names:[...document.querySelectorAll('#resultNames .caller-result-person b')].map(name=>name.textContent), daily:JSON.parse(localStorage.getItem('vuonchu.callerGames.v1')).daily }`);
+  check(JSON.stringify(recovered.names) === JSON.stringify(pending.names) && recovered.daily.history.length === 11 && recovered.daily.pending === null, 'Recovery preserves the exact names and records them once');
+  const skipped = await browser.eval(`
+    document.querySelector('#resultHome').click();
+    document.querySelector('#refreshRound').click();
+    document.querySelector('[data-open-game=detective]').click();
+    document.querySelector('#liveCount').value = '1';
+    document.querySelector('#liveCount').dispatchEvent(new Event('change'));
+    document.querySelector('#startStory').click();
+    const stored = JSON.parse(localStorage.getItem('vuonchu.callerGames.v1')).daily;
+    document.querySelector('#skipStory').click();
+    return stored.pending.students[0].name;
+  `);
+  check(await until('document.querySelector("#resultOverlay").classList.contains("is-shown")'), 'Show result ends the current animation');
+  check(await browser.eval(`return document.querySelector('#resultNames .caller-result-person b').textContent === ${JSON.stringify(skipped)} && JSON.parse(localStorage.getItem('vuonchu.callerGames.v1')).daily.history.length === 12`), 'Skipping shows the locked result without drawing someone else');
   check(browser.errors.length === 0, 'No uncaught browser errors', browser.errors);
   console.log('Screenshots: ' + out);
 } finally {

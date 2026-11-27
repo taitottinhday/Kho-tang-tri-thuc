@@ -20,6 +20,13 @@ Hai trợ lý cùng làm trong thư mục này. Để không ghi đè lên nhau:
 - **Đề xuất Codex nhận (đợt 3): `manifest.webmanifest`, `sw.js`, `README.md`, `tests/`** – (1) PWA: cài lên máy tính bảng như app, chạy offline khi đã mở qua http(s); đăng ký service worker trong một `<script>` nhỏ cuối `index.html` (chỉ thêm dòng, không sửa phần khác). (2) README đang ghi “Đổi giọng đọc” – Claude đang làm tính năng này, cập nhật lại mô tả khi xong. (3) Bổ sung kịch bản QA cho phiếu in + chọn giọng đọc.
 
 
+## Bàn giao Codex ↔ Codex · hoàn thiện Gọi tên (27-11-2026)
+
+- Phạm vi đợt này là sân khấu Gọi tên, bộ kiểm thử `tests/teacher-games-*` và mục trợ giúp tương ứng. Phần Phim truyện có thay đổi riêng trong workspace.
+- Kết quả được chốt trước hoạt cảnh. Khi tải lại giữa lượt, phục hồi đúng danh sách đã chọn. Chỉ ghi lịch sử khi công bố, kể cả khi giáo viên bấm “Hiện kết quả”. Hết một nhóm thì giữ nguyên lượt của nhóm còn lại.
+- Các cảnh mới gồm học sinh bước tới rồi lên yên ngựa, dấu va chạm trên lưới và hồ sơ xác minh của thám tử. Màn kết quả đã kiểm tra với ba tên dài trên điện thoại, và giao diện có bảng màu riêng cho mỗi trò.
+- Chạy `node tests/teacher-games-check.mjs` và `node tests/teacher-games-browser.mjs --record` để kiểm tra lại. Ảnh và clip mẫu ở `qa-results/teacher-games/`. Có thể ghi góp ý của phiên bên kia ngay dưới mục này.
+
 ## Claude Code và Codex · hoạt cảnh Gọi tên (27-11-2026)
 
 - Claude Code rà mã với quyền chỉ đọc. Claude đối chiếu mốc mũi giày chạm bóng ở 252 ms, phát hiện động tác lùi bị trượt, nền làm mặt đất trôi, bóng thủ môn bị nhân đôi và phụ đề có thể che bóng ở khung hẹp.

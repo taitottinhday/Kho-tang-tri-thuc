@@ -2,7 +2,7 @@ import { createCinema } from './caller-cinema.mjs';
 import { princeMarkup } from './caller-prince-art.mjs';
 import { strikerMarkup } from './caller-penalty-art.mjs';
 import { detectiveMarkup } from './caller-detective-art.mjs';
-import { makeRoster, parseNames, selectBatch, recordBatch, normalizeDailyState, buildDetectiveClues, secureShuffle } from './goi-hoc-sinh-core.mjs';
+import { makeRoster, parseNames, reserveDraw, completeDraw, restoreStudent, normalizeDailyState, buildDetectiveClues, secureShuffle } from './goi-hoc-sinh-core.mjs';
 
 /* Three classroom stories share one roster and one calling round. */
 const KEY = 'vuonchu.callerGames.v1';
@@ -52,7 +52,8 @@ async function page(view) {
   let musicTimer = 0;
   let audio = null;
   let audioStep = 0;
-  let visibleCalled = null;
+  let storyRun = null;
+  let historyExpanded = false;
   let dialogueSequence = 0;
   let noiseBuffer = null;
   let disposed = false;
@@ -91,7 +92,7 @@ async function page(view) {
           <div class="caller-setup-foot"><span>🔒 Tên chỉ lưu trong trình duyệt này, không gửi lên máy chủ.</span><button id="clearLists" type="button">Xóa danh sách</button></div>
         </section>
 
-        <section class="caller-history-home"><div class="caller-history-title"><span>✨</span><div><b>Đã gọi hôm nay</b><small id="todayCount">Chưa có bạn nào</small></div><button id="refreshRound" type="button" title="Cho cả lớp một lượt mới">Làm mới lượt gọi <i>↻</i></button></div><div class="caller-history-chips" id="todayHistory"><span class="caller-history-empty">Lịch sử hôm nay sẽ xuất hiện ở đây.</span></div></section>
+        <section class="caller-history-home"><div class="caller-history-title"><span>✨</span><div><b>Đã gọi hôm nay</b><small id="todayCount">Chưa có bạn nào</small></div><button id="refreshRound" type="button" title="Cho cả lớp một lượt mới">Làm mới lượt gọi <i>↻</i></button></div><div class="caller-history-chips" id="todayHistory"><span class="caller-history-empty">Lịch sử hôm nay sẽ xuất hiện ở đây.</span></div><button class="caller-history-more" id="historyMore" type="button" aria-controls="todayHistory" aria-expanded="false" hidden></button></section>
         <p class="caller-fairness-note">🎓 Tên được chọn ngẫu nhiên ngay khi bắt đầu. Các cú lừa, cú sút và manh mối chỉ làm sân khấu hồi hộp hơn.</p>
       </section>
 
@@ -114,11 +115,11 @@ async function page(view) {
           <div class="caller-stage-topline"><span class="caller-stage-chip"><i></i><b id="stageTheme">VƯỜN CỔ TÍCH</b></span><span id="stageStatus">Sân khấu đã sẵn sàng</span><button id="roundProgress" type="button">Lượt <b>0</b>/<i>0</i> · <u>Làm mới</u></button></div>
           <div class="caller-dialogue" id="dialogueBox"><span class="caller-dialogue-avatar" id="dialogueAvatar">✦</span><p id="dialogueText">Chọn nút bên dưới để bắt đầu câu chuyện nhé!</p><span class="dialogue-tail"></span></div>
           <div class="caller-slow-overlay" id="slowOverlay"><span>✦</span><b>KHOẢNH KHẮC QUYẾT ĐỊNH</b><i></i></div>
-          <div class="caller-result-overlay" id="resultOverlay" hidden><div class="caller-result-rays"></div><div class="caller-result-card"><span class="caller-result-eyebrow" id="resultEyebrow">HỒ SƠ ĐÃ MỞ</span><span class="caller-result-icon" id="resultIcon">🌟</span><b id="resultHeading">Đã tìm ra!</b><div class="caller-result-names" id="resultNames"></div><small id="resultCaption">Mời bạn lên trả lời câu hỏi của cô giáo!</small><div class="caller-result-actions"><button id="playAgain" class="caller-play-again" type="button">Chơi lại ↻</button><button id="resultHome" class="caller-result-home" type="button">Về màn hình chính</button></div></div><div class="caller-confetti" id="confetti" aria-hidden="true"></div></div>
+          <div class="caller-result-overlay" id="resultOverlay" hidden><div class="caller-result-rays"></div><div class="caller-result-card" role="region" aria-labelledby="resultHeading"><span class="caller-result-eyebrow" id="resultEyebrow">HỒ SƠ ĐÃ MỞ</span><span class="caller-result-icon" id="resultIcon">🌟</span><b id="resultHeading" tabindex="-1" aria-describedby="resultNames resultCaption">Đã tìm ra!</b><div class="caller-result-names" id="resultNames"></div><small id="resultCaption">Mời bạn lên trả lời câu hỏi của cô giáo!</small><div class="caller-result-actions"><button id="playAgain" class="caller-play-again" type="button">Chơi lại ↻</button><button id="resultHome" class="caller-result-home" type="button">Về màn hình chính</button></div></div><div class="caller-confetti" id="confetti" aria-hidden="true"></div></div>
           <div class="caller-stage-vignette"></div>
           </div>
         </section>
-        <footer class="caller-play-controls"><div><button id="startStory" class="caller-main-action" type="button"><span>✦</span><b>Bắt đầu câu chuyện</b><i>→</i></button><small id="playHint">Kết quả đã sẵn sàng, cả lớp cùng đoán nhé!</small></div><div class="caller-live-stats"><span><b id="remainingCount">0</b><small>còn lượt</small></span><span class="caller-stat-divider"></span><span><b id="calledCount">0</b><small>đã gọi hôm nay</small></span></div></footer>
+        <footer class="caller-play-controls"><div><button id="startStory" class="caller-main-action" type="button"><span>✦</span><b>Bắt đầu câu chuyện</b><i>→</i></button><button id="skipStory" class="caller-skip-action" type="button" hidden>Hiện kết quả</button><small id="playHint">Kết quả đã sẵn sàng, cả lớp cùng đoán nhé!</small></div><div class="caller-live-stats"><span><b id="remainingCount">0</b><small>còn lượt</small></span><span class="caller-stat-divider"></span><span><b id="calledCount">0</b><small>đã gọi hôm nay</small></span></div></footer>
         <section class="caller-board-wrap" aria-label="Danh sách sân khấu">
           <h3>Học sinh trong lượt này</h3>
           <div class="caller-name-board" id="nameBoard" role="list" aria-label="Tên học sinh"></div>
@@ -133,6 +134,7 @@ async function page(view) {
   const gameStage = $('#gameStage', root);
   const board = $('#nameBoard', root);
   const startButton = $('#startStory', root);
+  const skipButton = $('#skipStory', root);
   const savedSound = $('#soundToggle', root);
   $('#girlsNames', root).value = settings.lists.girls;
   $('#boysNames', root).value = settings.lists.boys;
@@ -158,7 +160,14 @@ async function page(view) {
   function updateHomeHistory() {
     const items = settings.daily.history;
     $('#todayCount', root).textContent = items.length ? items.length + ' lượt gọi trong hôm nay' : 'Chưa có bạn nào';
-    $('#todayHistory', root).innerHTML = items.length ? items.slice(-16).reverse().map((item, index) => '<span class="caller-history-chip" style="--chip-index:' + index + '"><i>' + (GAME[item.game]?.icon || '✦') + '</i>' + esc(item.name) + '</span>').join('') : '<span class="caller-history-empty">Lịch sử hôm nay sẽ xuất hiện ở đây.</span>';
+    const history = $('#todayHistory', root);
+    const visible = historyExpanded ? items : items.slice(-16);
+    history.classList.toggle('is-expanded', historyExpanded);
+    history.innerHTML = visible.length ? visible.slice().reverse().map((item, index) => '<span class="caller-history-chip" style="--chip-index:' + Math.min(index, 20) + '"><i>' + (GAME[item.game]?.icon || '✦') + '</i>' + esc(item.name) + '</span>').join('') : '<span class="caller-history-empty">Lịch sử hôm nay sẽ xuất hiện ở đây.</span>';
+    const more = $('#historyMore', root);
+    more.hidden = items.length <= 16;
+    more.textContent = historyExpanded ? 'Thu gọn lịch sử' : 'Xem đủ ' + items.length + ' lượt';
+    more.setAttribute('aria-expanded', String(historyExpanded));
     $('#calledCount', root).textContent = items.length;
   }
   function updateGameStats() {
@@ -172,9 +181,16 @@ async function page(view) {
     $('#roundProgress', root).innerHTML = 'Lượt <b>' + used + '</b>/<i>' + list.length + '</i> · <u>Làm mới</u>';
     $('#roundProgress', root).disabled = busy || !used;
     $('#stageStatus', root).textContent = !list.length ? 'Thêm danh sách để mở sân khấu' : left ? 'Còn ' + left + ' bạn chưa được gọi trong lượt này' : 'Cả nhóm đã có lượt — làm mới để bắt đầu vòng mới';
-    $('#playHint', root).textContent = !list.length ? 'Hãy thêm tên ở danh sách trước khi chơi.' : left ? 'Kết quả được chọn ngay khi bắt đầu; hoạt cảnh chỉ tạo bất ngờ.' : 'Đã hết lượt của nhóm này. Bấm “Làm mới lượt gọi” để chơi tiếp.';
+    $('#playHint', root).textContent = !list.length ? 'Hãy thêm tên ở danh sách trước khi chơi.' : left ? 'Mỗi bạn một lượt trong vòng hiện tại.' : 'Nhóm này đã hết lượt. Bạn có thể chọn trò khác hoặc làm mới lượt gọi.';
     startButton.disabled = busy || !left;
-    startButton.querySelector('b').textContent = busy ? 'Đang diễn ra…' : left ? meta.start : 'Đã hết lượt trong vòng';
+    skipButton.hidden = !busy;
+    $('#backHome', root).disabled = busy;
+    $('#liveCount', root).disabled = busy;
+    $('#liveSpeed', root).disabled = busy;
+    const again = $('#playAgain', root);
+    again.disabled = busy;
+    again.hidden = !left;
+    startButton.querySelector('b').textContent = busy ? 'Đang diễn ra…' : !list.length ? 'Chưa có danh sách' : left ? meta.start : 'Đã hết lượt trong vòng';
     const button = $('#roundProgress', root);
     button.title = left ? 'Bấm để làm mới lượt gọi' : 'Bắt đầu một vòng mới';
   }
@@ -186,7 +202,11 @@ async function page(view) {
     picker.forEach(group => {
       const name = group.dataset.setting;
       const selected = settings[name];
-      $$('button', group).forEach(button => button.classList.toggle('is-selected', Number(button.dataset.value) === Number(selected)));
+      $$('button', group).forEach(button => {
+        const pressed = Number(button.dataset.value) === Number(selected);
+        button.classList.toggle('is-selected', pressed);
+        button.setAttribute('aria-pressed', String(pressed));
+      });
     });
   }
   syncSegments();
@@ -218,7 +238,7 @@ async function page(view) {
   function renderRoster() {
     const meta = GAME[activeGame];
     const list = getGameRoster();
-    const used = visibleCalled || calledSet();
+    const used = calledSet();
     const cols = Math.min(9, Math.max(3, Math.ceil(Math.sqrt(Math.max(1, list.length) * 1.8))));
     board.style.setProperty('--roster-cols', cols);
     board.classList.toggle('is-detective-board', activeGame === 'detective');
@@ -240,7 +260,21 @@ async function page(view) {
     if (!lineDeck[game]?.length) lineDeck[game] = secureShuffle(LINES[game]);
     return lineDeck[game].pop().replaceAll('{name}', name || '…');
   };
-  const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+  function delay(ms) {
+    const signal = storyRun?.controller.signal;
+    return new Promise((resolve, reject) => {
+      if (signal?.aborted) { reject(signal.reason); return; }
+      const timer = setTimeout(() => {
+        signal?.removeEventListener('abort', cancel);
+        resolve();
+      }, ms);
+      function cancel() {
+        clearTimeout(timer);
+        reject(signal.reason);
+      }
+      signal?.addEventListener('abort', cancel, { once: true });
+    });
+  }
 
   function soundContext() {
     if (!audio) { try { audio = new (window.AudioContext || window.webkitAudioContext)(); } catch { return null; } }
@@ -321,20 +355,35 @@ async function page(view) {
   async function typeDialogue(text, duration = 520) {
     const sequence = ++dialogueSequence;
     const box = $('#dialogueBox', root); const target = $('#dialogueText', root);
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) { target.textContent = text; return; }
     box.classList.remove('is-speaking'); void box.offsetWidth; box.classList.add('is-speaking');
     target.textContent = '';
     const letters = Array.from(text);
     const began = performance.now();
+    const signal = storyRun?.controller.signal;
     return new Promise(resolve => {
+      let frameId;
+      function finish() {
+        cancelAnimationFrame(frameId);
+        signal?.removeEventListener('abort', finish);
+        resolve();
+      }
       function frame(now) {
-        if (sequence !== dialogueSequence || disposed || !root.isConnected) { resolve(); return; }
+        if (sequence !== dialogueSequence || disposed || !root.isConnected) { finish(); return; }
         const progress = Math.min(1, (now - began) / duration);
         target.textContent = progress === 1 ? text : letters.slice(0, Math.ceil(letters.length * progress)).join('');
-        if (progress === 1) resolve();
-        else requestAnimationFrame(frame);
+        if (progress === 1) finish();
+        else frameId = requestAnimationFrame(frame);
       }
-      requestAnimationFrame(frame);
+      if (signal?.aborted) { resolve(); return; }
+      signal?.addEventListener('abort', finish, { once: true });
+      frameId = requestAnimationFrame(frame);
     });
+  }
+  async function say(text, duration) {
+    const signal = storyRun?.controller.signal;
+    await typeDialogue(text, duration);
+    signal?.throwIfAborted();
   }
   function setEmotion(students, className = 'is-candidate') {
     $$('.caller-student', board).forEach(tile => tile.classList.remove('is-candidate', 'is-winner', 'is-pointed'));
@@ -361,8 +410,11 @@ async function page(view) {
     $('#resultNames', root).innerHTML = batch.map((student, index) => '<span class="caller-result-person" style="--person-index:' + index + '">' + makeAvatar(student) + '<b>' + esc(student.name) + '</b></span>').join('');
     $('#resultCaption', root).textContent = batch.length > 1 ? 'Các bạn cùng lên trả lời câu hỏi của cô giáo nhé!' : activeGame === 'detective' ? 'Mời em lên trả lời câu hỏi của cô giáo!' : activeGame === 'penalty' ? 'Cả sân vận động đang cổ vũ cho em!' : 'Nàng có đồng ý cùng hoàng tử trả lời câu hỏi không?';
     overlay.hidden = false;
-    requestAnimationFrame(() => overlay.classList.add('is-shown'));
-    visibleCalled = null;
+    requestAnimationFrame(() => {
+      if (overlay.hidden || !root.isConnected) return;
+      overlay.classList.add('is-shown');
+      $('#resultHeading', root).focus({ preventScroll: true });
+    });
     for (const student of batch) {
       const tile = $('.caller-student[data-id="' + CSS.escape(student.id) + '"]', board);
       tile?.classList.add('is-done');
@@ -380,18 +432,18 @@ async function page(view) {
     setEmotion([student], className);
     const tile = $('.caller-student[data-id="' + CSS.escape(student.id) + '"]', board);
     if (tile && gsap) gsap.fromTo(tile, { scale: .94, y: 5 }, { scale: 1.08, y: -4, duration: .34, ease: 'back.out(2)', yoyo: true, repeat: 1 });
-    if (scene) scene.travel(student, className === 'is-pointed');
+    scene?.travel(student, className === 'is-pointed');
     await delay(wait);
   }
   async function interlude(game, name, wait = 650) {
-    await typeDialogue(pickLine(game, name), Math.min(540, wait));
+    await say(pickLine(game, name), Math.min(540, wait));
     tone(game === 'penalty' ? 440 : game === 'detective' ? 310 : 660, .08, .025, 'sine');
     await delay(Math.max(50, wait - 500));
   }
 
   async function playPrince(batch, pool, totalMs, timeLeft) {
     scene?.enter();
-    await typeDialogue('Nghe tiếng kèn gọi rồi! Cổng vườn đang mở…', 660); tone(880, .35, .04, 'triangle');
+    await say('Nghe tiếng kèn gọi rồi! Cổng vườn đang mở…', 660); tone(880, .35, .04, 'triangle');
     await delay(totalMs * .09);
     const direct = randomIndex(3) === 0;
     const decoys = secureShuffle(pool.filter(student => !batch.some(winner => winner.id === student.id))).slice(0, Math.min(3, pool.length - batch.length));
@@ -403,40 +455,44 @@ async function page(view) {
       await interlude('prince', student.name, beat * .56);
       if (!direct) { const tile = $('.caller-student[data-id="' + CSS.escape(student.id) + '"]', board); tile?.classList.add('is-relieved'); await delay(beat * .18); tile?.classList.remove('is-relieved'); }
     }
-    if (!direct && decoys.length) { await typeDialogue('À không, ta đổi ý rồi! Ngựa con, quay lại nào!', 560); tone(260, .24, .045, 'triangle'); if (scene) scene.turnBack(); await delay(beat * .42); }
-    else { await typeDialogue('Ta đã chọn được rồi… nhưng còn một bí mật!', 550); if (scene) scene.turnBack(); await delay(beat * .4); }
+    if (!direct && decoys.length) { await say('À không, ta đổi ý rồi! Ngựa con, quay lại nào!', 560); tone(260, .24, .045, 'triangle'); if (scene) scene.turnBack(); await delay(beat * .42); }
+    else { await say('Ta đã chọn được rồi… nhưng còn một bí mật!', 550); if (scene) scene.turnBack(); await delay(beat * .4); }
     await spotlight(1250, () => scene?.travel(batch[0], true));
     for (let index = 0; index < batch.length; index++) {
       const winner = batch[index];
-      if (index > 0) { await typeDialogue('Một hoàng tử khác phi vào khu vườn để đón bạn tiếp theo!', 440); if (scene) scene.newPrince(index); await delay(300); }
+      if (index > 0) { await say('Một hoàng tử khác phi vào khu vườn để đón bạn tiếp theo!', 440); if (scene) scene.newPrince(index); await delay(300); }
       if (index === 0) setEmotion([winner], 'is-pointed');
       else await focusOn(winner, 'is-pointed', Math.max(320, beat * .42));
-      await typeDialogue('Nàng ' + winner.name + ' có đồng ý cùng ta trả lời câu hỏi không?', 650);
-      if (scene) scene.winner(makeAvatar(winner));
-      tone(700, .2, .04, 'triangle'); await delay(Math.max(590, beat * .35));
+      await say('Nàng ' + winner.name + ' có đồng ý cùng ta trả lời câu hỏi không?', 650);
+      const mountMs = scene?.winner(makeAvatar(winner), winner) || 0;
+      tone(700, .2, .04, 'triangle'); await delay(Math.max(590, mountMs, beat * .35));
     }
     await delay(Math.max(0, timeLeft() - 1215));
     await delay(scene?.depart() || 0);
   }
 
-  async function playPenalty(batch, pool, totalMs) {
+  async function playPenalty(batch, pool, totalMs, timeLeft) {
     scene?.enter();
-    await typeDialogue('Trận đấu đang ở phút quyết định… Đặt bóng nào!', 620); tone(190, .22, .04, 'square');
-    const extraBuildUp = Math.max(0, totalMs - (batch.length * 2900 + 1700)) / (batch.length + 1);
+    await say('Trận đấu đang ở phút quyết định… Đặt bóng nào!', 620); tone(190, .22, .04, 'square');
+    const extraBuildUp = Math.max(0, totalMs - (batch.length * 3450 + 1800)) / batch.length;
     const decoys = secureShuffle(pool.filter(student => !batch.some(winner => winner.id === student.id)));
     for (let index = 0; index < batch.length; index++) {
       const falseAim = decoys.length ? decoys[(index * 2 + randomIndex(decoys.length)) % decoys.length] : batch[index];
       scene?.prepareShot();
-      await typeDialogue('Cầu thủ lùi lại… thủ môn đang đoán hướng sút!', 480);
-      if (extraBuildUp > 250) await delay(extraBuildUp * .48);
+      await say('Cầu thủ lùi lại… thủ môn đang đoán hướng sút!', 480);
+      if (extraBuildUp > 250) await delay(extraBuildUp * .5);
       setEmotion([falseAim], 'is-candidate');
       scene?.travel(falseAim);
       const trick = randomIndex(3);
       const reaction = ['Đổi chân rồi!', 'Bóng dội cột! Vẫn đang lăn…', 'Thủ môn đổ người! Bóng tuột tay mất rồi!'][trick];
       void typeDialogue('Sút về phía ' + falseAim.name + ' à?!', 400);
       scene?.fakeShot(trick, () => { void typeDialogue(reaction, 290); });
-      await delay((trick === 0 ? 830 : 1360) + extraBuildUp * .32);
+      await delay((trick === 0 ? 830 : 1360) + extraBuildUp * .5);
       if (index === batch.length - 1) {
+        if (timeLeft() > 2750) {
+          await say('Cả sân đang nín thở chờ cú sút cuối…', 490);
+          await delay(Math.max(0, timeLeft() - 2190));
+        }
         await spotlight(1540, () => scene?.scoreShot(index, true, batch[index]));
       } else {
         scene?.scoreShot(index, false, batch[index]);
@@ -444,19 +500,20 @@ async function page(view) {
       }
       setEmotion([batch[index]], 'is-pointed');
     }
-    await typeDialogue('VÀOOOO! Người được gọi chính là…', 650);
+    await say('VÀOOOO! Người được gọi chính là…', 650);
   }
 
   async function playDetective(batch, pool, totalMs) {
     scene?.enter();
-    await typeDialogue('Có một bí mật trong lớp này… thám tử bắt đầu điều tra!', 680); tone(330, .3, .035, 'triangle');
+    await say('Có một bí mật trong lớp này… thám tử bắt đầu điều tra!', 560);
     const clueCount = Math.max(3, Math.min(5, Math.floor(totalMs / Math.max(1, batch.length) / 1250)));
-    const clueSlots = clueCount * batch.length;
-    const beat = Math.max(390, totalMs * .57 / clueSlots);
+    const caseTime = (totalMs - 2350) / batch.length;
+    const clueTime = Math.max(445, (caseTime - 900) / clueCount);
     for (let caseIndex = 0; caseIndex < batch.length; caseIndex++) {
       const target = batch[caseIndex];
-      const clueSet = buildDetectiveClues(pool, target, length => randomIndex(length), clueCount);
-      const clues = clueSet.clues;
+      const previousWinners = new Set(batch.slice(0, caseIndex).map(student => student.id));
+      const casePool = pool.filter(student => !previousWinners.has(student.id));
+      const { clues } = buildDetectiveClues(casePool, target, randomIndex, clueCount);
       if (clues.length < 3) {
         const lengthOf = student => Array.from(student.name).length;
         const wordsOf = student => student.name.trim().split(/\s+/).length;
@@ -467,83 +524,115 @@ async function page(view) {
         ];
         for (const [text, matches] of details) {
           if (clues.length === 3) break;
-          const previous = clues.at(-1)?.remaining || pool;
+          const previous = clues.at(-1)?.remaining || casePool;
           clues.push({ text, remaining: previous.filter(matches) });
         }
       }
-      for (const [index, clue] of clues.entries()) {
-        await typeDialogue('Manh mối ' + (index + 1) + ': ' + clue.text, Math.min(500, beat * .58));
-        scene?.stampClue(clue);
-        const survivors = new Set(clue.remaining.map(student => student.id));
-        $$('.caller-student', board).forEach(tile => {
-          if (pool.some(student => student.id === tile.dataset.id) && !survivors.has(tile.dataset.id)) tile.classList.add('is-eliminated');
-        });
-        const survivor = clue.remaining[randomIndex(clue.remaining.length)] || target;
-        if (survivor.id === target.id) await focusOn(survivor, 'is-candidate', beat * .38);
-        else { setEmotion([survivor], 'is-candidate'); await delay(beat * .34); }
-        await delay(Math.max(80, beat * .2));
-      }
-      await typeDialogue('Hừm… hình như ta đã biết em là ai rồi…', 440);
-      const decoy = pool.find(student => student.id !== target.id && !batch.some(winner => winner.id === student.id));
-      if (decoy) {
-        await focusOn(decoy, 'is-candidate', Math.max(340, beat * .35));
+      const candidateIds = new Set(casePool.map(student => student.id));
+      let survivors = casePool;
+      let consideredDecoy = false;
+      async function considerDecoy() {
+        const decoy = survivors.find(student => student.id !== target.id);
+        if (!decoy || consideredDecoy) return;
+        consideredDecoy = true;
+        await focusOn(decoy, 'is-candidate', 330);
         scene?.falseClue();
-        await typeDialogue('Ơ, không phải em! Kính lúp soi nhầm rồi!', 470);
+        await say('Khoan, xem kỹ hồ sơ này nào…', 320);
       }
-      await focusOn(target, 'is-pointed', 430);
-      if (scene) scene.stampClue();
-      await delay(180);
-      // Restore the board for the next case; each selected student's own clues stay truthful.
-      if (caseIndex < batch.length - 1) { $$('.caller-student', board).forEach(tile => tile.classList.remove('is-eliminated', 'is-candidate', 'is-pointed')); if (scene) scene.nextCase(); }
+      for (const [index, clue] of clues.entries()) {
+        if (clue.remaining.length === 1) await considerDecoy();
+        await say('Manh mối ' + (index + 1) + ': ' + clue.text, Math.min(530, clueTime * .68));
+        scene?.stampClue(clue);
+        survivors = clue.remaining;
+        const survivorIds = new Set(survivors.map(student => student.id));
+        $$('.caller-student', board).forEach(tile => {
+          if (candidateIds.has(tile.dataset.id) && !survivorIds.has(tile.dataset.id)) tile.classList.add('is-eliminated');
+        });
+        setEmotion(survivors.length > 1 ? [survivors[randomIndex(survivors.length)]] : []);
+        await delay(clueTime - Math.min(530, clueTime * .68));
+      }
+      await considerDecoy();
+      if (caseIndex === batch.length - 1) {
+        await spotlight(1180, () => { setEmotion([target], 'is-pointed'); scene?.travel(target, true); });
+        scene?.confirmSuspect?.(target);
+        await say('Đã tìm ra rồi! Mở hồ sơ nào…', 510);
+      } else {
+        await focusOn(target, 'is-pointed', 270);
+        scene?.confirmSuspect?.(target);
+        await delay(320);
+        $$('.caller-student', board).forEach(tile => tile.classList.remove('is-eliminated', 'is-candidate', 'is-pointed'));
+        scene?.nextCase();
+      }
     }
-    await spotlight(1250);
-    await typeDialogue('Đã tìm ra: ' + batch.map(student => student.name).join(' và ') + '!', 650);
   }
 
-  function updateWinnerHistory(batch, game) {
-    recordBatch(settings.daily, batch, game, Date.now());
-    persist(); updateHomeHistoryAndStats();
+  function presentDraw(draw, batch, revealedEarly = false) {
+    if (!root.isConnected || disposed || !completeDraw(settings.daily, draw.id)) return;
+    persist();
+    updateHomeHistoryAndStats();
+    if (revealedEarly) $('#dialogueText', root).textContent = 'Mời các bạn xem kết quả của lượt này.';
+    reveal(batch);
+    $('#stageStatus', root).textContent = remaining(GAME[activeGame].scope).length
+      ? 'Đã công bố kết quả!'
+      : 'Nhóm này đã có lượt. Chọn trò khác để gọi các bạn còn lại.';
+  }
+
+  function finishStory(run, revealedEarly = false) {
+    if (storyRun !== run || disposed) return;
+    storyRun = null;
+    run.controller.abort();
+    busy = false;
+    stopMusic();
+    if (revealedEarly) {
+      try { scene?.reset(); }
+      catch (error) { console.warn('Could not reset the animation', error); }
+    }
+    gameStage.classList.remove('is-running', 'is-slow');
+    presentDraw(run.draw, run.batch, revealedEarly);
+  }
+
+  async function recoverDraw(draw) {
+    await openGame(draw.game);
+    stopMusic();
+    const batch = draw.students.map(student => restoreStudent(student, rosters.all));
+    presentDraw(draw, batch, true);
   }
   async function startStory() {
     if (busy || !activeGame) return;
     hashDay();
+    if (settings.daily.pending) { await recoverDraw(settings.daily.pending); return; }
     const meta = GAME[activeGame];
     const pool = remaining(meta.scope);
     if (!pool.length) { updateGameStats(); return; }
-    visibleCalled = calledSet();
-    const batch = selectBatch(pool, settings.count, 'all', settings.daily, randomIndex);
-    if (!batch.length) { visibleCalled = null; updateGameStats(); return; }
+    const id = globalThis.crypto?.randomUUID?.() || Date.now() + ':' + randomIndex(1000000);
+    const draw = reserveDraw(settings.daily, pool, settings.count, activeGame, id, randomIndex);
+    if (!draw) { updateGameStats(); return; }
+    const batch = draw.students.map(student => restoreStudent(student, pool));
+    const run = { draw, batch, controller: new AbortController() };
+    storyRun = run;
     lineDeck = {};
-    // The fair result is committed before the suspense animation begins.
-    updateWinnerHistory(batch, activeGame);
+    persist();
     busy = true; updateGameStats();
     gameStage.classList.add('is-running');
     $('#resultOverlay', root).hidden = true; $('#resultOverlay', root).classList.remove('is-shown');
     $('#slowOverlay', root).classList.remove('is-active'); gameStage.classList.remove('is-slow');
     renderRoster(); setEmotion([]);
     $('#stageStatus', root).textContent = 'Câu chuyện đang bắt đầu…';
-    $('#playAgain', root).disabled = true; $('#resultHome', root).disabled = true;
     if (savedSound.checked) { soundContext(); startMusic(); }
-    if (scene) scene.reset();
     const begin = performance.now(); const totalMs = settings.seconds * 1000;
     try {
-      if (activeGame === 'prince') await playPrince(batch, pool, totalMs, () => totalMs - (performance.now() - begin));
-      if (activeGame === 'penalty') await playPenalty(batch, pool, totalMs);
-      if (activeGame === 'detective') await playDetective(batch, pool, totalMs);
+      scene?.reset();
+      const timeLeft = () => totalMs - (performance.now() - begin);
+      if (draw.game === 'prince') await playPrince(batch, pool, totalMs, timeLeft);
+      if (draw.game === 'penalty') await playPenalty(batch, pool, totalMs, timeLeft);
+      if (draw.game === 'detective') await playDetective(batch, pool, totalMs);
       const remainder = totalMs - (performance.now() - begin);
       if (remainder > 0) await delay(remainder);
-      if (!root.isConnected || disposed) return;
-      reveal(batch);
-      $('#stageStatus', root).textContent = activeGame === 'detective' ? 'Vụ án đã khép lại!' : activeGame === 'penalty' ? 'Sân vận động vỡ òa!' : 'Lời mời đã được gửi đi!';
+      finishStory(run);
     } catch (error) {
+      if (run.controller.signal.aborted || disposed) return;
       console.error('Caller game animation failed', error);
-      if (root.isConnected) { await typeDialogue('Câu chuyện khựng lại một chút — kết quả đã được chọn rồi!', 450); reveal(batch); }
-    } finally {
-      busy = false; stopMusic();
-      gameStage.classList.remove('is-running');
-      if ($('#playAgain', root)) { $('#playAgain', root).disabled = false; $('#resultHome', root).disabled = false; }
-      updateGameStats();
-      startButton.querySelector('b').textContent = remaining(meta.scope).length ? 'Chơi thêm một lượt' : 'Đã hết lượt trong vòng';
+      finishStory(run, true);
     }
   }
 
@@ -588,12 +677,10 @@ async function page(view) {
   }
   $$('.caller-game-card', root).forEach(card => card.onclick = () => openGame(card.dataset.openGame));
   $('#backHome', root).onclick = goHome; $('#resultHome', root).onclick = goHome;
-  $('#playAgain', root).onclick = () => {
-    const scope = GAME[activeGame].scope;
-    if (!remaining(scope).length) { settings.daily.round = { girls: [], boys: [], all: [] }; persist(); renderRoster(); }
-    startStory();
-  };
+  $('#historyMore', root).onclick = () => { historyExpanded = !historyExpanded; updateHomeHistory(); };
+  $('#playAgain', root).onclick = startStory;
   startButton.onclick = startStory;
+  skipButton.onclick = () => { if (storyRun) finishStory(storyRun, true); };
   $('#roundProgress', root).onclick = refreshRound;
   $('#refreshRound', root).onclick = refreshToday;
   $('#clearLists', root).onclick = () => { $('#girlsNames', root).value = ''; $('#boysNames', root).value = ''; setRoster(); };
@@ -614,18 +701,31 @@ async function page(view) {
   const appVisibility = new MutationObserver(() => cleanWhenLeaving());
   const cleanWhenLeaving = () => {
     if (root.isConnected && !teacherApp?.hidden) return;
-    disposed = true; stopMusic(); scene?.destroy(); scene = null;
+    disposed = true;
+    storyRun?.controller.abort();
+    storyRun = null;
+    stopMusic();
+    scene?.destroy();
+    scene = null;
     appVisibility.disconnect();
     window.removeEventListener('hashchange', cleanWhenLeaving);
     document.removeEventListener('fullscreenchange', updateFullscreen);
     if (audio && audio.state !== 'closed') audio.close().catch(() => {});
   };
   if (teacherApp) appVisibility.observe(teacherApp, { attributes: true, attributeFilter: ['hidden'] });
-  function updateFullscreen() { if (!root.isConnected) return; $('#fullscreenToggle', root).textContent = document.fullscreenElement === root ? '⤢' : '⛶'; }
+  function updateFullscreen() {
+    if (!root.isConnected) return;
+    const full = document.fullscreenElement === root;
+    const control = $('#fullscreenToggle', root);
+    control.textContent = full ? '⤢' : '⛶';
+    control.title = full ? 'Thoát toàn màn hình' : 'Toàn màn hình';
+    control.setAttribute('aria-pressed', String(full));
+  }
   document.addEventListener('fullscreenchange', updateFullscreen);
   window.addEventListener('hashchange', cleanWhenLeaving);
   updateHomeHistory();
   setRoster();
+  if (settings.daily.pending) await recoverDraw(settings.daily.pending);
 }
 
 window.GV && window.GV.register('goi-ten', 'Gọi tên', page);

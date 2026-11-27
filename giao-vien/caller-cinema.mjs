@@ -9,6 +9,7 @@ const GOAL = [
   '<defs><linearGradient id="caller-post" x2="0" y2="1"><stop stop-color="#fff"/><stop offset="1" stop-color="#7395b8"/></linearGradient></defs>',
   '<path d="M22 213 49 39 324 23 346 208 22 218z" fill="#101a33" fill-opacity=".21"/>',
   '<path class="caller-net-weave" fill="none" stroke="#d9e9ed" stroke-width=".8" stroke-opacity=".48"/>',
+  '<g class="caller-net-contact" fill="none" visibility="hidden"><circle r="10" stroke="#b4fff0" stroke-width="2"/><circle r="15" stroke="#fff5bd" stroke-width="1" stroke-dasharray="2 4"/></g>',
   '<path d="M16 216 42 42Q43 35 52 35L325 20Q333 20 333 30L340 211" fill="none" stroke="#253451" stroke-width="14" stroke-linecap="round"/>',
   '<path d="M16 212 42 39Q43 33 52 33L325 18Q331 18 332 28L340 209" fill="none" stroke="url(#caller-post)" stroke-width="8" stroke-linecap="round"/>',
   '<path d="M22 216 333 213 350 188" fill="none" stroke="#a0bfd9" stroke-width="3" opacity=".65"/></svg>'
@@ -164,15 +165,19 @@ export function createCinema(host, mode, { gsap, sound }) {
   let ballState;
   let goal;
   let net;
+  let netContact;
+  let netContactTween;
   let netTween;
   let cameraTween;
   let shake;
   let ballFlight;
   let signalTween;
   let markTween;
+  let guestTween;
   let evidenceTween;
   let slow = false;
   let travelSeries = 0;
+  let keeperDiveSeries = 0;
   const time = value => reduced ? .01 : value;
 
   function cue(fn, ms) {
@@ -225,6 +230,15 @@ export function createCinema(host, mode, { gsap, sound }) {
   function svgContact(anchor) {
     if (!anchor) return null;
     return svgOnStage(anchor, anchor.cx.baseVal.value, anchor.cy.baseVal.value);
+  }
+
+  function hostPoint(point) {
+    const stage = actors.getBoundingClientRect();
+    const screen = host.getBoundingClientRect();
+    return {
+      x: ((stage.left - screen.left) + stage.width * point.x / 100) * 100 / Math.max(1, screen.width),
+      y: ((stage.top - screen.top) + stage.height * point.y / 100) * 100 / Math.max(1, screen.height)
+    };
   }
 
   function groundContact(anchor, role, strength) {
@@ -303,15 +317,16 @@ export function createCinema(host, mode, { gsap, sound }) {
 
   function impact(x, y, label = '') {
     fx.burst(x, y, 'spark', 32);
-    host.style.setProperty('--flash-x', x + '%');
-    host.style.setProperty('--flash-y', y + '%');
+    const point = hostPoint({ x, y });
+    host.style.setProperty('--flash-x', point.x + '%');
+    host.style.setProperty('--flash-y', point.y + '%');
     host.classList.remove('has-impact');
+    if (label) showSignal(label, clamp(point.x, 12, 88), clamp(point.y, 14, 72));
     if (reduced) return;
     void host.offsetWidth;
     host.classList.add('has-impact');
     shake?.kill();
     shake = gsap.fromTo(camera, { y: 4 }, { y: 0, duration: .36, ease: 'elastic.out(1,.32)' });
-    if (label) showSignal(label, x, y);
   }
 
   function showSignal(label, x, y) {
@@ -321,16 +336,17 @@ export function createCinema(host, mode, { gsap, sound }) {
     signalTween?.kill();
     signalTween = gsap.timeline().fromTo(signal, { autoAlpha: 0, y: 12, scale: .72 }, {
       autoAlpha: 1, y: 0, scale: 1, duration: time(.33), ease: 'back.out(1.7)'
-    }).to(signal, { autoAlpha: 0, y: -12, duration: time(.28), delay: time(.64) });
+    }).to(signal, { autoAlpha: 0, y: -12, duration: time(.28), delay: .64 });
   }
 
-  function showTarget(student, left) {
+  function showTarget(student, left, top) {
     targetName.textContent = student.name;
     target.style.left = clamp(left, 21, 79) + '%';
+    target.style.top = top == null ? '' : clamp(top, 19, 65) + '%';
     markTween?.kill();
     markTween = gsap.timeline().fromTo(target, { autoAlpha: 0, y: 7, scale: .9 }, {
       autoAlpha: 1, y: 0, scale: 1, duration: time(.26), ease: 'back.out(1.6)'
-    }).to(target, { autoAlpha: 0, y: -6, duration: time(.24), delay: time(1.15) });
+    }).to(target, { autoAlpha: 0, y: -6, duration: time(.24), delay: 1.15 });
   }
 
   function placeBall(position) {
@@ -386,6 +402,116 @@ export function createCinema(host, mode, { gsap, sound }) {
     });
   }
 
+  function markNetContact(u, v) {
+    netContactTween?.kill();
+    const point = netPoint(u, v);
+    netContact.setAttribute('visibility', 'visible');
+    const update = (scale, opacity) => {
+      netContact.setAttribute('transform', 'translate(' + point.x + ' ' + point.y + ') scale(' + scale + ')');
+      netContact.setAttribute('opacity', opacity);
+    };
+    update(1, 1);
+    if (reduced) return;
+    const ring = { progress: 0 };
+    netContactTween = gsap.to(ring, {
+      progress: 1,
+      duration: .62,
+      ease: 'power2.out',
+      onUpdate() { update(.7 + ring.progress * 1.8, 1 - ring.progress); },
+      onComplete() { netContact.setAttribute('visibility', 'hidden'); }
+    });
+  }
+
+  function keeperDive(direction) {
+    pose(keeper, 'dive', direction);
+    if (reduced) return;
+    const serial = ++keeperDiveSeries;
+    const landing = keeper.querySelector('.cg-keeper-shadow');
+    cue(() => {
+      if (serial !== keeperDiveSeries || keeper.dataset.motion !== 'dive') return;
+      const point = svgContact(landing);
+      if (!point) return;
+      fx.burst(point.x, point.y, 'turf', 11);
+      sound('step', { strength: .54, pan: point.x / 50 - 1, surface: mode });
+    }, 735);
+  }
+
+  function appendStudent(horse, markup) {
+    const guest = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    guest.setAttribute('class', 'caller-horse-guest');
+    guest.innerHTML = markup;
+    const portrait = guest.firstElementChild;
+    portrait.setAttribute('width', '76');
+    portrait.setAttribute('height', '91');
+    portrait.style.animation = 'none';
+    horse.querySelector('.cpr-rider').before(guest);
+    return guest;
+  }
+
+  function mountStudent(horse, guest) {
+    const feet = guest.querySelector('path[d^="M29 66h5"]');
+    const farFoot = feet?.cloneNode(false);
+    if (farFoot) {
+      feet.setAttribute('d', 'M29 66h5v12h-8z');
+      farFoot.setAttribute('d', 'M38 66h5l4 12h-8z');
+      feet.after(farFoot);
+    }
+    const setPosition = (x, y, tilt = 0) => {
+      guest.setAttribute('transform', 'translate(' + x + ' ' + y + ') rotate(' + tilt + ' 38 81)');
+    };
+    const setFeet = angle => {
+      feet?.setAttribute('transform', 'rotate(' + angle + ' 31 66)');
+      farFoot?.setAttribute('transform', 'rotate(' + -angle + ' 40 66)');
+    };
+    const settle = () => {
+      setPosition(174, 100);
+      setFeet(-12);
+      pose(horse, 'win');
+      const seat = svgOnStage(guest, 39, 44);
+      if (seat) fx.burst(seat.x, seat.y, 'petal', 21);
+      sound('chime');
+    };
+    if (reduced) { settle(); return 0; }
+
+    const startX = 84;
+    const groundY = 230;
+    const mountX = 147;
+    const strides = { progress: 0 };
+    const jump = { progress: 0 };
+    setPosition(startX, groundY);
+    guestTween?.kill();
+    guestTween = gsap.timeline()
+      .fromTo(guest, { opacity: 0 }, { opacity: 1, duration: .13 }, 0)
+      .to(strides, {
+        progress: 1, duration: .36, ease: 'sine.inOut',
+        onUpdate() {
+          const step = strides.progress;
+          setPosition(startX + (mountX - startX) * step, groundY - Math.abs(Math.sin(step * Math.PI * 2)) * 3, 3);
+          setFeet(Math.sin(step * Math.PI * 4) * 21);
+        }
+      }, 0)
+      .call(() => {
+        setPosition(mountX, groundY + 4, 11);
+        setFeet(0);
+        const point = svgOnStage(guest, 38, 83);
+        if (point) {
+          fx.burst(point.x, point.y, 'dust', 8);
+          sound('step', { strength: .58, pan: point.x / 50 - 1, surface: mode });
+        }
+      }, [], .36)
+      .to(jump, {
+        progress: 1, duration: .38, ease: 'sine.inOut',
+        onUpdate() {
+          const fraction = jump.progress;
+          const clearance = Math.sin(fraction * Math.PI);
+          setPosition(mountX + (174 - mountX) * fraction, groundY + 4 + (100 - groundY - 4) * fraction - clearance * 28, 11 * (1 - fraction));
+          setFeet(clearance * 26 - fraction * 12);
+        },
+        onComplete: settle
+      }, .44);
+    return 840;
+  }
+
   function strikerTakeOff() {
     const rigWidth = first.offsetWidth / Math.max(1, actors.clientWidth) * 100;
     const ballRadius = ball.offsetWidth / Math.max(1, actors.clientWidth) * 50 * ballState.scale;
@@ -404,12 +530,14 @@ export function createCinema(host, mode, { gsap, sound }) {
     actors.replaceChildren();
     setpiece.replaceChildren();
     evidence.hidden = true;
+    delete evidence.dataset.state;
     if (mode === 'garden') current = first = performer(princeMarkup(0), 'prince', 35);
     if (mode === 'office') current = first = performer(detectiveMarkup(), 'detective', 33);
     if (mode === 'stadium') {
       setpiece.innerHTML = '<div class="caller-cinema-goal">' + GOAL + '</div>';
       goal = setpiece.firstElementChild;
       net = goal.querySelector('.caller-net-weave');
+      netContact = goal.querySelector('.caller-net-contact');
       net.setAttribute('d', NET_BASE);
       current = first = performer(strikerMarkup(), 'striker', 26);
       keeper = performer(keeperMarkup(), 'keeper', 79);
@@ -477,27 +605,16 @@ export function createCinema(host, mode, { gsap, sound }) {
       walk(current, 38, 1.02, { beats: true });
       sound('fanfare');
     },
-    winner(studentAvatar) {
-      if (mode !== 'garden') return;
-      const x = parseFloat(current.style.left);
-      pose(current, 'win');
-      if (studentAvatar) {
-        const guest = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-        guest.setAttribute('class', 'caller-horse-guest');
-        guest.innerHTML = studentAvatar;
-        const portrait = guest.firstElementChild;
-        portrait.setAttribute('x', '174');
-        portrait.setAttribute('y', '100');
-        portrait.setAttribute('width', '76');
-        portrait.setAttribute('height', '91');
-        const rider = current.querySelector('.cpr-rider');
-        rider.before(guest);
-        moving.set(guest, gsap.fromTo(guest, { x: -55, y: 110, autoAlpha: 0 }, {
-          x: 0, y: 0, autoAlpha: 1, duration: time(.57), ease: 'back.out(1.37)'
-        }));
-      }
-      fx.burst(x, 56, 'petal', 24);
+    winner(studentAvatar, student) {
+      if (mode !== 'garden') return 0;
+      const horse = current;
+      moving.get(horse)?.kill();
+      pose(horse, 'focus');
+      if (student) showTarget(student, parseFloat(horse.style.left) + (horse.classList.contains('faces-left') ? 12 : -12), 50);
+      if (studentAvatar) return mountStudent(horse, appendStudent(horse, studentAvatar));
+      pose(horse, 'win');
       sound('chime');
+      return 0;
     },
     depart() {
       if (mode !== 'garden' || reduced) return 0;
@@ -511,6 +628,8 @@ export function createCinema(host, mode, { gsap, sound }) {
       host.classList.remove('has-goal');
       ballFlight?.kill();
       netTween?.kill();
+      netContactTween?.kill();
+      netContact.setAttribute('visibility', 'hidden');
       net.setAttribute('d', NET_BASE);
       placeBall(BALL_SPOT);
       ball.classList.remove('in-flight');
@@ -523,7 +642,7 @@ export function createCinema(host, mode, { gsap, sound }) {
       walk(first, strikerTakeOff(), runUp, { facing: 'right', beats: true, finish: null });
       cue(() => {
         pose(first, trick === 0 ? 'fake' : 'focus');
-        pose(keeper, 'fake', trick === 1 ? 'right' : 'left');
+        keeperDive(trick === 1 ? 'right' : 'left');
         if (trick === 0) {
           fx.burst(40, 84, 'turf', 9);
           sound('swerve');
@@ -560,15 +679,17 @@ export function createCinema(host, mode, { gsap, sound }) {
           const v = [.45, .60, .66][index];
           const contact = netLocation(u, v) || { x: 86, y: 60 };
           const floor = netLocation(u, .99)?.y ?? 80;
-          cue(() => pose(keeper, 'fake', u > .5 ? 'left' : 'right'), 70);
+          cue(() => keeperDive(u > .5 ? 'left' : 'right'), 70);
           launchBall({
             ...contact, floor, scale: .58, arc: hold ? 14 : 10,
             duration: hold ? .74 : .50, spin: 570,
             end() {
               host.classList.add('has-goal');
               hitNet(u, v);
+              markNetContact(u, v);
+              const point = hostPoint(contact);
               impact(contact.x, contact.y, 'VÀO!');
-              if (student) showTarget(student, 71);
+              if (student) showTarget(student, point.x, point.y - 18);
               sound('goal', { pan: contact.x / 50 - 1 });
               pose(first, 'win');
               launchBall({
@@ -589,11 +710,39 @@ export function createCinema(host, mode, { gsap, sound }) {
       sound('stamp');
       if (!clue) return;
       evidence.hidden = false;
+      delete evidence.dataset.state;
       const count = clue.remaining.length;
       evidence.firstElementChild.textContent = 'Còn ' + count + ' hồ sơ';
       evidence.lastElementChild.textContent = count > 1 && count <= 4 ? clue.remaining.map(student => student.name).join(' · ') : '';
       evidenceTween?.kill();
       evidenceTween = gsap.fromTo(evidence, { y: -8, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: time(.34), ease: 'power2.out' });
+    },
+    confirmSuspect(student) {
+      if (mode !== 'office' || !student) return;
+      evidence.hidden = false;
+      evidence.dataset.state = 'confirmed';
+      evidence.firstElementChild.textContent = 'Đã xác minh';
+      evidence.lastElementChild.textContent = student.name;
+      evidenceTween?.kill();
+      evidenceTween = gsap.fromTo(evidence, { y: 8, autoAlpha: 0 }, {
+        y: 0, autoAlpha: 1, duration: time(.30), ease: 'power2.out'
+      });
+      sound('stamp');
+      const detective = current;
+      cue(() => {
+        const lens = detective.querySelector('.cd-elbow-lens circle[cx="295"][cy="157"]');
+        const point = svgContact(lens);
+        if (!point) return;
+        const projection = hostPoint(point);
+        host.style.setProperty('--flash-x', clamp(projection.x, 12, 88) + '%');
+        host.style.setProperty('--flash-y', clamp(projection.y, 16, 75) + '%');
+        host.classList.remove('has-lens');
+        if (!reduced) {
+          void host.offsetWidth;
+          host.classList.add('has-lens');
+        }
+        fx.burst(point.x, point.y, 'spark', 13);
+      }, 220);
     },
     falseClue() {
       moving.get(current)?.kill();
@@ -602,6 +751,7 @@ export function createCinema(host, mode, { gsap, sound }) {
     },
     nextCase() {
       evidence.hidden = true;
+      delete evidence.dataset.state;
       const x = parseFloat(current.style.left);
       walk(current, x + (x < 45 ? 5 : -5), .67, { beats: true });
       cameraTo(48, 1.055);
@@ -624,6 +774,8 @@ export function createCinema(host, mode, { gsap, sound }) {
       shake?.kill();
       ballFlight?.kill();
       netTween?.kill();
+      netContactTween?.kill();
+      guestTween?.kill();
       signalTween?.kill();
       markTween?.kill();
       evidenceTween?.kill();
@@ -641,10 +793,13 @@ export function createCinema(host, mode, { gsap, sound }) {
       shake?.kill();
       ballFlight?.kill();
       netTween?.kill();
+      netContactTween?.kill();
+      guestTween?.kill();
       signalTween?.kill();
       markTween?.kill();
       evidenceTween?.kill();
       evidence.hidden = true;
+      delete evidence.dataset.state;
       host.classList.remove('has-goal', 'has-impact', 'has-lens', 'is-playing-shot');
       fxHost.classList.remove('has-rain');
       gsap.set(camera, { xPercent: 0, y: 0, scale: 1 });

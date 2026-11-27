@@ -65,7 +65,7 @@ export function secureShuffle(values, random = globalThis.crypto?.getRandomValue
 }
 
 export function newDailyState(dateKey) {
-  return { date: dateKey, round: { girls: [], boys: [], all: [] }, history: [] };
+  return { date: dateKey, round: { girls: [], boys: [], all: [] }, history: [], pending: null };
 }
 
 export function normalizeDailyState(value, dateKey) {
@@ -77,6 +77,17 @@ export function normalizeDailyState(value, dateKey) {
   if (Array.isArray(value.history)) {
     state.history = value.history.filter(item => item && item.id != null && item.name)
       .slice(-300).map(item => ({ ...item, id: String(item.id) }));
+  }
+  const pending = value.pending;
+  if (typeof pending?.id === 'string' && ['prince', 'penalty', 'detective'].includes(pending.game)
+    && Array.isArray(pending.students) && pending.students.length > 0 && pending.students.length <= 3) {
+    const seen = new Set();
+    const students = pending.students.flatMap(student => {
+      if (typeof student?.id !== 'string' || typeof student.name !== 'string' || !student.name.trim() || seen.has(student.id)) return [];
+      seen.add(student.id);
+      return [{ id: student.id, name: student.name }];
+    });
+    if (students.length) state.pending = { id: pending.id, game: pending.game, students };
   }
   return state;
 }
@@ -111,12 +122,41 @@ export function recordBatch(state, students, game, timestamp = Date.now()) {
   return state;
 }
 
+// Keep the draw across navigation, but consume a turn only when it is presented.
+export function reserveDraw(state, roster, count, game, id, randomIndex = secureIndex) {
+  if (state.pending) return null;
+  const preview = { round: { all: [...state.round.all] } };
+  const students = selectBatch(roster, count, 'all', preview, randomIndex)
+    .map(({ id: studentId, name }) => ({ id: studentId, name }));
+  if (!students.length) return null;
+  state.pending = { id, game, students };
+  return state.pending;
+}
+
+export function completeDraw(state, id, timestamp = Date.now()) {
+  if (state.pending?.id !== id) return null;
+  const draw = state.pending;
+  for (const student of draw.students) {
+    if (!state.round.all.includes(student.id)) state.round.all.push(student.id);
+  }
+  recordBatch(state, draw.students, draw.game, timestamp);
+  state.pending = null;
+  return draw;
+}
+
+export function restoreStudent(snapshot, roster) {
+  const existing = roster.find(student => student.id === snapshot.id);
+  if (existing) return { ...existing, name: snapshot.name };
+  const signature = stableHash(snapshot.id);
+  return { ...snapshot, palette: signature % 8, signature };
+}
+
 function fileName(student) { return normalizeName(student.name); }
 function firstLetter(student) { return Array.from(fileName(student))[0] || ''; }
 function lastLetter(student) { return Array.from(fileName(student)).filter(ch => /[a-z]/.test(ch)).at(-1) || ''; }
 function letters(student) { return new Set(Array.from(fileName(student)).filter(ch => /[a-z]/.test(ch))); }
 function wordCount(student) { return String(student.name).trim().split(/\s+/).filter(Boolean).length; }
-function normalizedLength(student) { return Array.from(fileName(student)).filter(ch => /[a-z0-9]/.test(ch)).length; }
+function normalizedLength(student) { return Array.from(fileName(student)).filter(ch => /[a-z]/.test(ch)).length; }
 
 export function buildDetectiveClues(roster, target, randomIndex = secureIndex, maxClues = 5) {
   let remaining = roster.slice();
@@ -140,14 +180,14 @@ export function buildDetectiveClues(roster, target, randomIndex = secureIndex, m
     };
     const initials = [...new Set(candidates.map(firstLetter).filter(Boolean))];
     initials.filter(letter => letter !== targetStart).forEach(letter => {
-      add('initial-not-' + letter, 'Tên của nghi phạm không bắt đầu bằng chữ ' + letter.toLocaleUpperCase('vi') + '.', student => firstLetter(student) !== letter);
+      add('initial-not-' + letter, 'Chữ đầu của họ tên (bỏ dấu) khác ' + letter.toLocaleUpperCase('vi') + '.', student => firstLetter(student) !== letter);
     });
     const candidateLetters = new Set(candidates.flatMap(student => [...letters(student)]));
     [...candidateLetters].filter(letter => !targetLetters.has(letter)).forEach(letter => {
-      add('lacks-' + letter, 'Tên của nghi phạm không có chữ “' + letter + '”.', student => !letters(student).has(letter));
+      add('lacks-' + letter, 'Tên không có chữ “' + letter + '” nếu bỏ dấu.', student => !letters(student).has(letter));
     });
     [...targetLetters].forEach(letter => {
-      add('has-' + letter, 'Trong tên có chữ “' + letter + '”.', student => letters(student).has(letter));
+      add('has-' + letter, 'Tên có chữ “' + letter + '” nếu bỏ dấu.', student => letters(student).has(letter));
     });
     if (targetLength > 1) {
       add('length-short-' + targetLength, 'Tên có không quá ' + targetLength + ' chữ cái.', student => normalizedLength(student) <= targetLength);
@@ -156,7 +196,7 @@ export function buildDetectiveClues(roster, target, randomIndex = secureIndex, m
       add('length-long-' + targetLength, 'Tên có từ ' + targetLength + ' chữ cái trở lên.', student => normalizedLength(student) >= targetLength);
     }
     add('words-' + targetWords, 'Họ tên có ' + targetWords + ' tiếng.', student => wordCount(student) === targetWords);
-    if (targetEnd) add('end-' + targetEnd, 'Tên kết thúc bằng chữ ' + targetEnd.toLocaleUpperCase('vi') + '.', student => lastLetter(student) === targetEnd);
+    if (targetEnd) add('end-' + targetEnd, 'Chữ cuối của tên (bỏ dấu) là ' + targetEnd.toLocaleUpperCase('vi') + '.', student => lastLetter(student) === targetEnd);
 
     // A deterministic case-file seal is derived from the name and its roster identity.
     // It provides a truthful backup clue for short or repeated names.

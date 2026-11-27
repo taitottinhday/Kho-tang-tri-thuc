@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { makeRoster, parseNames, newDailyState, selectBatch, buildDetectiveClues } from '../giao-vien/goi-hoc-sinh-core.mjs';
+import { makeRoster, parseNames, newDailyState, normalizeDailyState, selectBatch, reserveDraw, completeDraw, buildDetectiveClues } from '../giao-vien/goi-hoc-sinh-core.mjs';
 
 const surnames = ['Nguyễn', 'Trần', 'Lê', 'Phạm', 'Hoàng'];
 const given = ['An', 'Bảo', 'Chi', 'Dũng', 'Hà', 'Khánh', 'Linh', 'Minh Anh', 'Nam'];
@@ -79,4 +79,23 @@ for (const size of [5, 20, 45]) {
   assert.equal(selectBatch([roster.girls[0]], 1, 'all', state).length, 0, 'switching games keeps prior calls in the shared round');
 }
 
-console.log('Teacher games checks passed: 5, 20, 45 students; 1/2/3 selections; no-repeat rounds; truthful detective clues.');
+{
+  const date = '2026-11-27';
+  const roster = makeRoster(parseNames('Hà Chi\nNgọc An'), parseNames('Gia Bảo\nMinh Khang'));
+  const state = newDailyState(date);
+  const draw = reserveDraw(state, roster.girls, 2, 'prince', 'one', cyclingRandom());
+  assert.equal(state.history.length, 0, 'A staged result has not been called yet');
+  assert.equal(state.round.all.length, 0);
+  assert.equal(reserveDraw(state, roster.boys, 2, 'penalty', 'two'), null, 'Do not replace a pending result');
+  const restored = normalizeDailyState(JSON.parse(JSON.stringify(state)), date);
+  assert.deepEqual(restored.pending, draw);
+  assert.equal(completeDraw(restored, 'other'), null);
+  assert.deepEqual(completeDraw(restored, 'one'), draw);
+  assert.equal(completeDraw(restored, 'one'), null, 'Present a result at most once');
+  assert.equal(restored.history.length, 2);
+  assert.equal(reserveDraw(restored, roster.girls, 3, 'prince', 'three'), null);
+  assert.equal(reserveDraw(restored, roster.all, 3, 'detective', 'four').students.length, 2,
+    'The other group still has its own remaining students');
+}
+
+console.log('Teacher games checks passed: 5, 20, 45 students; 1/2/3 selections; shared rounds; truthful clues; interrupted draw recovery.');
