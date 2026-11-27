@@ -778,7 +778,7 @@ async function page(view) {
   if (settings.daily.pending) await recoverDraw(settings.daily.pending);
 }
 
-const GENDER_KEY = 'vuonchu.callerGender.v1';
+const GENDER_KEY = 'vuonchu.callerGender.v2';
 /* Đoán Nữ/Nam theo tên Việt: tên đệm “Thị” → nữ; “Văn” → nam; còn lại theo tên chính hay gặp. Chỉ là gợi ý để thầy cô sửa. */
 const NU = new Set(['an','anh','chi','châu','diệp','dung','duyên','giang','hà','hạnh','hằng','hân','hiền','hoa','hồng','hương','hường','huyền','khuê','lam','lan','liên','linh','loan','ly','mai','my','mỹ','nga','ngân','nghi','ngọc','nguyệt','nhi','nhung','như','oanh','phương','quyên','quỳnh','thảo','thơ','thư','thùy','thuỳ','thủy','thuỷ','trang','trâm','trinh','tú','tuyết','uyên','vân','vi','vy','xuân','yến','hậu','ngà','thanh','thu','hoài','diệu','tâm','tiên','trà','em']);
 const NAM_DEM = new Set(['văn','đức','quốc','thành','trọng','công','hữu','đình','xuân','mạnh']);
