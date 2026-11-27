@@ -75,7 +75,13 @@ async function launch(width, height) {
       fs.writeFileSync(file, Buffer.from(r.data, 'base64'));
     },
     sleep: ms => new Promise(r => setTimeout(r, ms)),
-    async close() { try { ws.close(); } catch (e) {} proc.kill(); srv.close(); setTimeout(() => { try { fs.rmSync(prof, { recursive: true, force: true }); } catch (e) {} }, 800); }
+    /* chờ Chrome tắt hẳn rồi xoá hồ sơ tạm NGAY (trước đây hẹn giờ nên bị bỏ sót khi bài kiểm thử thoát → đầy ổ đĩa) */
+    async close() {
+      try { ws.close(); } catch (e) {}
+      const exited = proc.exitCode !== null ? Promise.resolve() : new Promise(r => { proc.once('exit', r); setTimeout(r, 4000); });
+      proc.kill(); srv.close(); await exited;
+      for (let i = 0; i < 15; i++) { try { fs.rmSync(prof, { recursive: true, force: true }); break; } catch (e) { await new Promise(r => setTimeout(r, 200)); } }
+    }
   };
   return api;
 }

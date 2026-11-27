@@ -230,7 +230,7 @@ async function lintAll(c, sleep) {
 // ======================================================================================
 import { createServer } from 'node:http';
 import { readFile, stat } from 'node:fs/promises';
-import { writeFileSync, mkdtempSync, existsSync } from 'node:fs';
+import { writeFileSync, mkdtempSync, existsSync, rmSync } from 'node:fs';
 import { spawn } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -290,7 +290,13 @@ async function launch(port) {
       for (let i = 0; i < 80; i++) { const ok = await ev("document.readyState==='complete' && typeof db!=='undefined' && typeof render==='function' && !!document.querySelector('#viewRoot') && document.querySelector('#viewRoot').children.length>0"); if (ok) break; await sleep(150); }
       await sleep(200);
     },
-    async close() { try { await send('Browser.close'); } catch (e) {} try { proc.kill(); } catch (e) {} }
+    async close() {
+      try { await send('Browser.close'); } catch (e) {}
+      const exited = proc.exitCode !== null ? Promise.resolve() : new Promise(r => { proc.once('exit', r); setTimeout(r, 4000); });
+      try { proc.kill(); } catch (e) {}
+      await exited;
+      for (let i = 0; i < 15; i++) { try { rmSync(prof, { recursive: true, force: true }); break; } catch (e) { await new Promise(r => setTimeout(r, 200)); } }
+    }
   };
   return c;
 }
