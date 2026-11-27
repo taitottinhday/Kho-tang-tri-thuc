@@ -170,3 +170,212 @@ window.VUON_TRUYEN = [
     ]
   }
 ];
+
+/* Chương mới có ba chốt, mỗi tranh dùng lại ở trang truyện tương ứng. */
+function storyChapter(id, icon, title, subtitle, relic, point, taleTitle, entries) {
+  return {
+    id, icon, title, subtitle, relic, point,
+    scenes: entries.map(([scene]) => scene),
+    tale: { title: taleTitle, pages: entries.map(([, heading, ...paragraphs]) => ({ heading, paragraphs })) }
+  };
+}
+
+window.STORY_ROUTES = [
+  {
+    id: 'rabbit', name: 'Thỏ Lá', title: 'Dấu chân trong rừng', destination: 'Khu Rừng Bí Mật',
+    description: 'Qua thư viện cây già, đi tàu mây và thắp đèn trong đêm hội.',
+    map: 'secret', cover: 'seed-1', mapAlt: 'Khu rừng với mầm vàng, tàu mây và hồ đom đóm',
+    stride: 'assets/chase-rabbit-stride.webp', skin: 'rabbit', back: 'Về khu rừng',
+    chapters: window.VUON_TRUYEN.map((chapter, index) => ({ ...chapter, point: [[11,44], [64,38], [88,32]][index] }))
+  },
+  {
+    id: 'football', name: 'Cầu thủ', title: 'Trận bóng ở Đảo Gió', destination: 'Đảo Gió Bí Mật',
+    description: 'Thắp hải đăng, thả diều và cùng các bạn mở trận bóng bên biển.',
+    map: 'island-map', cover: 'island-lens-1', mapAlt: 'Bản đồ đảo có hải đăng, đồi diều và sân bóng',
+    stride: 'assets/quest/footballer-stride.webp', skin: 'football', back: 'Về Đảo Gió',
+    chapters: [
+      storyChapter('island-lens', '🐚', 'Ngọn đèn ngoài khơi', 'Đưa một thấu kính lên ngọn hải đăng.', 'Ốc biển phát sáng', [19,25], 'Ai bật đèn cho sóng?', [
+        [{
+          place: 'Bến thuyền', guide: 'Lan Áo Vàng', icon: '🛟',
+          line: 'Tớ nhặt được chiếc ốc này cạnh một mẩu giấy ướt. Em đọc giúp tớ nhé!',
+          praise: 'Đúng rồi! Mẩu giấy chỉ đường lên ngọn hải đăng.',
+          short: 'Chiếc thuyền đậu gần bải cát.', paragraph: 'Lan gọi Minh ra bờ nước. Chiếc thuyền đậu gần bải cát.',
+          bad: 'bải', good: 'bãi', hint: 'Nơi rộng có nhiều cát gọi là bãi cát. Tiếng bãi viết dấu ngã.'
+        }, 'Tiếng rì rào trong vỏ ốc',
+        'Minh đang chuyền bóng ở bến thì Lan chạy tới, cầm một chiếc ốc trắng. Lan bảo: “Áp vào tai đi, cậu nghe được cả biển đấy!”',
+        'Minh áp tai vào vỏ ốc. Giữa tiếng rì rào, cậu nghe một hồi còi. Thuyền của mẹ Lan đang về, còn ngọn đèn trên đảo vẫn tối.'],
+        [{
+          place: 'Cầu thang xoắn', guide: 'An', icon: '🧤',
+          line: 'Hai đứa mình khiêng kính lên. Em kiểm tra lời dặn trước khi bước nhé!',
+          praise: 'Giỏi lắm! Mình cùng nâng kính qua khúc cua này.',
+          short: 'Hai bạn đi lên cầu thang xoắng.', paragraph: 'An và Minh ôm chiếc kính bằng cả hai tay. Hai bạn đi lên cầu thang xoắng.',
+          bad: 'xoắng', good: 'xoắn', hint: 'Cầu thang cuộn theo vòng tròn gọi là cầu thang xoắn, kết thúc bằng n.'
+        }, 'Một bậc cho mỗi người',
+        'Lan tìm được tấm kính dưới chân cầu thang. Nó nặng hơn cả quả bóng. Minh nhấc một đầu, An đỡ đầu kia. Hai bạn đếm từng bậc để cùng bước.',
+        'Đến khúc cua, An gọi Lan đem chiếc ốc lên cùng. Qua ô cửa nhỏ, Minh thấy một chiếc thuyền đang đợi ngoài vịnh.'],
+        [{
+          place: 'Ban công hải đăng', guide: 'Bà giữ đèn', icon: '🔦',
+          line: 'Em sửa giúp bà tấm thẻ bên công tắc. Xong rồi ta bật đèn.',
+          praise: 'Đèn sáng rồi! Tàu ngoài vịnh đã nhìn thấy lối về.',
+          short: 'Ngọn đèn đưa tàu về bếnh.', paragraph: 'Bà đặt kính vào đúng rãnh và bật công tắc. Ngọn đèn đưa tàu về bếnh.',
+          bad: 'bếnh', good: 'bến', hint: 'Nơi tàu cập vào gọi là bến, kết thúc bằng n.'
+        }, 'Lối về qua vịnh',
+        'Bà giữ đèn lắp tấm kính rồi gật đầu cho Minh bật công tắc. Một vệt sáng quay vòng trên mặt vịnh. Chiếc tàu đáp lại bằng hai hồi còi.',
+        'Lan reo lên: “Bây giờ đến lượt biển nghe mình!” Cô bé giơ chiếc ốc ra phía cửa sổ. Minh cười, nghe cả gió và tiếng sóng trong đó.']
+      ]),
+      storyChapter('island-kite', '🪁', 'Chiếc diều biết nhường', 'Gỡ sợi dây mắc trên đồi.', 'Dải đuôi diều đỏ', [55,35], 'Ba ngón tay giữ gió', [
+        [{
+          place: 'Xưởng diều giấy', guide: 'Cô Hạnh', icon: '🧵',
+          line: 'Em giúp cô tìm tiếng sai trên lời dặn khi làm đuôi diều.',
+          praise: 'Đúng rồi! Cô gửi em dải vải đỏ để buộc vào đuôi.',
+          short: 'Cô cắt một dãi vải đỏ.', paragraph: 'Cô Hạnh đo vải để làm đuôi diều. Cô cắt một dãi vải đỏ.',
+          bad: 'dãi', good: 'dải', hint: 'Một miếng vải dài, hẹp gọi là dải vải, viết dấu hỏi.'
+        }, 'Đuôi diều xin thêm một màu',
+        'Trong xưởng có diều cá, diều én và một chiếc diều trắng chưa có đuôi. Cô Hạnh hỏi Minh muốn cho nó màu gì.',
+        'Minh xin một dải đỏ như màu trời lúc chiều. Lan chọn thêm hai dải nhỏ màu xanh. “Để ai nhìn lên cũng thấy màu của biển,” Lan nói.'],
+        [{
+          place: 'Đồi cỏ nhiều gió', guide: 'An', icon: '🌾',
+          line: 'Dây diều mắc rồi. Em sửa lời nhắc này giúp tớ.',
+          praise: 'Em nói đúng. Một bạn giữ cuộn dây, một bạn gỡ nút nhé!',
+          short: 'Dây diều mắc vào bụi cõ.', paragraph: 'Gió đổi hướng và kéo chiếc diều xuống thấp. Dây diều mắc vào bụi cõ.',
+          bad: 'cõ', good: 'cỏ', hint: 'Cây thấp mọc thành thảm dưới chân là cỏ, viết dấu hỏi.'
+        }, 'Nút thắt trên đồi',
+        'Một cơn gió mạnh kéo diều chúi xuống bụi cây. Minh giật dây nhưng nút càng chặt. An bảo Minh thả lỏng tay để mình gỡ.',
+        'Lan chạy vòng xuống dốc giữ chiếc diều khỏi chạm đất. Lần này mỗi người chỉ kéo theo một hướng. Nút thắt bỗng lỏng ra.'],
+        [{
+          place: 'Mỏm đá nhìn ra vịnh', guide: 'Lan Áo Vàng', icon: '🌬️',
+          line: 'Gió đang lên! Sửa xong, em giúp tớ thả diều nhé.',
+          praise: 'Diều lên rồi! Nhìn xem, chiếc đuôi đỏ đang vẫy trong gió.',
+          short: 'Gió thổi qua vách đá cao vứt.', paragraph: 'Lan tung diều theo chiều gió. Gió thổi qua vách đá cao vứt.',
+          bad: 'vứt', good: 'vút', hint: 'Để tả chiều cao vươn lên, viết cao vút với u.'
+        }, 'Một lượt cho mỗi bạn',
+        'Lần này, Lan đợi gió vừa đủ rồi mới thả. Chiếc diều vọt lên. Đuôi diều xòe như một con cá đang bơi trong trời xanh.',
+        'Minh giữ dây một lúc rồi nhường cho An. An giữ xong lại nhường cho Lan. Trên đồi có ba người giữ dây, nhưng chỉ cần ba ngón tay của một người là đủ.']
+      ]),
+      storyChapter('island-match', '⚽', 'Trận bóng bên vịnh', 'Chuyền bóng qua sân sau mưa.', 'Huy hiệu Đảo Gió', [81,61], 'Bàn thắng của cả sân', [
+        [{
+          place: 'Cổng sân bóng', guide: 'Thủ môn Tùng', icon: '🥅',
+          line: 'Trận đấu sắp bắt đầu. Em sửa tấm bảng trước cổng giúp tớ nhé!',
+          praise: 'Đúng rồi! Hai đội tập trung ở giữa sân nào.',
+          short: 'Hai đội đứng trước khung thàn.', paragraph: 'Tùng mang găng tay mới ra sân. Hai đội đứng trước khung thàn.',
+          bad: 'thàn', good: 'thành', hint: 'Khung để ghi bàn gọi là khung thành, kết thúc bằng nh.'
+        }, 'Khung thành hướng ra biển',
+        'Tùng đeo đôi găng màu cam đến sân sớm. Cậu đứng trước khung thành rồi hét chào Minh qua cả khoảng sân.',
+        'Đêm qua mưa lớn. Dọc vạch trắng còn một vũng nước. Tùng nói: “Sân có thêm một cái hồ. Đội nào đi vòng khéo hơn thì vào được tới gôn!”'],
+        [{
+          place: 'Vạch giữa sân', guide: 'Đội trưởng Vy', icon: '👟',
+          line: 'Đường thẳng còn nước. Đọc đường bóng tớ vẽ rồi tìm lỗi nhé!',
+          praise: 'Đúng rồi! Chuyền qua bên phải để bóng đi trên cỏ khô.',
+          short: 'Vy truyền bóng sang phải.', paragraph: 'Trước mặt hai bạn còn một vũng nước. Vy truyền bóng sang phải cho Minh.',
+          bad: 'truyền', good: 'chuyền', hint: 'Đưa bóng cho bạn trong trận đấu là chuyền bóng, bắt đầu bằng ch.'
+        }, 'Đường vòng qua vũng nước',
+        'Vy lách sang phải, kéo theo một hậu vệ. Minh định sút ngay thì thấy một bạn nhỏ đang đứng trống ở cánh trái.',
+        'Minh chuyền nhẹ. Bóng lăn qua phần cỏ khô rồi tới chân bạn. Vy reo: “Còn một đường chuyền nữa là tới gôn!”'],
+        [{
+          place: 'Góc sân treo cờ', guide: 'Đội trưởng Vy', icon: '🚩',
+          line: 'Đây là lời mời cả làng vào sân. Em xem còn tiếng nào sai.',
+          praise: 'Hay lắm! Em đã mở lối vào Đảo Gió Bí Mật.',
+          short: 'Các bạn cùng reo mừn.', paragraph: 'Bóng lăn qua vạch vôi. Các bạn cùng reo mừn, cả những bạn ngồi xem.',
+          bad: 'mừn', good: 'mừng', hint: 'Khi rất vui, ta reo mừng. Tiếng mừng có âm cuối ng.'
+        }, 'Bàn thắng vang ra phía vịnh',
+        'Bạn nhỏ đệm bóng vào góc gần. Lưới rung lên. Tùng ngồi bệt rồi bật cười: “Tớ mải nhìn Minh nên quên mất đường bóng bên kia!”',
+        'Cuối buổi, Minh không xin giữ quả bóng. Cậu đặt nó giữa sân. Bọn trẻ vừa tới bến đã xắn tay áo, chuẩn bị chia đội chơi tiếp.']
+      ])
+    ]
+  },
+  {
+    id: 'royal', name: 'Nhà vua', title: 'Chuyến đi của Nhà vua', destination: 'Vương Quốc Sao',
+    description: 'Đánh chuông cho thuyền về bến, thả đèn và mở cửa đài ngắm sao.',
+    map: 'palace-map', cover: 'royal-bell-1', mapAlt: 'Bản đồ vương quốc có lầu chuông, vườn đèn và đài quan sát',
+    stride: 'assets/quest/king-stride.webp', skin: 'royal', back: 'Về Vương Quốc Sao',
+    chapters: [
+      storyChapter('royal-bell', '🔔', 'Tiếng chuông bên sông', 'Giúp người giữ chuông gọi thuyền về bến.', 'Chuông Đồng', [18,54], 'Tiếng chuông đi được bao xa?', [
+        [{
+          place: 'Lầu chuông gỗ', guide: 'Lính gác Bình', icon: '🛡️',
+          line: 'Tờ lịch gác có một chữ chưa đúng. Xin em sửa để mở cửa.',
+          praise: 'Đúng rồi! Mời vào lầu chuông.',
+          short: 'Chuông reo lúc bình mih.', paragraph: 'Bình mở cửa lầu chuông. Chuông reo lúc bình mih để gọi thuyền về.',
+          bad: 'mih', good: 'minh', hint: 'Lúc trời vừa sáng gọi là bình minh. Tiếng minh kết thúc bằng nh.'
+        }, 'Một buổi sáng không tiếng chuông',
+        'Nhà vua cưỡi ngựa đến lầu chuông. Bình đứng gác đã lâu mà chẳng nghe gì. Ngoài sông, mấy người chèo thuyền vẫn đợi tín hiệu.',
+        'Bình chỉ lên xà gỗ: “Dây còn đây. Cháu kéo mãi, chuông chỉ kêu cộc một tiếng.” Nhà vua xuống ngựa rồi cùng Bình leo lên xem.'],
+        [{
+          place: 'Gian sửa chuông', guide: 'Bà thợ mộc', icon: '🔨',
+          line: 'Em sửa chữ trên nhãn rồi giúp bà lấy đúng chiếc búa.',
+          praise: 'Đúng rồi! Ta thay đầu búa đã nứt bằng đầu gỗ mới.',
+          short: 'Bà làm đầu búa bằng gổ.', paragraph: 'Mưa làm đầu búa cũ bị nứt. Bà làm đầu búa mới bằng gổ.',
+          bad: 'gổ', good: 'gỗ', hint: 'Vật liệu lấy từ thân cây là gỗ, viết dấu ngã.'
+        }, 'Chiếc búa mới của bà',
+        'Bà thợ mộc vỗ nhẹ đầu búa. Nó đã nứt từ mùa mưa. Bà lấy một khúc gỗ khô, gọt tròn rồi buộc lại đúng chỗ.',
+        'Nhà vua giữ thang cho bà. Bình kéo thử sợi dây. Tiếng chuông ngân lên, dài tới mức ba người kịp nhìn nhau rồi cùng cười.'],
+        [{
+          place: 'Bến sông', guide: 'Người lái đò', icon: '🛶',
+          line: 'Em sửa lời nhắn này để ta đáp lại tiếng chuông.',
+          praise: 'Hay lắm! Thuyền đã vào bến. Em mang theo chiếc chuông nhỏ này nhé.',
+          short: 'Con thuyền nhẹ nhàng cặp bến sông.', paragraph: 'Người lái đò nghe tiếng chuông liền đổi hướng. Con thuyền nhẹ nhàng cặp bến.',
+          bad: 'cặp', good: 'cập', hint: 'Thuyền ghé sát để dừng gọi là cập bến, viết bằng â và dấu nặng.'
+        }, 'Tiếng chuông đi theo dòng nước',
+        'Ở khúc sông xa, người lái đò ngẩng đầu khi nghe tiếng chuông. Ông nối hai nhịp chèo, đưa thuyền vào dưới bóng cây.',
+        'Bình cứ tưởng tiếng chuông chỉ vang trong sân. Bây giờ cậu đứng trên bờ nghe tiếng hô từ thuyền vọng lại. Cậu vẫy tay, dù người ta đứng xa đến mức chỉ còn thấy chiếc nón.']
+      ]),
+      storyChapter('royal-lantern', '🏮', 'Vườn đèn ngủ muộn', 'Giữ cho chiếc đèn giấy sáng qua cơn mưa.', 'Đèn Giấy Cung Đình', [51,45], 'Chiếc đèn chờ mặt hồ', [
+        [{
+          place: 'Sân gấp đèn', guide: 'Công chúa Mai', icon: '👑',
+          line: 'Cha giúp con gấp đèn. Em xem lời dặn viết trên mẫu nhé!',
+          praise: 'Đúng rồi! Cứ miết nhẹ nếp giấy là thành một cánh hoa.',
+          short: 'Mai khéo léo gấc một cánh hoa.', paragraph: 'Mai đặt tờ giấy đỏ lên bàn rồi gấc một cánh hoa.',
+          bad: 'gấc', good: 'gấp', hint: 'Bẻ tờ giấy tạo thành nếp là gấp, có âm cuối p.'
+        }, 'Bông hoa bằng giấy',
+        'Mai muốn làm một chiếc đèn giống hoa sen. Nhà vua gấp cánh thứ nhất, nhưng cánh còn lại cứ bật ra.',
+        'Mai giữ giúp nếp giấy, để cha dùng hai tay miết xuống. Hai người gấp xong vừa lúc hạt mưa đầu tiên rơi vào sân.'],
+        [{
+          place: 'Mái hiên tre', guide: 'Bác làm vườn', icon: '🎋',
+          line: 'Đưa đèn vào đây kẻo ướt. Em sửa lời nhắc trên tấm thẻ này nhé!',
+          praise: 'Đúng rồi! Mái hiên che mưa cho cả chiếc đèn và chúng mình.',
+          short: 'Mái hiên tre che cơn mưa rao.', paragraph: 'Bác làm vườn gọi mọi người vào trú. Mái hiên tre che cơn mưa rao.',
+          bad: 'rao', good: 'rào', hint: 'Tên cơn mưa bất chợt thường gọi là mưa rào, viết dấu huyền.'
+        }, 'Đợi tiếng mưa nhỏ dần',
+        'Bác làm vườn lấy một chiếc rá che đèn. Ba người ngồi dưới mái hiên đếm từng giọt nước rơi từ đầu lá.',
+        'Mai hỏi bao giờ mới thả được đèn. Bác chỉ ra hồ: “Khi nước thôi nhăn mặt.” Mai nhìn những vòng nước nhỏ rồi bật cười.'],
+        [{
+          place: 'Hồ trong cung', guide: 'Công chúa Mai', icon: '🪷',
+          line: 'Mặt hồ phẳng rồi. Em sửa câu này trước khi mình thả đèn nhé!',
+          praise: 'Đúng rồi! Chiếc đèn trôi êm ra giữa hồ.',
+          short: 'Chiếc đèn trôi lặng lẻ trên hồ.', paragraph: 'Mai đặt đèn xuống mặt nước. Chiếc đèn trôi lặng lẻ trên hồ.',
+          bad: 'lẻ', good: 'lẽ', hint: 'Trong từ lặng lẽ, tiếng lẽ viết dấu ngã.'
+        }, 'Hai bông hoa cùng nở',
+        'Khi mặt hồ phẳng lại, Mai đặt hoa giấy xuống. Có một bông sáng trên nước và một bông khác sáng ở dưới.',
+        'Nhà vua ngồi cạnh con. Hai người chờ cho chiếc đèn trôi gần bờ bên kia rồi vớt lên, đem hong dưới mái hiên để hôm sau còn thả.']
+      ]),
+      storyChapter('royal-stars', '🔭', 'Cửa sổ nhìn lên sao', 'Mở đài quan sát cho cả làng ngắm sao.', 'Bản Đồ Bầu Trời', [84,22], 'Ai bắt được chiếc đuôi sao?', [
+        [{
+          place: 'Đài quan sát', guide: 'Cô Ngân ngắm sao', icon: '🌌',
+          line: 'Trước khi lên đài, em giúp cô sửa bảng trời đêm.',
+          praise: 'Em tìm đúng rồi! Cửa đài đã mở.',
+          short: 'Trời đêm có nhiều ngôi xao.', paragraph: 'Cô Ngân kéo rèm cửa sổ. Trời đêm có nhiều ngôi xao.',
+          bad: 'xao', good: 'sao', hint: 'Vật sáng nhỏ ta thấy trên trời đêm gọi là ngôi sao, bắt đầu bằng s.'
+        }, 'Cửa sổ quay được',
+        'Cô Ngân mở cửa đài. Nhà vua ngạc nhiên vì cả mái gỗ có thể xoay. Khi cô đẩy một tay, một khoảng trời mới hiện ra.',
+        'Mai đặt ghế dưới kính. Cô Ngân hỏi em muốn nhìn sao nào trước. Mai chỉ ngôi nhỏ nhất, ngay sát đầu mái.'],
+        [{
+          place: 'Phòng kính thiên văn', guide: 'Cô Ngân ngắm sao', icon: '🔭',
+          line: 'Em xem lời chỉ dẫn để xoay kính đúng hướng.',
+          praise: 'Đúng rồi! Chỉnh kính chậm thôi, ngôi sao đã vào giữa.',
+          short: 'Mai xoay kín về phía trời đêm.', paragraph: 'Cô Ngân đứng bên cạnh và chỉ hướng. Mai xoay kín về phía trời đêm.',
+          bad: 'kín', good: 'kính', hint: 'Dụng cụ nhìn vật ở xa là kính. Tiếng kính kết thúc bằng nh.'
+        }, 'Nối sao bằng đầu ngón tay',
+        'Qua kính, Mai thấy nhiều sao hơn. Cô Ngân nối vài ngôi sáng bằng đầu ngón tay rồi hỏi Mai thấy hình gì.',
+        'Mai bảo giống một con thuyền. Nhà vua thấy giống chiếc muôi. Cô Ngân cười: “Mỗi người vẽ một bức trên cùng một bầu trời.”'],
+        [{
+          place: 'Ban công ngắm sao', guide: 'Công chúa Mai', icon: '☄️',
+          line: 'Một vệt sáng vừa ló lên. Em sửa câu trên thẻ rồi mình mời các bạn vào!',
+          praise: 'Tuyệt lắm! Em đã mở lối vào Vương Quốc Sao.',
+          short: 'Sao chổi kéo theo một chiếc đui sáng.', paragraph: 'Mọi người ngước lên đúng lúc sao chổi kéo theo một chiếc đui sáng.',
+          bad: 'đui', good: 'đuôi', hint: 'Phần kéo dài phía sau là đuôi, viết với uô.'
+        }, 'Đuôi sao trong lòng sông',
+        'Mấy đứa trẻ chạy lên vừa lúc một vệt sáng kéo qua trời. Một bạn tìm nó trong kính. Mai chỉ xuống sông, nơi mặt nước cũng ánh lên.',
+        'Nhà vua đặt thêm một hàng ghế thấp để các bạn nhỏ nhìn qua lan can. Đêm hôm ấy, ai xuống đài cũng mang theo một hình sao do mình tự vẽ.']
+      ])
+    ]
+  }
+];

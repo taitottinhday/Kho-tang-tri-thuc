@@ -1184,12 +1184,13 @@ function doCheck() {
 }
 function showSheet(res) {
   const sh = $('#plSheet'), caught = Q.race?.caught;
+  const story = Q.kind === 'storybook';
   let revealDelay = 0;
   if (caught) revealDelay = ChaseRun.catchDelay;
   else if (Q.race?.escaped) revealDelay = ChaseRun.escapeDelay;
   else if (Q.journey?.justWon) revealDelay = Q.journey.mode.duration;
+  else if (story && res.right) revealDelay = StoryQuest.passDelay;
   const last = Q.i + 1 >= Q.items.length || (Q.lives != null && Q.lives <= 0);
-  const story = Q.kind === 'storybook';
   const praise = res.storyPraise || (res.right ? pick(PRAISE) : pick(ENCOURAGE));
   const nextLabel = story ? (res.right ? (last ? 'Nhận bảo vật' : 'Đi qua chốt →') : 'Thử lại ở chốt này')
     : caught || (Q.lives != null && Q.lives <= 0) ? 'Xem kết quả' : last ? 'Xem kết quả 🎉' : 'Tiếp tục';
@@ -1458,7 +1459,7 @@ function finishQuiz() {
     : q.kind === 'lesson' ? (passed ? (acc === 100 ? 'Tuyệt vời! Qua mức ' + tier.name + ' không sai câu nào!' : 'Qua màn mức ' + tier.name + '! 🎉') : 'Mình luyện thêm chút nữa nhé!')
     : q.kind === 'skip' ? (passed ? '🚀 Em đã vượt cấp!' : 'Chưa đủ để vượt cấp')
     : acc === 100 ? 'Tuyệt vời! Không sai câu nào!' : acc >= 60 ? 'Bài làm tốt lắm!' : 'Mình luyện thêm chút nữa nhé!';
-  const msg = journeyResult ? journeyResult.message : storyWon ? 'Thỏ Lá cất bảo vật vào túi. Mình đi tiếp nhé!'
+  const msg = journeyResult ? journeyResult.message : storyWon ? 'Em đã tìm thấy bảo vật của chương này. Mình đi tiếp nhé!'
     : caught ? 'Lượt chạy dừng sau ' + q.race.mistakes + ' câu sai. Mình thử lại với câu hỏi mới để giúp Thỏ Lá chạy thoát nhé!'
     : q.race?.escaped ? 'Em trả lời đúng tất cả câu hỏi nên Thỏ Lá đã chạy thật nhanh tới nơi an toàn!'
     : q.kind === 'adaptive' && q.correct < total ? 'Sói đã tiến gần hơn một chút. Mình luyện tiếp để giúp Thỏ Lá chạy xa hơn nhé!'
