@@ -149,12 +149,26 @@ html[data-theme=night] :is(.switch-row,.field-label,.teacher-panel th){color:#d6
 html[data-theme=night] :is(tr.me,tr.me td){background:rgba(255,255,255,.08)!important;color:#fff}
 html[data-theme=night] tr.me small{color:#e6eef5}
 html[data-theme=night] :is(.th-hero-note,.th-hero-note span){color:#e8d9a8}
-.lp-stars{color:#c4860a}
+.lp-stars{color:#8b5a00}
 .th-step>span:first-child{background:#e0603a}
 html.noel .adv-teaser b{background:linear-gradient(#e2475c,#c22d44);box-shadow:0 4px 0 #8f1a2e}
 html[data-theme=night] :is(.game-card p,.daily-card p,.review-empty p,.game-meta,.review-summary-card small,td small,.gm-grade small,.lp-tier small,.garden-card p b){color:#c9d6e2}
 html[data-theme=night].noel :is(.game-card p,.daily-card p,.review-empty p,.game-meta,.review-summary-card small,td small,.gm-grade small,.lp-tier small,.garden-card p b){color:#e2cbd4}
 html[data-theme=night] .streak-pill small{color:#e6d2b0}
+/* Tương phản các khu vực có nền sáng bị bộ dò đêm phát hiện. */
+html:not([data-theme=night]) .lp-btn.practice{background:#287f49;box-shadow:0 5px 0 #1d6339}
+html[data-theme=night] .lp-btn.practice{background:#287f49;box-shadow:0 5px 0 #1d6339}
+html[data-theme=night] .lp-stars{color:#ffd166}
+html[data-theme=night].noel .quest-portal-mission{background:linear-gradient(115deg,#263b2e,#203426 65%,#1d3023);color:#f6e9ee}
+html[data-theme=night].noel .quest-portal-story{background:linear-gradient(120deg,#302744,#25243a 58%,#1c3037);color:#f6e9ee}
+html[data-theme=night].noel .quest-portal-copy :is(small,span,em){color:#e5d9e0}
+html[data-theme=night].noel .quest-portal-copy em{color:#a9edbd}
+html[data-theme=night].noel .project-panel{background:#2c1422;border-color:#4d2336;color:#f6e9ee}
+html[data-theme=night].noel .project-panel h2{color:#f6e9ee}
+html[data-theme=night].noel .project-panel p{color:#e2cbd4}
+html[data-theme=night].noel .game-card .game-icon{background:#3a1b2c;color:#f6e9ee}
+html[data-theme=night].noel .qt-entry{background:linear-gradient(135deg,#3a1b2c,#302033);border-color:#8a6331;color:#fff0c8;box-shadow:0 4px 0 #5f421f}
+html[data-theme=night].noel .qt-entry small{color:#f3dfb9}
 
 /* ---------- Ông già Noel bay ngang trời (noel.js) ---------- */
 .xm-sleigh{position:fixed;left:0;top:12vh;z-index:0;pointer-events:none;display:flex;align-items:flex-end;gap:2px;will-change:transform;filter:drop-shadow(0 4px 6px rgba(60,0,15,.35))}

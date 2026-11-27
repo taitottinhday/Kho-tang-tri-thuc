@@ -57,7 +57,7 @@ function newProfile(name, grade, avatar) {
     name: name || 'Bạn nhỏ', grade: schoolGrade(grade), avatar: avatar || '🐰',
     xp: 0, streak: 0, lastDay: '', topics: {}, review: {}, wrongLog: {}, storyProgress: {}, adaptiveDay: '',
     attempts: 0, correct: 0, combo: 0, bestCombo: 0,
-    daily: { day: '', done: false }, badges: [], bestSpeed: 0,
+    daily: { day: '', done: false }, badges: [], bestSpeed: 0, seenQuestions: [],
     dictCorrect: 0, hunted: 0, reviewed: 0, history: [],
     flowers: 0, nodes: {}, mission: null, bossWins: 0, skip: {}
   };
@@ -69,6 +69,7 @@ function loadDB() {
       for (const id in db.profiles) {
         const p = db.profiles[id];
         db.profiles[id] = Object.assign(newProfile(), p, { id, grade: schoolGrade(p.grade) });
+        db.profiles[id].seenQuestions = Array.isArray(p.seenQuestions) ? p.seenQuestions.filter(k => /^[0-9a-f]{16}$/i.test(k)).slice(-2400) : [];
         if (p.placement) db.profiles[id].placement = { ...p.placement, level: schoolGrade(p.placement.level) };
       }
       db.settings = Object.assign({ sound: true, unlockAll: false, rate: 1, voice: '', music: true, musicVol: 0.3, sfxVol: 0.8 }, db.settings);
@@ -952,32 +953,85 @@ function makeNgheChon(it) {
 function vary(it) { // trộn dạng câu cho phong phú
   if (it.loai !== 'chon') return it;
   const r = Math.random();
-  if (r < 0.2) return makeDungSai(it);
-  if (r < 0.4 && canGhep(it)) return makeGhep(it);
-  if (r < 0.5 && Number(S.grade) < 2 && canNgheChon(it)) return makeNgheChon(it);
+  if (r < 0.24) return makeDungSai(it);
+  if (r < 0.48 && canGhep(it)) return makeGhep(it);
+  if (r < 0.62 && Number(S.grade) < 2 && canNgheChon(it)) return makeNgheChon(it);
   return (typeof varyMore === 'function' && varyMore(it)) || it;
 }
 /* Câu sinh tự động (data/sinh-cau.js): mỗi lần lấy ra là một bản mới – tên bạn nhỏ, người thân, số đếm đổi ngẫu nhiên */
-function genItems(t, filter) { return (t.sinh || []).map((b, k) => Object.assign({}, b, { _t: t.id, _i: 'g' + k })).filter(b => !filter || filter(b)); }
-// Giữ nguyên số câu của bài nhưng thay khoảng một nửa bằng câu sinh → mỗi lần học lại gặp câu mới
-function mixGen(base, gen) { const k = Math.min(Math.floor(base.length / 2), gen.length); return shuffle(shuffle(base).slice(0, base.length - k).concat(shuffle(gen).slice(0, k))); }
+function genItems(t, filter, variants = 1) {
+  const out = [];
+  for (let v = 0; v < variants; v++) out.push(...(t.sinh || []).map((b, k) => Object.assign({}, b, { _t: t.id, _i: 'g' + k })));
+  return out.filter(b => !filter || filter(b));
+}
+function questionFingerprint(it) {
+  let text = '';
+  if (it?.loai === 'classQuestion') text = it.type === 'fill' ? String(it.prompt || '').replace('___', it.answer || '') : String(it.prompt || '') + ' ' + String(it.answer || '');
+  else if (it?.dapAnCau) text = it.dapAnCau;
+  else if (it?.loai === 'timLoi' || it?.loai === 'suaLoi') text = String(it.cau || '').replace(it.tuSai, it.tuDung);
+  else if (it?.loai === 'chonCau') text = it.good;
+  else if (it?.loai === 'phanLoai') text = (it.baskets || []).join('|') + '|' + (it.words || []).map(row => row.w + '=' + row.b).sort().join('|');
+  else if (it?.loai === 'noiTu') text = (it.pairs || []).map(pair => pair.join(' ')).sort().join('|');
+  else if (it?.loai === 'sapXep') text = (it.words || []).join(' ');
+  else if (it?.loai === 'chonNhieu') text = (it.chips || []).map(row => row.w + '=' + row.ok).sort().join('|');
+  else if (it?.say) text = it.say;
+  else if (it?.loai === 'ngheViet') text = it.cau;
+  else if (it?.loai === 'nhinTranh') text = it.word;
+  else if (typeof it?.de === 'string') text = it.de.includes('___') ? it.de.replace('___', it.dapAn || '') : it.de;
+  else if (it?.loai === 'phanLoai' || it?.loai === 'noiTu' || it?.loai === 'sapXep' || it?.loai === 'chonNhieu') text = JSON.stringify(it);
+  else text = it?.word || it?.cau || it?.dapAn || it?.prompt || JSON.stringify(it || {});
+  text = String(text).normalize('NFC').toLocaleLowerCase('vi').replace(/\s+/g, ' ').trim();
+  let a = 2166136261, b = 5381;
+  for (let i = 0; i < text.length; i++) { const c = text.charCodeAt(i); a = Math.imul(a ^ c, 16777619); b = Math.imul(b ^ c, 33); }
+  return (a >>> 0).toString(16).padStart(8, '0') + (b >>> 0).toString(16).padStart(8, '0');
+}
+function freshQuestionPick(items, count, options = {}) {
+  const history = Array.isArray(S.seenQuestions) ? S.seenQuestions : [];
+  const seenAt = new Map(history.map((key, index) => [key, index]));
+  const excluded = options.excludeKeys || new Set(), unique = new Map();
+  shuffle(items).forEach(item => {
+    const key = questionFingerprint(item);
+    if (excluded.has(key) || unique.has(key)) return;
+    unique.set(key, { key, item });
+  });
+  const rows = [...unique.values()], fresh = rows.filter(row => !seenAt.has(row.key));
+  const previous = options.allowSeen === false ? [] : rows.filter(row => seenAt.has(row.key)).sort((x, y) => seenAt.get(x.key) - seenAt.get(y.key));
+  return fresh.concat(previous).slice(0, Math.max(0, count)).map(row => row.item);
+}
+function rememberSeenQuestion(item) {
+  const key = questionFingerprint(item), rows = Array.isArray(S.seenQuestions) ? S.seenQuestions : [];
+  S.seenQuestions = rows.filter(old => old !== key);
+  S.seenQuestions.push(key);
+  if (S.seenQuestions.length > 2400) S.seenQuestions = S.seenQuestions.slice(-2400);
+}
 function mixedItems(topics, n) {
   const pool = [];
-  topics.forEach(t => { t.baiTap.forEach((b, i) => { if (b.loai !== 'ngheViet') pool.push(Object.assign({}, b, { _t: t.id, _i: i })); }); pool.push(...genItems(t)); });
-  return shuffle(pool).slice(0, n).map(vary);
+  topics.forEach(t => { t.baiTap.forEach((b, i) => { if (b.loai !== 'ngheViet') pool.push(Object.assign({}, b, { _t: t.id, _i: i })); }); pool.push(...genItems(t, undefined, 2)); });
+  return freshQuestionPick(pool, n).map(vary);
 }
 function buildLesson(t, level, grade = S.grade) {
   const items = t.baiTap.map((b, i) => Object.assign({}, b, { _t: t.id, _i: i }));
-  const chon = mixGen(items.filter(b => b.loai === 'chon'), genItems(t, b => b.loai === 'chon')), loi = mixGen(items.filter(b => b.loai === 'timLoi'), genItems(t, b => b.loai === 'timLoi')), nghe = shuffle(items.filter(b => b.loai === 'ngheViet'));
-  const g = Number(grade), ghepSrc = chon.filter(canGhep), ncSrc = chon.filter(canNgheChon);
-  const ds = n => chon.slice(-n).map(makeDungSai);
-  const gh = n => ghepSrc.slice(0, n).map(makeGhep);
-  const listen = n => g >= 2 ? nghe.slice(0, n) : ncSrc.slice(-n).map(makeNgheChon);
+  const choicePool = shuffle(items.filter(b => b.loai === 'chon').concat(genItems(t, b => b.loai === 'chon', 2)));
+  const errorPool = shuffle(items.filter(b => b.loai === 'timLoi').concat(genItems(t, b => b.loai === 'timLoi', 2)));
+  const nghePool = shuffle(items.filter(b => b.loai === 'ngheViet'));
+  const used = new Set(), take = (pool, n) => {
+    const selected = freshQuestionPick(pool, n, { excludeKeys: used });
+    selected.forEach(item => used.add(questionFingerprint(item)));
+    return selected;
+  };
+  const takeChoice = (n, predicate = () => true) => take(choicePool.filter(item => predicate(item) && !used.has(questionFingerprint(item))), n);
+  const g = Number(grade), baseChoiceCount = items.filter(b => b.loai === 'chon').length, baseErrorCount = items.filter(b => b.loai === 'timLoi').length;
+  const ds = n => takeChoice(n).map(makeDungSai);
+  const gh = n => takeChoice(n, canGhep).map(makeGhep);
+  const loi = n => take(errorPool, n);
+  const listen = n => g >= 2 ? take(nghePool, n) : takeChoice(n, canNgheChon).map(makeNgheChon);
   let list;
-  if (level === 'de') list = [].concat(ds(1), chon.slice(0, 3), gh(1), loi.slice(0, 1), g < 2 ? listen(1) : []);
-  else if (level === 'kho') list = [].concat(ds(2), chon, gh(2), loi, listen(g >= 2 ? nghe.length : 2));
-  else list = [].concat(ds(1), chon.slice(0, 4), gh(1), loi.slice(0, 2), listen(1));
-  return typeof extendLesson === 'function' ? extendLesson(list.filter(Boolean), t, level) : list.filter(Boolean);
+  if (level === 'de') list = [].concat(ds(1), takeChoice(3), gh(1), loi(1), g < 2 ? listen(1) : []);
+  else if (level === 'kho') list = [].concat(ds(2), takeChoice(baseChoiceCount), gh(2), loi(baseErrorCount), listen(g >= 2 ? nghePool.length : 2));
+  else list = [].concat(ds(1), takeChoice(4), gh(1), loi(2), listen(1));
+  const extended = typeof extendLesson === 'function' ? extendLesson(list.filter(Boolean), t, level) : list.filter(Boolean);
+  const seen = new Set();
+  return extended.filter(item => { const key = questionFingerprint(item); if (seen.has(key)) return false; seen.add(key); return true; });
 }
 
 /* ============================== NHIỆM VỤ HÔM NAY ============================== */
@@ -1009,6 +1063,8 @@ function startQuiz(opts) {
   Q = Object.assign({ i: 0, correct: 0, answered: false, startedAt: Date.now(), lives: null, log: [],
     hints: ['speed', 'placement', 'challenge', 'boss', 'skip'].includes(opts.kind) ? 0 : 2 }, opts);
   Q.items = Q.items.map(it => Object.assign({}, it));
+  if (Q.kind === 'adaptive') Q.race = { gap: 26, rabbitX: 54, wolfX: 28, feedback: 'Sói đang đuổi theo phía sau!', escaped: false };
+  if (Q.kind === 'speed') Q.usedQuestionKeys = new Set(Q.items.map(questionFingerprint));
   if (Q.lives != null) Q.maxLives = Q.lives;
   if (Q.timeLimit) { Q.endAt = Date.now() + Q.timeLimit * 1000; startTimer(); }
   renderItem();
@@ -1034,12 +1090,13 @@ function livesHtml() {
 function playerShell(inner, it) {
   const total = Q.items.length, t = getTopic(it._t), speed = Q.kind === 'speed';
   const storyFrame = Q.kind === 'storybook' && typeof StoryQuest !== 'undefined' ? StoryQuest.playerFrame(Q) : '';
+  const chaseFrame = Q.kind === 'adaptive' && window.ChaseRun ? window.ChaseRun.playerFrame(Q) : '';
   return '<div class="player" style="--c:' + (t ? t.mau : '#64b281') + '">' +
     '<div class="pl-top"><button class="pl-x" data-close-modal aria-label="Thoát bài">✕</button>' +
     '<div class="pl-bar" role="progressbar" aria-label="Tiến độ" aria-valuemin="0" aria-valuemax="' + total + '" aria-valuenow="' + Q.i + '"><span style="width:' + (speed ? 100 : pct(Q.i, total)) + '%"></span><b>' + (speed ? Q.correct + ' điểm' : (Q.i + 1) + ' / ' + total) + '</b></div>' +
     (Q.endAt ? '<div class="pl-time" id="plTime">⏱ ' + Math.max(0, Math.ceil((Q.endAt - Date.now()) / 1000)) + 's</div>' : '') + livesHtml() + '</div>' +
     '<div class="pl-banner"><span class="pl-banner-icon">' + (Q.icon || (t ? t.bieuTuong : '📘')) + '</span><div class="pl-banner-text"><small>' + (KIND_LABEL[Q.kind] || 'LUYỆN TẬP') + '</small><b>' + esc(Q.title) + '</b></div><span class="combo" id="combo">' + comboText() + '</span></div>' +
-    storyFrame + '<div class="pl-card" id="plCard"><div class="pl-tag-row"><span class="pl-tag">' + TYPE_TAG[it.loai] + '</span>' + (t && Q.kind !== 'lesson' ? '<span class="pl-topic">' + t.bieuTuong + ' ' + esc(t.ten) + '</span>' : '') +
+    storyFrame + chaseFrame + '<div class="pl-card" id="plCard"><div class="pl-tag-row"><span class="pl-tag">' + TYPE_TAG[it.loai] + '</span>' + (t && Q.kind !== 'lesson' ? '<span class="pl-topic">' + t.bieuTuong + ' ' + esc(t.ten) + '</span>' : '') +
     (canHint(it) ? '<button class="pl-hint-btn" id="plHint" aria-label="Dùng gợi ý, còn ' + Q.hints + ' lần">💡 Gợi ý <b>' + Q.hints + '</b></button>' : '') + '</div>' + inner + '</div>' +
     '<div class="pl-foot" id="plFoot"><button class="pl-check" id="plCheck" disabled>Kiểm tra</button></div>' +
     '<div class="pl-sheet" id="plSheet" hidden role="status" aria-live="polite"></div></div>';
@@ -1094,6 +1151,7 @@ function doCheck() {
   const res = Q.evaluate();
   Q.log.push({ lv: it._lv, right: res.right });
   record(it, res.right);
+  if (Q.kind === 'adaptive' && window.ChaseRun) window.ChaseRun.answer(Q, res.right);
   if (Q.lives != null && !res.right) {
     Q.lives = Math.max(0, Q.lives - 1);
     const l = $('#plLives'); if (l) l.outerHTML = livesHtml();
@@ -1278,6 +1336,7 @@ function record(it, right) {
       if (S.review[key].box >= 2) { delete S.review[key]; S.reviewed++; const item = itemOf(key); if (item) toast('🎉 Em đã thuộc từ “' + itemWord(item) + '”!'); }
     }
   }
+  rememberSeenQuestion(it);
   save();
 }
 function bumpDay() {
@@ -1295,7 +1354,7 @@ function finishQuiz() {
   clearInterval(qTimer);
   const q = Q; if (!q) return;
   if (q.kind === 'placement') { finishPlacement(q); return; }
-  const total = q.items.length, acc = pct(q.correct, total);
+  const total = q.kind === 'speed' ? q.log.length : q.items.length, acc = pct(q.correct, total);
   const failed = (q.lives != null && q.lives <= 0) || (q.timeUp && q.kind !== 'speed');
   const beforeStage = gardenStage(S.xp);
   let xp = q.correct * 10, starsNow = 0, flowers = 0, passed = false, upTier = null;
@@ -1321,6 +1380,7 @@ function finishQuiz() {
     if (q.kind === 'boss') S.bossWins++;
   }
   if (q.kind === 'daily' && !(S.daily.day === dayKey() && S.daily.done)) { xp += 20; S.daily = { day: dayKey(), done: true }; extra.push('🎯 Hoàn thành thử thách hôm nay: +20 XP'); }
+  if (q.kind === 'adaptive' && q.race?.escaped) extra.push('🐇 Thỏ Lá đã chạy thoát khỏi sói!');
   if (q.kind === 'adaptive' && !failed && acc >= 60 && S.adaptiveDay !== dayKey()) { S.adaptiveDay = dayKey(); xp += 15; flowers += 1; extra.push('🕵️ Thám tử chữ hoàn thành nhiệm vụ đầu ngày: +15 XP'); }
   if (q.kind === 'storybook' && typeof StoryQuest !== 'undefined') {
     const firstClear = StoryQuest.complete(q.storyId, !failed && q.correct >= total);
@@ -1343,11 +1403,13 @@ function finishQuiz() {
   if (good) { sfx('win'); if (!award) confetti(); }
   const next = q.kind === 'lesson' && passed && !q.assignmentId ? nextTopic() : null;
   const head = q.kind === 'speed' ? (q.correct + ' điểm') : (q.correct + ' / ' + total + ' câu đúng');
-  const title = failed ? (q.timeUp ? '⏰ Hết giờ rồi!' : '💧 Cây khát nước rồi!') : q.kind === 'speed' ? (good ? 'Nhanh quá!' : 'Lần sau sẽ nhanh hơn!')
+  const title = q.kind === 'adaptive' && q.race?.escaped ? '🐇 Thỏ Lá đã thoát khỏi sói!' : failed ? (q.timeUp ? '⏰ Hết giờ rồi!' : '💧 Cây khát nước rồi!') : q.kind === 'speed' ? (good ? 'Nhanh quá!' : 'Lần sau sẽ nhanh hơn!')
     : q.kind === 'lesson' ? (passed ? (acc === 100 ? 'Tuyệt vời! Qua mức ' + tier.name + ' không sai câu nào!' : 'Qua màn mức ' + tier.name + '! 🎉') : 'Mình luyện thêm chút nữa nhé!')
     : q.kind === 'skip' ? (passed ? '🚀 Em đã vượt cấp!' : 'Chưa đủ để vượt cấp')
     : acc === 100 ? 'Tuyệt vời! Không sai câu nào!' : acc >= 60 ? 'Bài làm tốt lắm!' : 'Mình luyện thêm chút nữa nhé!';
-  const msg = failed ? 'Không sao cả! Em ôn lại một chút rồi thử lại nhé, giọt nước sẽ đầy lại.'
+  const msg = q.kind === 'adaptive' && q.race?.escaped ? 'Em trả lời đúng tất cả câu hỏi nên Thỏ Lá đã chạy thật nhanh tới nơi an toàn!'
+    : q.kind === 'adaptive' && q.correct < total ? 'Sói đã tiến gần hơn một chút. Mình luyện tiếp để giúp Thỏ Lá chạy xa hơn nhé!'
+    : failed ? 'Không sao cả! Em ôn lại một chút rồi thử lại nhé, giọt nước sẽ đầy lại.'
     : q.kind === 'lesson' && !passed ? 'Mức ' + tier.name + ' cần đúng từ ' + tier.pass + '%. Em đọc lại 📖 lý thuyết rồi thử lần nữa nhé!'
     : q.kind === 'skip' && !passed ? 'Cần đúng từ 80%. Không sao – em học lần lượt từng bài trên con đường nhé!'
     : 'Mỗi lần luyện là một lần em giỏi hơn.';
@@ -1389,9 +1451,9 @@ function poolItems(filter) {
 }
 function doAction(action) {
   if (action === 'daily') {
-    const due = shuffle(Object.keys(S.review)).slice(0, 2).map(itemOf).filter(Boolean).filter(it => it.loai !== 'ngheViet');
-    const dueKeys = due.map(d => d._t + ':' + d._i);
-    const rest = shuffle(poolItems(b => b.loai !== 'ngheViet').filter(x => !dueKeys.includes(x._t + ':' + x._i))).slice(0, 5 - due.length).map(vary);
+    const due = freshQuestionPick(shuffle(Object.keys(S.review)).map(itemOf).filter(Boolean).filter(it => it.loai !== 'ngheViet'), 2);
+    const dueKeys = new Set(due.map(questionFingerprint));
+    const rest = freshQuestionPick(poolItems(b => b.loai !== 'ngheViet'), 5 - due.length, { excludeKeys: dueKeys }).map(vary);
     startQuiz({ kind: 'daily', title: 'Thử thách mỗi ngày', icon: '🎯', subtitle: '5 câu trộn', items: shuffle(due.concat(rest)) });
   } else if (action === 'review') {
     if (WordShelf.dueCount() && (currentView !== 'review' || !Object.keys(S.review).some(itemOf))) {
@@ -1404,7 +1466,7 @@ function doAction(action) {
     if (!items.length) { toast('Chưa có từ nào cần ôn. Em học bài mới nhé! 🌷'); return; }
     startQuiz({ kind: 'review', title: 'Ôn từ hay nhầm', icon: '🔁', subtitle: 'Đúng 2 lần là thuộc', items });
   } else if (action === 'hunt') {
-    startQuiz({ kind: 'hunt', title: 'Thám tử săn lỗi', icon: '🔎', subtitle: 'Tìm chữ viết sai', items: shuffle(poolItems(b => b.loai === 'timLoi')).slice(0, 6) });
+    startQuiz({ kind: 'hunt', title: 'Thám tử săn lỗi', icon: '🔎', subtitle: 'Tìm chữ viết sai', items: freshQuestionPick(poolItems(b => b.loai === 'timLoi'), 6) });
   } else if (action === 'dictation') {
     const passages = DATA.doanNgheViet[S.grade] || DATA.doanNgheViet[2] || [];
     const p = pick(passages) || '';
@@ -1440,16 +1502,25 @@ function doAction(action) {
   }
 }
 function startSpeed() {
-  const items = shuffle(poolItems(b => b.loai === 'chon'));
-  const body = '<div class="speed-intro"><div class="big-emoji">🚀</div><h3>Nhanh tay chọn đúng!</h3><p>Em có <b>60 giây</b>. Chạm đúng mỗi câu được 1 điểm. Kỉ lục của em: <b>' + S.bestSpeed + '</b> điểm.</p><button class="primary-btn big" id="goSpeed">Bắt đầu! ⏱️</button></div>';
+  const pool = poolItems(b => b.loai === 'chon');
+  const items = freshQuestionPick(pool, Math.min(36, pool.length));
+  const body = '<div class="speed-intro"><div class="big-emoji">🚀</div><h3>Nhanh tay chọn đúng!</h3><p>Em có <b>60 giây</b>. Mỗi câu chỉ xuất hiện một lần trong lượt chơi; hết câu mới sẽ tự mở thêm câu khác. Kỉ lục của em: <b>' + S.bestSpeed + '</b> điểm.</p><button class="primary-btn big" id="goSpeed">Bắt đầu! ⏱️</button></div>';
   openModal('🚀 Nhanh tay', 'Trò chơi 60 giây', body);
-  $('#goSpeed').onclick = () => startQuiz({ kind: 'speed', title: 'Nhanh tay', icon: '🚀', subtitle: '⏱️ 60 giây', items: items.concat(shuffle(items), shuffle(items)), timeLimit: 60 });
+  $('#goSpeed').onclick = () => startQuiz({ kind: 'speed', title: 'Nhanh tay', icon: '🚀', subtitle: '⏱️ 60 giây', items, sourcePool: pool, timeLimit: 60 });
 }
 function speedAfter(right) {
   const c = $('#plCard'); if (c) c.classList.add(right ? 'flash-good' : 'flash-bad');
   const bar = $('.pl-bar b'); if (bar) bar.textContent = Q.correct + ' điểm';
   const q = Q;
-  setTimeout(() => { if (Q === q && Date.now() < q.endAt) { q.i++; renderItem(); } }, right ? 380 : 1000);
+  setTimeout(() => {
+    if (Q !== q || Date.now() >= q.endAt) return;
+    q.i++;
+    if (q.i >= q.items.length && q.sourcePool?.length) {
+      const more = freshQuestionPick(q.sourcePool, 36, { excludeKeys: q.usedQuestionKeys });
+      more.forEach(item => { q.usedQuestionKeys.add(questionFingerprint(item)); q.items.push(item); });
+    }
+    if (q.i < q.items.length) renderItem(); else finishQuiz();
+  }, right ? 380 : 1000);
 }
 
 /* ============================== SỰ KIỆN ============================== */

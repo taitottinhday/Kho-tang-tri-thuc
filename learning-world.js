@@ -34,24 +34,18 @@ const StoryQuest = (() => {
     return Object.entries(counts).map(([id,count]) => ({ topic:getTopic(id), count })).sort((a,b) => b.count - a.count);
   }
   function selectedQuestions(limit = 5, choiceOnly = false) {
-    const ranked = reviewItems().filter(row => !choiceOnly || row.item.loai === 'chon');
-    const selected = [], used = new Set();
-    const add = item => {
-      const key = item._t + ':' + item._i;
-      if (used.has(key) || (choiceOnly && item.loai !== 'chon') || (item.loai === 'ngheViet' && Number(S.grade) < 2)) return;
-      used.add(key); selected.push(item);
-    };
-    const byTopic = new Map();
-    ranked.forEach(row => { const tid = row.item._t; if (!byTopic.has(tid)) byTopic.set(tid,[]); byTopic.get(tid).push(row.item); });
-    while (selected.length < limit && [...byTopic.values()].some(list => list.length)) {
-      for (const list of byTopic.values()) { const next = list.shift(); if (next) add(next); if (selected.length >= limit) break; }
-    }
     const weakTopics = topicNeeds().map(x => x.topic).filter(Boolean);
-    const pools = weakTopics.concat(openTopics(),myTopics()).filter((topic,index,list) => list.findIndex(t => t.id === topic.id) === index);
-    const fallback = shuffle(pools.flatMap(topic => topic.baiTap.map((q,i) => Object.assign({},q,{ _t:topic.id, _i:i }))).filter(q => !choiceOnly || q.loai === 'chon'));
-    fallback.forEach(add);
-    if (selected.length < limit) shuffle(poolItems(choiceOnly ? q => q.loai === 'chon' : undefined)).forEach(add);
-    return selected.slice(0,limit);
+    const pools = weakTopics.concat(openTopics()).filter((topic,index,list) => list.findIndex(t => t.id === topic.id) === index);
+    const topicPool = topic => topic.baiTap.map((q,i) => Object.assign({},q,{ _t:topic.id, _i:i })).concat(genItems(topic,undefined,2));
+    const allowed = item => (!choiceOnly || item.loai === 'chon') && !(item.loai === 'ngheViet' && Number(S.grade) < 2);
+    const focused = weakTopics.flatMap(topic => topicPool(topic).filter(allowed));
+    const all = pools.flatMap(topic => topicPool(topic).filter(allowed));
+    const selected = freshQuestionPick(focused, limit, { allowSeen: false });
+    const used = new Set(selected.map(questionFingerprint));
+    if (selected.length < limit) selected.push(...freshQuestionPick(all, limit - selected.length, { allowSeen: false, excludeKeys: used }));
+    selected.forEach(item => used.add(questionFingerprint(item)));
+    if (selected.length < limit) selected.push(...freshQuestionPick(all, limit - selected.length, { excludeKeys: used }));
+    return selected.slice(0,limit).map(vary);
   }
   function homeCards() {
     const weak = topicNeeds()[0], isDone = S.adaptiveDay === day();
@@ -65,8 +59,8 @@ const StoryQuest = (() => {
     const needs = topicNeeds(), rows = needs.slice(0,3), done = S.adaptiveDay === day();
     const count = pending().length;
     return '<div class="learning-world adaptive-world">' +
-      '<section class="world-hero adaptive-hero"><div class="world-hero-copy"><span class="world-kicker">NHIỆM VỤ CỦA RIÊNG EM · LỚP ' + esc(S.grade) + '</span><h1>Thám tử chữ</h1><p>Thỏ Lá nhìn lại những câu em từng luyện để chọn đúng 5 câu cần thiết nhất hôm nay.</p><button class="world-cta" id="adaptiveStart">' + (done ? 'Ôn thêm cùng Thỏ Lá' : 'Bắt đầu nhiệm vụ · 5 câu') + ' <span>→</span></button><small class="world-reward">' + (done ? 'Nhiệm vụ hôm nay đã hoàn thành' : 'Hoàn thành 3/5 câu để nhận thêm sao hoa') + '</small></div><div class="world-mascot-wrap"><span class="world-spark spark-a">✦</span><span class="world-spark spark-b">✧</span><img src="' + MASCOT + '" alt="Thỏ Lá đang vẫy tay" /></div><div class="world-cloud cloud-one"></div><div class="world-cloud cloud-two"></div></section>' +
-      '<div class="world-metrics"><div><b>' + count + '</b><span>từ đang chờ ôn</span></div><div><b>' + rows.length + '</b><span>nhóm chữ cần chú ý</span></div><div><b>' + (done ? '✓' : '5') + '</b><span>câu trong nhiệm vụ</span></div></div>' +
+      '<section class="world-hero adaptive-hero"><div class="world-hero-copy"><span class="world-kicker">NHIỆM VỤ CỦA RIÊNG EM · LỚP ' + esc(S.grade) + '</span><h1>Thám tử chữ</h1><p>Thỏ Lá chọn câu mới ở nhóm chữ em cần luyện. Mỗi câu đúng giúp Thỏ chạy nhanh hơn sói!</p><button class="world-cta" id="adaptiveStart">' + (done ? 'Ôn thêm cùng Thỏ Lá' : 'Bắt đầu nhiệm vụ · 5 câu') + ' <span>→</span></button><small class="world-reward">' + (done ? 'Nhiệm vụ hôm nay đã hoàn thành' : 'Trả lời đúng cả 5 câu để Thỏ thoát sói!') + '</small></div><div class="world-mascot-wrap"><span class="world-spark spark-a">✦</span><span class="world-spark spark-b">✧</span><img src="' + MASCOT + '" alt="Thỏ Lá đang vẫy tay" /></div><div class="world-cloud cloud-one"></div><div class="world-cloud cloud-two"></div></section>' +
+      '<div class="world-metrics"><div><b>' + count + '</b><span>từ đang chờ ôn</span></div><div><b>' + rows.length + '</b><span>nhóm chữ cần chú ý</span></div><div><b>' + (done ? '✓' : '5') + '</b><span>câu mới mỗi lượt</span></div></div>' +
       '<section class="world-panel"><header><div><small>BẢN ĐỒ DẤU VẾT</small><h2>Thỏ Lá đang giúp em luyện gì?</h2></div><span class="world-panel-icon">🔍</span></header>' +
       (rows.length ? '<div class="weak-list">' + rows.map((row,index) => '<article class="weak-row"><span class="weak-number">0' + (index + 1) + '</span><div><b>' + esc(row.topic.ten) + '</b><small>' + row.count + ' câu đang cần luyện lại</small></div><span class="weak-stamp">' + ['🌱','🌼','🍃'][index] + '</span></article>').join('') + '</div>' : '<div class="world-empty"><span>🌷</span><b>Chưa có dấu vết sai — thật tuyệt!</b><p>Nhiệm vụ sẽ chọn vài câu mới trong các bài em đang học để giữ chữ luôn chắc nhé.</p></div>') +
       '<p class="world-footnote">Câu sai vẫn được lưu vào sổ ôn. Em có thể thử lại tới khi mở được dấu chân tiếp theo.</p></section>' +
