@@ -8,7 +8,7 @@ const path = require('node:path');
 async function main() {
   const width = Number(process.argv[2] || 390), height = Number(process.argv[3] || 844);
   const browser = await launch(width, height);
-  const out = path.join('qa-results', 'vuon-truyen-canh-dong');
+  const out = path.join('qa-results', 'vuon-truyen-hanh-dong');
   fs.mkdirSync(out, { recursive: true });
   const click = selector => browser.eval('document.querySelector(' + JSON.stringify(selector) + ').click()');
   try {
@@ -35,14 +35,15 @@ async function main() {
       const actual = await browser.eval(`
         const img = document.querySelector('.forest-stage > img');
         const sprite = document.querySelector('.forest-traveler-sprite img');
-        await Promise.all([img, sprite, ...document.querySelectorAll('.forest-escort img')].map(image => image.decode()));
+        await Promise.all([img, ...document.querySelectorAll('.forest-crossing img')].map(image => image.decode()));
         return { src:img.getAttribute('src'), width:img.naturalWidth,
           sprite:sprite.getAttribute('src'),
           guide:document.querySelector('.forest-dialogue b').textContent,
           within:img.parentElement.getBoundingClientRect().right <= innerWidth,
           errors:Q.items[Q.i].cau.split(' ').filter(word => cleanWord(word) === Q.items[Q.i].tuSai).length };
       `);
-      assert.equal(actual.src, 'assets/vuon-truyen/' + chapter + '-' + (index + 1) + '.webp');
+      const expected = chapter === 'royal-stars' && index === 2 ? 'royal-track' : chapter + '-' + (index + 1);
+      assert.equal(actual.src, 'assets/vuon-truyen/' + expected + '.webp');
       assert.equal(actual.sprite, traveler);
       assert.ok(actual.width && actual.guide && actual.within);
       assert.equal(actual.errors, 1);
@@ -76,20 +77,50 @@ async function main() {
       assert.equal(await browser.eval('return Q.i'), 0);
       for (const chapter of chapters) {
         for (let i = 0; i < 3; i++) {
+          const finale = mode !== 'rabbit' && chapter === chapters.at(-1) && i === 2;
           await scene(chapter, i, sprite);
+          if (finale) {
+            await answer(false);
+            assert.ok(await browser.eval(`return !document.querySelector('.forest-panel').classList.contains('is-open') &&
+              getComputedStyle(document.querySelector('.forest-crossing')).visibility === 'hidden' && !document.querySelector('#plCont').disabled;`));
+            await click('#plCont');
+            await scene(chapter, i, sprite);
+          }
           await answer(true);
           const motion = await browser.eval(`
             const sprite = document.querySelector('.forest-panel.is-open .forest-traveler-sprite img');
             return { stride: sprite?.getAnimations().some(animation => animation.animationName === 'chaseStride'),
               escorts: [...document.querySelectorAll('.forest-escort img')].filter(img => img.getAnimations().some(animation => animation.animationName === 'chaseStride')).length,
               parallax: document.querySelector('.forest-near').getAnimations().some(animation => animation.animationName === 'forestNearSlide'),
-              travel: document.querySelector('.forest-traveler-path').getAnimations().some(animation => animation.animationName === 'forestPass'),
+              travel: document.querySelector('.forest-traveler-path').getAnimations()[0]?.animationName,
+              rival: document.querySelector('.story-opponent-path')?.getAnimations()[0]?.animationName || '',
+              finale: !!document.querySelector('.forest-crossing.is-finale'),
               wait: document.querySelector('#plCont').disabled, feedback: !document.querySelector('#plSheet').hidden };
           `);
-          assert.deepEqual(motion, { stride:true, escorts:mode === 'royal' ? 2 : 0, parallax:true, travel:true, wait:true, feedback:true });
+          const travel = mode === 'rabbit' ? 'forestPass' : mode === 'football' ? (finale ? 'storyShotRun' : 'storyCutPath') : (finale ? 'storyRescueRun' : 'storyClashPath');
+          const rival = mode === 'rabbit' ? '' : mode === 'football' ? 'storyDefenderPath' : 'storyKnightRetreat';
+          assert.deepEqual(motion, { stride:true, escorts:mode === 'royal' ? 2 : 0, parallax:true, travel, rival, finale, wait:true, feedback:true });
           if (width === 390 && chapter === chapters[0] && i === 0) {
             await browser.sleep(650);
             await browser.shot(path.join(out, 'qua-chot-' + mode + '-' + width + '.png'));
+          }
+          if (finale) {
+            const acted = await browser.eval(`
+              const winner = document.querySelector('.story-action-result');
+              await winner.getAnimations()[0].finished;
+              if (Q.storyId === 'island-match') {
+                const ball = document.querySelector('.forest-traveler-ball').getBoundingClientRect();
+                const goal = document.querySelector('.story-goal').getBoundingClientRect();
+                const kick = document.querySelector('.story-strike').getAnimations().some(a => a.animationName === 'journeyShow');
+                return kick && ball.x >= goal.left && ball.right <= goal.right && ball.top > goal.top && ball.bottom < goal.bottom;
+              }
+              const door = document.querySelector('.story-gate-doors i');
+              const princess = document.querySelector('.story-rescued-princess');
+              return getComputedStyle(door).transform !== 'none' && getComputedStyle(princess).visibility === 'visible' &&
+                getComputedStyle(princess).opacity === '1';
+            `);
+            assert.equal(acted, true, 'Cú sút vào lưới hoặc mở cổng cứu Công chúa đã diễn ra');
+            if (width === 390) await browser.shot(path.join(out, 'ket-' + mode + '-' + width + '.png'));
           }
           await browser.eval(`
             const button = document.querySelector('#plCont');
@@ -99,6 +130,10 @@ async function main() {
           `);
         }
         assert.ok(await browser.eval(`return S.storyProgress[${JSON.stringify(chapter)}].done && !!document.querySelector('.forest-relic')`));
+        if (mode !== 'rabbit' && chapter === chapters.at(-1)) {
+          const title = await browser.eval(`return document.querySelector('.lesson-complete h3').textContent;`);
+          assert.equal(title, mode === 'football' ? 'Bóng vào lưới!' : 'Công chúa đã an toàn!');
+        }
         await click('#storyNext');
       }
       const mapState = await browser.eval(`

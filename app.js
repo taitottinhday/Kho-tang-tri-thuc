@@ -1189,7 +1189,7 @@ function showSheet(res) {
   if (caught) revealDelay = ChaseRun.catchDelay;
   else if (Q.race?.escaped) revealDelay = ChaseRun.escapeDelay;
   else if (Q.journey?.justWon) revealDelay = Q.journey.mode.duration;
-  else if (story && res.right) revealDelay = StoryQuest.passDelay;
+  else if (story && res.right) revealDelay = StoryQuest.passDelay(Q);
   const last = Q.i + 1 >= Q.items.length || (Q.lives != null && Q.lives <= 0);
   const praise = res.storyPraise || (res.right ? pick(PRAISE) : pick(ENCOURAGE));
   const nextLabel = story ? (res.right ? (last ? 'Nhận bảo vật' : 'Đi qua chốt →') : 'Thử lại ở chốt này')
@@ -1455,7 +1455,7 @@ function finishQuiz() {
   if (good) { sfx('win'); if (!award && !storyWon) confetti(); }
   const next = q.kind === 'lesson' && passed && !q.assignmentId ? nextTopic() : null;
   const head = q.kind === 'speed' ? (q.correct + ' điểm') : (q.correct + ' / ' + total + ' câu đúng');
-  const title = journeyResult ? journeyResult.title : storyWon ? '📖 Em đã qua tất cả các chốt!' : caught ? '🐺 Sói đã bắt kịp Thỏ Lá!' : q.race?.escaped ? '🐇 Thỏ Lá đã thoát khỏi sói!' : failed ? (q.timeUp ? '⏰ Hết giờ rồi!' : '💧 Cây khát nước rồi!') : q.kind === 'speed' ? (good ? 'Nhanh quá!' : 'Lần sau sẽ nhanh hơn!')
+  const title = journeyResult ? journeyResult.title : storyWon ? (StoryQuest.ending(q) || '📖 Em đã qua tất cả các chốt!') : caught ? '🐺 Sói đã bắt kịp Thỏ Lá!' : q.race?.escaped ? '🐇 Thỏ Lá đã thoát khỏi sói!' : failed ? (q.timeUp ? '⏰ Hết giờ rồi!' : '💧 Cây khát nước rồi!') : q.kind === 'speed' ? (good ? 'Nhanh quá!' : 'Lần sau sẽ nhanh hơn!')
     : q.kind === 'lesson' ? (passed ? (acc === 100 ? 'Tuyệt vời! Qua mức ' + tier.name + ' không sai câu nào!' : 'Qua màn mức ' + tier.name + '! 🎉') : 'Mình luyện thêm chút nữa nhé!')
     : q.kind === 'skip' ? (passed ? '🚀 Em đã vượt cấp!' : 'Chưa đủ để vượt cấp')
     : acc === 100 ? 'Tuyệt vời! Không sai câu nào!' : acc >= 60 ? 'Bài làm tốt lắm!' : 'Mình luyện thêm chút nữa nhé!';

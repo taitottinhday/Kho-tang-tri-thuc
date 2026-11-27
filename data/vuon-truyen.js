@@ -190,7 +190,7 @@ window.STORY_ROUTES = [
   },
   {
     id: 'football', name: 'Cầu thủ', title: 'Trận bóng ở Đảo Gió', destination: 'Đảo Gió Bí Mật',
-    description: 'Thắp hải đăng, thả diều và cùng các bạn mở trận bóng bên biển.',
+    description: 'Thắp hải đăng, thả diều và vượt hậu vệ để ghi bàn ở trận bóng bên biển.',
     map: 'island-map', cover: 'island-lens-1', mapAlt: 'Bản đồ đảo có hải đăng, đồi diều và sân bóng',
     stride: 'assets/quest/footballer-stride.webp', skin: 'football', back: 'Về Đảo Gió',
     chapters: [
@@ -273,19 +273,19 @@ window.STORY_ROUTES = [
         'Minh chuyền nhẹ. Bóng lăn qua phần cỏ khô rồi tới chân bạn. Vy reo: “Còn một đường chuyền nữa là tới gôn!”'],
         [{
           place: 'Góc sân treo cờ', guide: 'Đội trưởng Vy', icon: '🚩',
-          line: 'Đây là lời mời cả làng vào sân. Em xem còn tiếng nào sai.',
-          praise: 'Hay lắm! Em đã mở lối vào Đảo Gió Bí Mật.',
-          short: 'Các bạn cùng reo mừn.', paragraph: 'Bóng lăn qua vạch vôi. Các bạn cùng reo mừn, cả những bạn ngồi xem.',
+          line: 'Chỉ còn một hậu vệ trước gôn. Sửa chữ cuối để Minh có cơ hội dứt điểm!',
+          praise: 'Đúng rồi! Minh vượt hậu vệ rồi lấy đà sút bóng.',
+          short: 'Các bạn sẽ reo mừn.', paragraph: 'Minh đưa bóng đến gần khung thành. Nếu Minh ghi bàn, các bạn sẽ reo mừn.',
           bad: 'mừn', good: 'mừng', hint: 'Khi rất vui, ta reo mừng. Tiếng mừng có âm cuối ng.'
         }, 'Bàn thắng vang ra phía vịnh',
-        'Bạn nhỏ đệm bóng vào góc gần. Lưới rung lên. Tùng ngồi bệt rồi bật cười: “Tớ mải nhìn Minh nên quên mất đường bóng bên kia!”',
+        'Minh nghiêng vai sang một phía, chạm bóng sang phía còn lại rồi sút vào góc gôn. Lưới rung lên. Tùng bật cười: “Tớ mải nhìn vai cậu nên chậm một nhịp!”',
         'Cuối buổi, Minh không xin giữ quả bóng. Cậu đặt nó giữa sân. Bọn trẻ vừa tới bến đã xắn tay áo, chuẩn bị chia đội chơi tiếp.']
       ])
     ]
   },
   {
     id: 'royal', name: 'Nhà vua', title: 'Chuyến đi của Nhà vua', destination: 'Vương Quốc Sao',
-    description: 'Đánh chuông cho thuyền về bến, thả đèn và mở cửa đài ngắm sao.',
+    description: 'Vượt quân Bóng Tối, mở Cổng Sao và đưa Công chúa Mai về an toàn.',
     map: 'palace-map', cover: 'royal-bell-1', mapAlt: 'Bản đồ vương quốc có lầu chuông, vườn đèn và đài quan sát',
     stride: 'assets/quest/king-stride.webp', skin: 'royal', back: 'Về Vương Quốc Sao',
     chapters: [
@@ -347,11 +347,11 @@ window.STORY_ROUTES = [
         'Khi mặt hồ phẳng lại, Mai đặt hoa giấy xuống. Có một bông sáng trên nước và một bông khác sáng ở dưới.',
         'Nhà vua ngồi cạnh con. Hai người chờ cho chiếc đèn trôi gần bờ bên kia rồi vớt lên, đem hong dưới mái hiên để hôm sau còn thả.']
       ]),
-      storyChapter('royal-stars', '🔭', 'Cửa sổ nhìn lên sao', 'Mở đài quan sát cho cả làng ngắm sao.', 'Bản Đồ Bầu Trời', [84,22], 'Ai bắt được chiếc đuôi sao?', [
+      storyChapter('royal-stars', '🔭', 'Cửa sổ nhìn lên sao', 'Theo dấu Công chúa Mai tới Cổng Sao.', 'Bản Đồ Bầu Trời', [84,22], 'Ai bắt được chiếc đuôi sao?', [
         [{
           place: 'Đài quan sát', guide: 'Cô Ngân ngắm sao', icon: '🌌',
-          line: 'Trước khi lên đài, em giúp cô sửa bảng trời đêm.',
-          praise: 'Em tìm đúng rồi! Cửa đài đã mở.',
+          line: 'Quân Bóng Tối đã chặn lối lên đài. Công chúa Mai để lại lời nhắn này.',
+          praise: 'Em sửa đúng rồi! Nhà vua tiến qua quân chắn đường.',
           short: 'Trời đêm có nhiều ngôi xao.', paragraph: 'Cô Ngân kéo rèm cửa sổ. Trời đêm có nhiều ngôi xao.',
           bad: 'xao', good: 'sao', hint: 'Vật sáng nhỏ ta thấy trên trời đêm gọi là ngôi sao, bắt đầu bằng s.'
         }, 'Cửa sổ quay được',
@@ -359,22 +359,22 @@ window.STORY_ROUTES = [
         'Mai đặt ghế dưới kính. Cô Ngân hỏi em muốn nhìn sao nào trước. Mai chỉ ngôi nhỏ nhất, ngay sát đầu mái.'],
         [{
           place: 'Phòng kính thiên văn', guide: 'Cô Ngân ngắm sao', icon: '🔭',
-          line: 'Em xem lời chỉ dẫn để xoay kính đúng hướng.',
-          praise: 'Đúng rồi! Chỉnh kính chậm thôi, ngôi sao đã vào giữa.',
+          line: 'Nhìn qua kính, cô thấy Công chúa bị giữ sau Cổng Sao. Hãy sửa lời chỉ dẫn này.',
+          praise: 'Đúng rồi! Cổng Sao ở cuối cầu. Nhà vua cưỡi ngựa tới đó.',
           short: 'Mai xoay kín về phía trời đêm.', paragraph: 'Cô Ngân đứng bên cạnh và chỉ hướng. Mai xoay kín về phía trời đêm.',
           bad: 'kín', good: 'kính', hint: 'Dụng cụ nhìn vật ở xa là kính. Tiếng kính kết thúc bằng nh.'
         }, 'Nối sao bằng đầu ngón tay',
         'Qua kính, Mai thấy nhiều sao hơn. Cô Ngân nối vài ngôi sáng bằng đầu ngón tay rồi hỏi Mai thấy hình gì.',
         'Mai bảo giống một con thuyền. Nhà vua thấy giống chiếc muôi. Cô Ngân cười: “Mỗi người vẽ một bức trên cùng một bầu trời.”'],
         [{
-          place: 'Ban công ngắm sao', guide: 'Công chúa Mai', icon: '☄️',
-          line: 'Một vệt sáng vừa ló lên. Em sửa câu trên thẻ rồi mình mời các bạn vào!',
-          praise: 'Tuyệt lắm! Em đã mở lối vào Vương Quốc Sao.',
-          short: 'Sao chổi kéo theo một chiếc đui sáng.', paragraph: 'Mọi người ngước lên đúng lúc sao chổi kéo theo một chiếc đui sáng.',
+          place: 'Cổng Sao', guide: 'Lính gác Bình', icon: '🛡️', preview: 'royal-track',
+          line: 'Công chúa đang sau cánh cổng. Sửa chữ cuối để Nhà vua vượt qua Kỵ sĩ Bóng Tối!',
+          praise: 'Đúng rồi! Nhà vua giơ khiên và tiến về phía cổng.',
+          short: 'Sao chổi kéo theo một chiếc đui sáng.', paragraph: 'Trên tấm thẻ Công chúa để lại có câu: Sao chổi kéo theo một chiếc đui sáng.',
           bad: 'đui', good: 'đuôi', hint: 'Phần kéo dài phía sau là đuôi, viết với uô.'
         }, 'Đuôi sao trong lòng sông',
-        'Mấy đứa trẻ chạy lên vừa lúc một vệt sáng kéo qua trời. Một bạn tìm nó trong kính. Mai chỉ xuống sông, nơi mặt nước cũng ánh lên.',
-        'Nhà vua đặt thêm một hàng ghế thấp để các bạn nhỏ nhìn qua lan can. Đêm hôm ấy, ai xuống đài cũng mang theo một hình sao do mình tự vẽ.']
+        'Kỵ sĩ Bóng Tối lùi lại. Hai cánh Cổng Sao mở ra và Mai chạy về phía cha. Công chúa vừa ra ngoài thì một vệt sáng kéo qua trời.',
+        'Mai chỉ xuống sông, nơi mặt nước cũng ánh lên. Nhà vua kê một hàng ghế thấp để các bạn nhỏ nhìn qua lan can. Ai xuống đài cũng mang theo một hình sao do mình tự vẽ.']
       ])
     ]
   }

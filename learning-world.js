@@ -3,7 +3,6 @@
 const StoryQuest = (() => {
   const MASCOT = 'assets/tho-tham-hiem-vuon-chu.png';
   const routes = window.STORY_ROUTES;
-  const passDelay = 1570;
   const stories = new Map(routes.flatMap(route => route.chapters.map((chapter, index) => [chapter.id, { chapter, route, index }])));
   const routeFor = id => routes.find(route => route.id === id);
   const currentRoute = () => routeFor(S.storyCharacter) || routes[0];
@@ -110,23 +109,21 @@ const StoryQuest = (() => {
     S.storyProgress[id] = { done: true, completedAt: Date.now() };
     return true;
   }
-  function traveler(route) {
-    const escorts = route.id === 'royal' ? ['rear', 'front'].map(position =>
-      '<span class="forest-escort forest-escort-' + position + '"><img src="assets/quest/guard-stride.webp" alt=""></span>'
-    ).join('') : '';
-    return '<div class="forest-crossing" aria-hidden="true" style="--pass-duration:' + (passDelay - 60) + 'ms">' +
-      '<div class="forest-traveler-path"><span class="forest-traveler"><span class="forest-traveler-shadow"></span><span class="forest-trail"></span>' +
-      '<span class="forest-traveler-sprite"><img src="' + route.stride + '" alt=""></span>' + escorts +
-      (route.id === 'football' ? '<span class="forest-traveler-ball"></span>' : '') + '</span></div><div class="forest-near"></div></div>';
+  function actionFor(q) {
+    const { route, chapter, index } = stories.get(q.storyId);
+    const turn = route.chapters.slice(0, index).reduce((sum, entry) => sum + entry.scenes.length, q.i);
+    return StoryAction.plan(route, turn, index === route.chapters.length - 1, q.i >= chapter.scenes.length - 1);
   }
   function playerFrame(q) {
     const { route, chapter } = stories.get(q.storyId);
     const scene = chapter.scenes[q.i], total = chapter.scenes.length;
+    const art = scene.preview ? 'assets/vuon-truyen/' + scene.preview + '.webp' : storyArt(chapter, q.i);
+    const artAlt = scene.preview ? scene.place : route.name + ' cùng ' + scene.guide + ' tại ' + scene.place;
     if (q.i + 1 < total) new Image().src = storyArt(chapter, q.i + 1);
     return '<section class="forest-panel forest-skin-' + route.skin + (q.storyRetry ? ' is-retry' : '') + '" aria-label="' + esc(scene.place) + '">' +
-      '<div class="forest-stage"><img src="' + storyArt(chapter, q.i) + '" alt="' + esc(route.name + ' cùng ' + scene.guide + ' tại ' + scene.place) + '">' +
+      '<div class="forest-stage"><img src="' + art + '" alt="' + esc(artAlt) + '">' +
       '<div class="forest-plot"><b>' + esc(scene.place) + '</b><span>Chốt ' + (q.i + 1) + ' / ' + total + '</span></div>' +
-      '<span class="forest-light" aria-hidden="true"></span>' + traveler(route) + '</div>' +
+      '<span class="forest-light" aria-hidden="true"></span>' + StoryAction.markup(route, actionFor(q)) + '</div>' +
       '<div class="forest-dialogue"><span aria-hidden="true">' + scene.icon + '</span><div><b>' + esc(scene.guide) + '</b><p>' +
       esc(scene.line) + '</p></div></div></section>';
   }
@@ -274,7 +271,9 @@ const StoryQuest = (() => {
   registerView('adaptive','Nhiệm vụ của riêng em',adaptivePage,bindAdaptive);
   registerView('stories','Vườn truyện',storiesPage,bindStories);
   registerView('story-grove','Khu Rừng Bí Mật',grovePage,bindGrove);
-  return { homeCards, playerFrame, react, complete, discovery, nextAction, follow, start, beginAdaptive, passDelay };
+  const passDelay = q => actionFor(q).duration;
+  const ending = q => actionFor(q).title;
+  return { homeCards, playerFrame, react, complete, discovery, nextAction, follow, start, beginAdaptive, passDelay, ending };
 })();
 window.StoryQuest = StoryQuest;
 if (typeof render === 'function') render(); // app.js dựng trang chủ trước khi nạp các module trò chơi

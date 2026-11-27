@@ -1,0 +1,167 @@
+/* Những nhịp vượt người, va khiên và kết thúc chỉ chạy khi chốt đã mở. */
+.story-action-football{--lane:-12px;--step-out:13px;--strike-start:1.44s;--goal-x:87%;--ground:var(--travel-ground)}
+.story-action-football.on-pitch{--crossing-art:url('assets/quest/stadium.webp');--crossing-near:url('assets/quest/pitch-foreground.webp');--travel-ground:21%}
+.story-action-football.cut-near{--lane:11px;--step-out:-16px}
+.story-action-football::before{background-position:center 61%}
+.story-action-royal{--rival-width:clamp(66px,17vw,101px);--guard-recoil:-6px}
+.story-action-royal.cut-near{--guard-recoil:4px}
+.story-action-football .forest-near,.story-action-royal .forest-near{z-index:6}
+.story-action-football .forest-traveler-path{z-index:2}
+.story-action-football.cut-near .forest-traveler-path,.story-action-royal .forest-traveler-path{z-index:4}
+.story-action-royal .forest-escort-front{z-index:-1;width:33%;right:-21%;bottom:7%}
+.story-action-royal .forest-escort-rear{width:35%;left:-30%}
+.story-opponent-path{position:absolute;z-index:3;inset:0;transform:translate3d(58%,0,0)}
+.story-opponent{position:absolute;bottom:var(--travel-ground);width:var(--rival-width,clamp(73px,19vw,112px));aspect-ratio:1}
+.story-opponent-shadow{position:absolute;bottom:-1%;left:9%;width:83%;height:7%;border-radius:50%;background:#182719a8;filter:blur(2.2px)}
+.story-opponent-poses{position:absolute;inset:0;display:block;overflow:hidden}
+.story-opponent-poses img,.story-rescued-princess img{display:block;width:600%;height:100%;max-width:none}
+.story-feint,.story-strike,.story-brace{visibility:hidden}
+.forest-panel.is-open :is(.story-feint,.story-strike,.story-brace)>img{animation:none}
+
+/* Cầu thủ giảm nhịp, nhử vai, cắt sang một trong hai làn. Hậu vệ lao vào làn còn lại. */
+.forest-panel.is-open .story-action-football .forest-traveler-path{animation:storyCutPath var(--pass-duration) linear both}
+.forest-panel.is-open .story-action-football .story-hero-run{animation:storyFootballRunVisibility 1.38s step-end both}
+.forest-panel.is-open .story-feint{animation:storyFeintVisibility 1.38s step-end both}
+.forest-panel.is-open .story-feint>img{animation:chaseStride .98s .345s step-end both}
+.forest-panel.is-open .story-action-football .story-opponent-path{animation:storyDefenderPath 1.87s linear both}
+.forest-panel.is-open .story-action-football .story-opponent-poses>img{animation:storyDefenderPoses 1.92s step-end both}
+.story-ball-path{position:absolute;inset:0;z-index:5;--foot-offset:calc(var(--travel-width) * .81);--shot-ball-size:clamp(14px,3.8vw,21px)}
+.story-ball-path .forest-traveler-ball{right:auto;left:0;bottom:var(--travel-ground);width:var(--shot-ball-size);box-shadow:none}
+.story-ball-shadow{position:absolute;left:0;bottom:calc(var(--travel-ground) - 2px);width:clamp(12px,3.5vw,19px);height:3px;border-radius:50%;background:#2231229e;filter:blur(1.5px)}
+.forest-panel.is-open .story-ball-path{animation:storyDribblePath var(--pass-duration) linear both}
+.forest-panel.is-open .story-ball-path .forest-traveler-ball{animation:forestBallRoll .52s linear infinite}
+
+@keyframes storyFootballRunVisibility{0%,24%{visibility:visible}25%,89%{visibility:hidden}90%,100%{visibility:visible}}
+@keyframes storyFeintVisibility{0%,24%{visibility:hidden}25%,89%{visibility:visible}90%,100%{visibility:hidden}}
+@keyframes storyCutPath{
+  0%{transform:translate3d(-15%,0,0)}
+  22%{transform:translate3d(13%,0,0)}
+  32%{transform:translate3d(24%,calc(var(--lane) * -.4),0)}
+  39%{transform:translate3d(28%,calc(var(--lane) * -.52),0);animation-timing-function:cubic-bezier(.3,.1,.33,1)}
+  52%{transform:translate3d(50%,var(--lane),0)}
+  74%{transform:translate3d(72%,calc(var(--lane) * .38),0)}
+  100%{transform:translate3d(110%,0,0)}
+}
+@keyframes storyDefenderPath{
+  0%{transform:translate3d(61%,0,0)}
+  24%{transform:translate3d(55%,0,0)}
+  40%{transform:translate3d(46%,calc(var(--step-out) * .6),0)}
+  54%{transform:translate3d(43%,var(--step-out),0) rotate(-2deg)}
+  75%{transform:translate3d(35%,var(--step-out),0)}
+  100%{transform:translate3d(25%,calc(var(--step-out) * .8),0)}
+}
+@keyframes storyDefenderPoses{
+  0%{transform:none}15%{transform:translateX(-16.6667%)}29%{transform:translateX(-33.3333%)}
+  39%{transform:translateX(-50%)}52%{transform:translateX(-66.6667%)}65%{transform:translateX(-83.3333%)}
+  84%{transform:translateX(-66.6667%)}95%,100%{transform:none}
+}
+@keyframes storyDribblePath{
+  0%{transform:translate3d(calc(-15% + var(--foot-offset)),0,0)}
+  22%{transform:translate3d(calc(13% + var(--foot-offset)),0,0)}
+  32%,38%{transform:translate3d(calc(26% + var(--foot-offset)),calc(var(--lane) * -.4),0)}
+  52%{transform:translate3d(calc(51% + var(--foot-offset)),var(--lane),0)}
+  74%{transform:translate3d(calc(74% + var(--foot-offset)),calc(var(--lane) * .38),0)}
+  100%{transform:translate3d(129%,0,0)}
+}
+
+/* Chốt cuối. Bóng rời chân ở tư thế thứ ba, chạm lưới rồi nằm lại trong khung thành. */
+.story-action-football .story-goal{z-index:1;width:clamp(43px,13vw,74px);height:clamp(44px,14vw,77px);bottom:calc(var(--travel-ground) - 1px);border-width:3px}
+.forest-panel.is-open .story-action-football.is-finale .forest-traveler-path{animation:storyShotRun var(--pass-duration) linear both}
+.forest-panel.is-open .story-action-football.is-finale .story-hero-run{animation:storyFootballRunVisibility 1.38s step-end both,journeyHide 0s var(--strike-start) forwards}
+.forest-panel.is-open .story-strike{animation:journeyShow 0s var(--strike-start) forwards}
+.forest-panel.is-open .story-strike>img{animation:journeyKick 1.08s var(--strike-start) step-end both}
+.forest-panel.is-open .story-action-football.is-finale .story-ball-path{animation:storyShotPath var(--pass-duration) linear both}
+.forest-panel.is-open .story-action-football.is-finale .forest-traveler-ball{animation:storyShotArc var(--pass-duration) linear both}
+.forest-panel.is-open .story-action-football.is-finale .story-ball-shadow{animation:storyShotGround var(--pass-duration) linear both}
+.forest-panel.is-open .story-goal .journey-net{animation:journeyNet .52s 2.18s ease-out both}
+@keyframes storyShotRun{
+  0%{transform:translate3d(-12%,0,0)}13%{transform:translate3d(12%,0,0)}
+  21%{transform:translate3d(24%,calc(var(--lane) * -.4),0)}25%{transform:translate3d(28%,calc(var(--lane) * -.45),0)}
+  36%{transform:translate3d(38%,var(--lane),0)}47%,100%{transform:translate3d(42%,0,0)}
+}
+@keyframes storyShotPath{
+  0%{transform:translate3d(calc(-12% + var(--foot-offset)),0,0)}13%{transform:translate3d(calc(12% + var(--foot-offset)),0,0)}
+  21%,25%{transform:translate3d(calc(25% + var(--foot-offset)),calc(var(--lane) * -.4),0)}
+  36%{transform:translate3d(calc(39% + var(--foot-offset)),var(--lane),0)}
+  46%,58%{transform:translate3d(calc(42% + var(--foot-offset)),0,0);animation-timing-function:cubic-bezier(.17,.55,.36,1)}
+  72%,100%{transform:translate3d(calc(var(--goal-x) - var(--shot-ball-size) / 2),0,0)}
+}
+@keyframes storyShotArc{
+  0%{transform:translateY(0) rotate(0)}22%{transform:translateY(-3px) rotate(160deg)}42%,58%{transform:translateY(0) rotate(300deg)}
+  64%{transform:translateY(-28px) rotate(431deg)}70%{transform:translateY(-12px) rotate(531deg)}
+  78%,100%{transform:translateY(-2px) rotate(540deg)}
+}
+@keyframes storyShotGround{0%,58%,78%,100%{opacity:.95;transform:scale(1)}65%{opacity:.28;transform:scale(1.3)}}
+
+/* Nhà vua ghìm ngựa, khiên chạm nhau, kỵ sĩ bóng tối giật lùi. */
+.forest-panel.is-open .story-action-royal .forest-traveler-path{animation:storyClashPath var(--pass-duration) linear both}
+.forest-panel.is-open .story-action-royal .story-hero-run{animation:storyKingStrideVisibility 1.62s step-end both}
+.forest-panel.is-open .story-brace{animation:storyBraceVisibility 1.62s step-end both}
+.forest-panel.is-open .story-brace>img{animation:storyBracePoses 1.08s .45s step-end both}
+.forest-panel.is-open .story-action-royal .story-opponent-path{animation:storyKnightRetreat 1.94s linear both}
+.forest-panel.is-open .story-action-royal .story-opponent-poses>img{animation:storyKnightPoses 1.62s step-end both}
+.story-shield-ripple{position:absolute;z-index:5;left:48%;bottom:53%;width:23px;aspect-ratio:1;opacity:0;border:2px solid #fff9cc;border-radius:50%;box-shadow:0 0 11px #ffd87b,inset 0 0 6px #ffc564}
+.story-shield-ripple::after{position:absolute;left:-8px;top:48%;width:13px;height:2px;border-radius:50%;background:#fff2ba;box-shadow:-8px 4px 0 #ffcb719c,-10px -6px 0 #ffdc8d8c;content:""}
+.forest-panel.is-open .story-shield-ripple{animation:storyShieldContact .36s .87s ease-out both}
+@keyframes storyKingStrideVisibility{0%,27%{visibility:visible}28%,94%{visibility:hidden}95%,100%{visibility:visible}}
+@keyframes storyBraceVisibility{0%,27%{visibility:hidden}28%,94%{visibility:visible}95%,100%{visibility:hidden}}
+@keyframes storyBracePoses{
+  0%{transform:none}16%{transform:translateX(-16.6667%)}34%,46%{transform:translateX(-33.3333%)}
+  53%{transform:translateX(-50%)}68%{transform:translateX(-66.6667%)}86%,100%{transform:translateX(-83.3333%)}
+}
+@keyframes storyClashPath{
+  0%{transform:translate3d(-19%,0,0)}24%{transform:translate3d(16%,0,0)}
+  38%{transform:translate3d(28%,0,0)}47%{transform:translate3d(31%,0,0)}
+  53%{transform:translate3d(30%,1px,0)}64%{transform:translate3d(39%,0,0)}
+  100%{transform:translate3d(111%,0,0)}
+}
+@keyframes storyKnightRetreat{
+  0%{transform:translate3d(63%,0,0)}23%{transform:translate3d(58%,0,0)}
+  43%,49%{transform:translate3d(49%,0,0)}56%{transform:translate3d(63%,var(--guard-recoil),0)}
+  70%{transform:translate3d(71%,calc(var(--guard-recoil) * 1.35),0)}
+  100%{transform:translate3d(113%,calc(var(--guard-recoil) * 2),0)}
+}
+@keyframes storyKnightPoses{
+  0%{transform:none}24%{transform:translateX(-16.6667%)}40%{transform:translateX(-33.3333%)}
+  59%{transform:translateX(-50%)}70%{transform:translateX(-66.6667%)}84%,100%{transform:translateX(-83.3333%)}
+}
+@keyframes storyShieldContact{0%{opacity:0;transform:translateX(-50%) scale(.28)}27%{opacity:.92}58%{opacity:.67;transform:translate(124%,8px) scale(1)}100%{opacity:0;transform:translate(172%,13px) scale(1.42)}}
+
+/* Cổng bật mở sau cú va khiên. Công chúa bước về phía Nhà vua. */
+.story-gate{position:absolute;z-index:1;left:83%;bottom:calc(var(--travel-ground) - 3px);width:clamp(88px,29%,155px);height:clamp(96px,64%,155px);transform:translateX(-50%);isolation:isolate}
+.story-gate>img{position:absolute;inset:0;z-index:3;width:100%;height:100%;object-fit:fill}
+.story-gate-light,.story-gate-doors{position:absolute;inset:34% 26% 0;overflow:hidden;border-radius:47% 47% 3% 3% / 29% 29% 3% 3%}
+.story-gate-light{background:radial-gradient(ellipse at 53% 69%,#ffedb798,#c9a067 68%,#4a3755);opacity:.45}
+.story-gate-doors{z-index:2;display:flex;perspective:210px}
+.story-gate-doors i{width:50%;border-bottom:2px solid #6d452d;border-right:1px solid #a67646;background:repeating-linear-gradient(90deg,#945a36 0 3px,#b47b4d 4px 6px);transform-origin:left center}
+.story-gate-doors i:last-child{border-right:0;border-left:1px solid #775033;transform-origin:right center}
+.story-rescued-princess{position:absolute;z-index:5;left:82%;bottom:var(--travel-ground);width:clamp(34px,9vw,51px);aspect-ratio:136/253;overflow:hidden;visibility:hidden}
+.story-rescued-princess img{animation:none}
+.forest-panel.is-open .story-action-royal.is-finale .forest-traveler-path{animation:storyRescueRun var(--pass-duration) linear both}
+.forest-panel.is-open .story-action-royal.is-finale .story-hero-run{animation:storyKingStrideVisibility 1.62s step-end both,journeyHide 0s 1.53s forwards}
+.forest-panel.is-open .story-action-royal.is-finale .story-brace{animation:storyBraceVisibility 1.62s step-end both,journeyShow 0s 1.53s forwards}
+.forest-panel.is-open .story-action-royal.is-finale .forest-escort img{animation:chaseStride .63s var(--stride-phase,0s) step-end infinite,storyGuardHold 0s 1.56s forwards}
+.forest-panel.is-open .story-gate-doors i{animation:storyDoorLeft .53s 1.53s ease-out both}
+.forest-panel.is-open .story-gate-doors i:last-child{animation-name:storyDoorRight}
+.forest-panel.is-open .story-gate-light{animation:storyGateGlow .8s 1.53s ease-out both}
+.forest-panel.is-open .story-rescued-princess{animation:storyPrincessSteps .67s 1.99s ease-out both}
+.forest-panel.is-open .story-rescued-princess img{animation:chaseStride 1.02s 2s step-end both}
+@keyframes storyRescueRun{
+  0%{transform:translate3d(-19%,0,0)}15%{transform:translate3d(15%,0,0)}
+  24%{transform:translate3d(28%,0,0)}30%{transform:translate3d(31%,0,0)}
+  35%{transform:translate3d(30%,1px,0)}48%,100%{transform:translate3d(43%,0,0)}
+}
+@keyframes storyGuardHold{to{transform:translateX(-33.3333%)}}
+@keyframes storyDoorLeft{to{transform:rotateY(-83deg)}}
+@keyframes storyDoorRight{to{transform:rotateY(83deg)}}
+@keyframes storyGateGlow{to{opacity:.95}}
+@keyframes storyPrincessSteps{
+  from{visibility:visible;opacity:0;transform:translate(-50%,-3px) scale(.8)}
+  to{visibility:visible;opacity:1;transform:translate(-122%,0) scale(1)}
+}
+.story-action-result{position:absolute;z-index:7;left:50%;bottom:7px;opacity:0;white-space:nowrap;text-align:center;padding:6px 13px;border:1px solid #fff1b7;border-radius:11px;background:linear-gradient(#fff8c9,#efbd6a);box-shadow:0 3px 0 #986325,0 3px 12px #15251db0;color:#4e2e1b;font:950 clamp(11px,2.5vw,15px)/1.2 Nunito,sans-serif;transform:translateX(-50%)}
+.forest-panel.is-open .story-action-result{animation:storyActionWon .28s 2.25s ease-out both}
+.forest-panel.is-open .story-action-royal .story-action-result{animation-delay:2.59s}
+.forest-panel.is-open .story-action-football.is-finale,.forest-panel.is-open .story-action-royal.is-finale{animation-name:storyFinalHold}
+@keyframes storyActionWon{from{opacity:0;transform:translate(-50%,5px) scale(.94)}to{opacity:1;transform:translate(-50%,0) scale(1)}}
+@keyframes storyFinalHold{0%{opacity:0}7%,100%{opacity:1}}
