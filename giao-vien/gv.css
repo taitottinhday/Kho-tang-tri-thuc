@@ -47,12 +47,12 @@ button,input,select,textarea{font:inherit;color:inherit}
 .side{position:sticky;top:0;height:100vh;display:flex;flex-direction:column;gap:16px;padding:18px 14px;background:var(--pri);color:#fff}
 .side .brand-logo{background:rgba(255,255,255,.15)}
 .side .brand small{color:#cfe7dc}
-#nav{display:flex;flex-direction:column;gap:4px;flex:1}
+#nav{display:flex;flex-direction:column;gap:4px;flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin}
 #nav a{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:10px;color:#e6f4ee;text-decoration:none;font-weight:600;white-space:nowrap}
 #nav a svg{width:20px;height:20px;fill:currentColor;flex:none}
 #nav a:hover{background:rgba(255,255,255,.1)}
 #nav a.on{background:#fff;color:var(--pri)}
-.side-foot{display:grid;gap:8px}
+.side-foot{display:grid;gap:8px;flex:none}
 .main{min-width:0;display:flex;flex-direction:column}
 .top{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:18px 28px;background:#fff;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5}
 .top h1{font-size:1.35rem}
