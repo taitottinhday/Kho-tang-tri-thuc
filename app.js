@@ -1119,6 +1119,7 @@ function openPlayer(html) {
   root.className = 'modal-root player-mode'; root.innerHTML = html; root.hidden = false; root.onclick = null; root.scrollTop = 0;
   document.body.classList.add('modal-open'); $('.app-shell').inert = true;
   if (Q?.kind === 'adaptive') window.QuestCinema?.mount(root, Q);
+  if (Q) window.PhimTruyen?.chuanBi(Q);
 }
 function renderItem() {
   if (!Q) return;
@@ -1181,6 +1182,7 @@ function doCheck() {
   if (!res.right) { const c = $('#plCard'); if (c) c.classList.add('shake'); }
   if (Q.kind === 'speed') { speedAfter(res.right); return; }
   showSheet(res);
+  window.PhimTruyen?.sauTraLoi(Q, res.right); // cắt cảnh điện ảnh (phim-truyen.js) cho Thám tử chữ & Vườn truyện
 }
 function showSheet(res) {
   const sh = $('#plSheet'), caught = Q.race?.caught;

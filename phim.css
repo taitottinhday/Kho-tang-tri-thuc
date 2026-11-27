@@ -1,0 +1,58 @@
+/* Máy chiếu cắt cảnh – Claude Code (đợt 19). Khung dọc 2:3 như TikTok; màn rộng: khung ở giữa, hai bên là chính cảnh đó làm mờ. */
+dialog.phim{position:fixed;inset:0;width:100%;height:100%;max-width:none;max-height:none;margin:0;padding:0;border:0;overflow:hidden;background:#04050b;color:#fff;font-family:'Be Vietnam Pro',Nunito,system-ui,sans-serif}
+dialog.phim::backdrop{background:#02030a}
+.ph-back{position:absolute;inset:-60px;background:radial-gradient(ellipse at 50% 45%,#26305a,#060814 70%);background-size:cover;background-position:center;filter:blur(26px) saturate(1.2);transition:background-image .25s}
+.ph-frame{position:absolute;inset:0;margin:auto;width:100%;height:100%;overflow:hidden}
+@media (min-aspect-ratio:4/5){.ph-frame{width:min(100vw,calc(100vh * .72));width:min(100vw,calc(100dvh * .72));box-shadow:0 0 60px rgba(0,0,0,.75),0 0 0 2px rgba(255,255,255,.12)}}
+.ph-world{position:absolute;inset:-16px;overflow:hidden;will-change:transform}
+.ph-shots,.ph-over,.ph-world canvas{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.ph-world canvas{z-index:3}
+.ph-over{z-index:4;overflow:hidden}
+.ph-shot{position:absolute;inset:0;overflow:hidden;will-change:transform}
+.ph-shot img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:var(--tx) 50%;transform-origin:var(--tx) var(--ty);will-change:transform;user-select:none}
+/* lớp chiều sâu: chỉ giữ vùng nhân vật, phóng nhanh hơn nền → cảm giác máy quay lao vào cảnh 3D */
+.ph-shot img.depth{-webkit-mask-image:radial-gradient(ellipse 40% 32% at var(--tx) var(--ty),#000 62%,transparent 100%);mask-image:radial-gradient(ellipse 40% 32% at var(--tx) var(--ty),#000 62%,transparent 100%)}
+.ph-shots{filter:saturate(1.1) contrast(1.05)}
+.ph-shots.chroma{filter:saturate(1.35) contrast(1.15) drop-shadow(5px 0 0 rgba(255,30,80,.5)) drop-shadow(-5px 0 0 rgba(30,220,255,.5))}
+.phim.slow .ph-shots{filter:saturate(1.45) contrast(1.12) brightness(1.06)}
+/* tối viền + dải đen điện ảnh */
+.ph-frame::after{content:'';position:absolute;inset:0;z-index:5;pointer-events:none;background:radial-gradient(ellipse 92% 76% at 50% 46%,transparent 55%,rgba(0,0,6,.5) 100%),linear-gradient(180deg,rgba(0,0,0,.55) 0,transparent 13%,transparent 74%,rgba(0,0,0,.72) 100%)}
+.ph-flash{position:absolute;inset:0;background:#fff;opacity:0;mix-blend-mode:screen}
+.ph-burst{position:absolute;width:150vmin;height:150vmin;border-radius:50%;opacity:0;mix-blend-mode:screen;
+  background:repeating-conic-gradient(var(--c) 0 2.4deg,transparent 2.4deg 13deg);-webkit-mask-image:radial-gradient(circle,#000 0,#000 8%,rgba(0,0,0,.55) 22%,transparent 50%);mask-image:radial-gradient(circle,#000 0,#000 8%,rgba(0,0,0,.55) 22%,transparent 50%)}
+/* vệt tốc độ hoạt hình: toả từ tâm, hoặc vút ngang */
+.ph-speed{position:absolute;inset:-20%;opacity:0;mix-blend-mode:screen;
+  background:repeating-conic-gradient(from 0deg at var(--fx) var(--fy),rgba(255,255,255,.85) 0 .5deg,transparent .5deg 3.7deg,rgba(255,255,255,.5) 3.7deg 4deg,transparent 4deg 7.9deg);
+  -webkit-mask-image:radial-gradient(ellipse 52% 44% at var(--fx) var(--fy),transparent 46%,rgba(0,0,0,.35) 70%,#000 100%);mask-image:radial-gradient(ellipse 52% 44% at var(--fx) var(--fy),transparent 46%,rgba(0,0,0,.35) 70%,#000 100%);animation:phSpin .12s steps(2) infinite}
+.ph-speed.ngang{background:repeating-linear-gradient(180deg,transparent 0 17px,rgba(255,255,255,.75) 17px 19px,transparent 19px 41px,rgba(255,255,255,.4) 41px 42px,transparent 42px 67px);
+  -webkit-mask-image:linear-gradient(90deg,#000,transparent 34%,transparent 66%,#000);mask-image:linear-gradient(90deg,#000,transparent 34%,transparent 66%,#000);animation:phRush .16s linear infinite}
+@keyframes phSpin{to{rotate:2.1deg}}
+@keyframes phRush{from{background-position:0 0}to{background-position:0 23px;translate:-22px 0}}
+/* thanh tiến trình đoạn phim */
+.ph-bars{position:absolute;z-index:8;left:12px;right:12px;top:calc(10px + env(safe-area-inset-top));display:flex;gap:5px}
+.ph-bars i{flex:1;height:4px;border-radius:9px;background:rgba(255,255,255,.3);overflow:hidden}
+.ph-bars b{display:block;width:0;height:100%;background:#fff}
+.ph-bars i.done b{width:100%!important}
+/* chữ hô to */
+.ph-caption{position:absolute;z-index:8;left:0;right:0;bottom:calc(11% + env(safe-area-inset-bottom));padding:0 14px;display:flex;justify-content:center;pointer-events:none}
+.ph-word{max-width:100%;text-align:center;font-weight:900;font-style:italic;line-height:1.12;font-size:clamp(30px,10.5vw,62px);color:#fff;transform:skewX(-8deg);
+  -webkit-text-stroke:clamp(6px,1.9vw,11px) #1a0b2e;paint-order:stroke fill;text-shadow:0 6px 0 rgba(0,0,0,.4),0 0 26px rgba(255,255,255,.35);text-wrap:balance}
+.ph-word.to{font-size:clamp(34px,12.5vw,76px)}
+.ph-word.vang{color:#ffe14d;-webkit-text-stroke-color:#5a2400}
+.ph-word.do{color:#ffdf3a;-webkit-text-stroke-color:#9c0f1f}
+.ph-word.xanh{color:#b8ff6a;-webkit-text-stroke-color:#06391f}
+.ph-word.cam{color:#ffd0a0;-webkit-text-stroke-color:#5a2100}
+.ph-word.hong{color:#ffe3f0;-webkit-text-stroke-color:#a3155a}
+.ph-word.cau-vong{color:#fff4a8;-webkit-text-stroke-color:#4b1d95}
+@media (min-aspect-ratio:4/5){.ph-word{font-size:clamp(30px,6.4vh,62px)}.ph-word.to{font-size:clamp(34px,7.6vh,76px)}}
+.ph-combo{position:absolute;z-index:8;right:12px;top:calc(26px + env(safe-area-inset-top));text-align:right;font-style:italic;font-weight:900;line-height:1;animation:phCombo .5s cubic-bezier(.2,1.6,.4,1) .3s both}
+.ph-combo small{display:block;font-size:12px;letter-spacing:.1em;color:#fff;text-shadow:0 2px 4px #000}
+.ph-combo b{font-size:46px;color:#ffd21f;-webkit-text-stroke:6px #7a1500;paint-order:stroke fill;display:inline-block;animation:phBeat .55s ease-in-out .85s infinite alternate}
+@keyframes phCombo{from{opacity:0;transform:translateX(120%) scale(2)}to{opacity:1;transform:none}}
+@keyframes phBeat{to{transform:scale(1.14) rotate(-4deg)}}
+.ph-skip{position:absolute;z-index:9;right:max(12px,env(safe-area-inset-right));bottom:calc(14px + env(safe-area-inset-bottom));min-height:44px;padding:8px 18px;border-radius:99px;border:1px solid rgba(255,255,255,.5);background:rgba(8,8,22,.6);color:#fff;font:800 15px/1.2 'Be Vietnam Pro',Nunito,sans-serif;cursor:pointer;white-space:nowrap}
+.ph-skip:focus-visible{outline:3px solid #fff;outline-offset:2px}
+.phim-still .ph-shot img.depth{display:none}
+.phim-still *{animation:none!important}
+.phim-still .ph-speed,.phim-still .ph-flash,.phim-still .ph-burst,.phim-still .ph-bars{display:none}
+@media print{dialog.phim{display:none!important}}
