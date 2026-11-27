@@ -258,6 +258,6 @@ details summary{cursor:pointer;font-weight:600;color:var(--pri-d);padding:6px 0}
 .scope-note{margin:0 0 14px;padding:9px 13px;border-radius:10px;background:var(--soft);font-size:.9rem;color:#2f4a40}
 .class-owner{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:2px 0 8px;font-weight:600;font-size:.92rem}
 .warn-text{color:#8a5400}
-.login-card .hint{display:block;margin:-4px 0 10px;font-size:.8rem}
+.login-card .hint{display:block;margin:10px 0 0;font-size:.8rem;line-height:1.45}
 .me-box b{color:var(--ink)}
 @media (max-width:900px){.me-box{display:none}.side-foot #changePass .cp-label{display:none}}
