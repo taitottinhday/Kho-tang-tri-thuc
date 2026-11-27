@@ -1,0 +1,81 @@
+/* Phông xa, đường chạy, nhân vật và tiền cảnh chuyển động ở những lớp riêng. */
+.quest-stage{height:clamp(196px,26vw,264px);margin-bottom:13px;border:1px solid #1c4c40;border-radius:19px;box-shadow:0 10px 24px #17393342,inset 0 0 0 1px #fff3;--camera-x:54%;--foreground-flow:7.1s}
+.quest-stage--football{--quest-foreground:url('assets/quest/pitch-foreground.webp');--camera-x:66%;--glint:#fff1b9}
+.quest-stage--royal{--quest-foreground:url('assets/quest/palace-foreground.webp');--camera-x:64%;--foreground-flow:10s;--glint:#fff2c4}
+.quest-stage--rabbit{--quest-foreground:url('assets/quest/forest-foreground.webp');--camera-x:59%;--foreground-flow:6.6s;--glint:#e9ffaa}
+.quest-viewport{position:absolute;z-index:0;isolation:isolate;inset:0;transform-origin:var(--camera-x) 62%;pointer-events:none}
+.quest-light{position:absolute;z-index:5;inset:0;border-radius:inherit;background:linear-gradient(0deg,#152b2499,transparent 19%,transparent 75%,#121e309c),radial-gradient(ellipse at 16% -8%,#fff6c538,transparent 47%);box-shadow:inset 0 0 26px #132c2840;pointer-events:none}
+.quest-stage--football .quest-light{background:linear-gradient(0deg,#162833b3,transparent 20%,transparent 75%,#0d294396),radial-gradient(ellipse at 14% -17%,#fff1a73b,transparent 50%)}
+.quest-foreground{position:absolute;z-index:5;left:-6%;right:-6%;bottom:-4%;height:29%;background:var(--quest-foreground) center bottom/100% 100% no-repeat;animation:questNearDrift var(--foreground-flow) ease-in-out infinite alternate;pointer-events:none}
+.quest-stage--rabbit .quest-foreground{height:31%}
+.quest-stage:is(.is-caught,.is-escaped,.is-finishing,.is-won,.is-short) .quest-foreground{animation-play-state:paused}
+.quest-stage:is(.is-finishing,.is-caught,.is-escaped) .quest-viewport{animation:questClimaxCamera 1.35s cubic-bezier(.16,.66,.31,1) both}
+.quest-stage--royal.is-finishing .quest-viewport{animation-duration:1.72s}
+.quest-stage.is-won .quest-viewport{transform:scale(1.025)}
+.quest-stage .chase-backdrop img,.quest-stage .journey-background{filter:saturate(1.07) contrast(1.04)}
+.quest-stage--royal .journey-background{background-position:69% 55%}
+.quest-stage--football .journey-background{background-position:54% 59%}
+
+/* Vạch sân và vệt đất đủ mảnh để còn thấy động tác chân. */
+.quest-stage--football .journey-track::before{height:2px;opacity:.56;background:linear-gradient(90deg,#ffffff17,#fff8 37%,#fff9 69%,#ffffff23);animation:none;bottom:calc(var(--ground) - 3px)}
+.quest-stage--football .journey-track::after{position:absolute;left:7%;right:8%;bottom:10%;height:18%;transform:perspective(180px) rotateX(55deg);border:1px solid #fff5;opacity:.48;border-radius:10% 4% 0 0;content:"";pointer-events:none}
+.quest-stage--royal .journey-track::before{height:9px;background:radial-gradient(ellipse at 8% 76%,#8a56247d 0 7%,transparent 10%),radial-gradient(ellipse at 67% 23%,#fff1b36b 0 4%,transparent 7%);background-size:65px 8px;opacity:.36;animation-duration:1.62s}
+.quest-stage--rabbit .chase-track::before{height:13%;box-shadow:0 -5px 14px #714a26ad;background:linear-gradient(180deg,#efa85462,#6f431854);border-radius:45% 40% 0 0;bottom:16%}
+.quest-stage--rabbit .chase-track::after{height:7px;background:radial-gradient(ellipse at 18% 34%,#fff4be8a 0 4%,transparent 7%),radial-gradient(ellipse at 70% 78%,#7e44257a 0 4%,transparent 8%);background-size:80px 7px;opacity:.55;filter:none}
+.quest-stage--rabbit .chase-dust{width:6px;height:6px;border-radius:50%;background:#fdebaf;box-shadow:-12px 6px 0 -1px #fcce81,12px -5px 0 -2px #fff2c7;filter:blur(.5px)}
+.quest-stage--rabbit .chase-rabbit{width:clamp(99px,17vw,160px)}
+.quest-stage--rabbit .chase-wolf{width:clamp(118px,19vw,176px)}
+.quest-stage .journey-shadow,.quest-stage .chase-paw{background:#16281fa1;filter:blur(2.8px);height:8px}
+
+/* Hạt cỏ và bụi chỉ bật tại nhịp sút hoặc khi đoàn hãm lại. */
+.quest-contact-dust{position:absolute;z-index:2;bottom:1%;left:45%;width:6px;height:6px;border-radius:50%;background:var(--glint);opacity:0;box-shadow:-10px 1px 0 -1px #dfbc73,6px -7px 0 -2px #ecce85,-7px -5px 0 -1px #f7df98,13px 3px 0 -2px #f8de8f;pointer-events:none}
+.quest-stage.is-finishing .quest-contact-dust{animation:questFootSpray .52s var(--spray-at) ease-out both}
+.journey--football.is-finishing .journey-ball::after{position:absolute;z-index:-1;top:45%;right:30%;width:clamp(23px,7vw,48px);height:3px;border-radius:100%;background:linear-gradient(90deg,transparent,#fff2beae);content:"";transform:rotate(-7deg);opacity:0;animation:questShotTrail .46s .84s ease-out both}
+
+/* Khung thông tin ở yên khi máy quay tiến vào cảnh. */
+.quest-stage :is(.journey-hud,.chase-hud){top:9px;left:10px;right:10px}
+.quest-stage :is(.journey-hud strong,.chase-title){background:#0c2828e8;color:#fff8df;border:1px solid #fff7;border-radius:9px;box-shadow:0 4px 9px #0c222861;min-height:26px;font-size:clamp(9px,2.25vw,12px);letter-spacing:.015em;padding-inline:8px}
+.quest-stage :is(.journey-hud>span,.chase-safe){background:#fff1ba;color:#503712;border:1px solid #fff7;border-radius:9px;min-height:26px;font-size:clamp(9px,2.15vw,11px);box-shadow:0 4px 9px #0c22284f}
+.quest-stage :is(.journey-meter,.chase-meter){top:41px;left:11px;right:11px;height:6px;background:#072c2bd9;border:0;box-shadow:0 0 0 1px #ffeeae8a}
+.quest-stage :is(.journey-meter>span,.chase-meter>span){background:linear-gradient(90deg,#f2b54d,#fbeb88 76%,#fff6cb);box-shadow:0 0 8px #ffe97a}
+.quest-stage .chase-meter>b{color:#fff1bb;text-shadow:none}
+.quest-stage :is(.journey-feedback,.chase-feedback){bottom:8px;width:max-content;max-width:calc(100% - 27px);white-space:normal;background:#092e2cda;color:#fff8d8;box-shadow:0 3px 10px #0e242d65;border-color:#fff6;font-size:clamp(9px,2.15vw,12px)}
+.quest-stage :is(.journey-finish,.chase-outcome){background:linear-gradient(180deg,#fff6c2,#f7c564);color:#593414;border:2px solid #ffedaa;border-radius:11px;box-shadow:0 4px 0 #885426,0 8px 24px #1e302894;text-shadow:0 1px #fff6cd;font-weight:1000}
+.quest-stage .journey-finish{bottom:8px;padding:6px 13px}
+.quest-stage--rabbit.is-escaped .chase-outcome{top:auto;bottom:0;animation:chaseCatchPop .42s .64s cubic-bezier(.16,1.3,.4,1) both}
+.quest-stage--rabbit.is-escaped .chase-feedback{animation:chaseHideFeedback 0s .64s forwards}
+.quest-stage--rabbit.is-escaped .chase-outcome,.quest-stage--rabbit.is-caught .chase-outcome{bottom:8px;padding:6px 12px}
+.quest-stage--rabbit.is-caught .chase-outcome{background:linear-gradient(180deg,#ffe9c1,#f6b67e);border-color:#fff0ce}
+
+.quest-choice--rabbit{--choice-cover:url('assets/chase-forest.webp')}
+.quest-choice--football{--choice-cover:url('assets/quest/stadium.webp')}
+.quest-choice--royal{--choice-cover:url('assets/quest/palace.webp')}
+.quest-select .quest-choice-portrait{height:clamp(87px,19vw,152px);background:linear-gradient(0deg,#153c3c95,transparent 68%),var(--choice-cover) center 59%/cover}
+.quest-select .quest-choice-portrait img{filter:drop-shadow(0 4px 2px #102e298c)}
+.quest-select .quest-choice:has(input:checked) .quest-choice-info{box-shadow:inset 0 3px 0 #50a879}
+
+@keyframes questNearDrift{from{transform:translateX(3.2%)}to{transform:translateX(-4.1%)}}
+@keyframes questClimaxCamera{0%{transform:scale(1)}32%{transform:scale(1.055) translateX(-.55%)}100%{transform:scale(1.025)}}
+@keyframes questStepWeight{0%,52%,100%{opacity:.93;transform:scaleX(1)}26%,77%{opacity:.52;transform:scaleX(.81)}}
+@keyframes questFootSpray{0%{opacity:0;transform:scale(.45)}20%{opacity:.9}100%{opacity:0;transform:translate(-15px,-13px) scale(1.54)}}
+@keyframes questShotTrail{0%{opacity:0;transform:translateY(calc(-.86 * var(--ball-lift))) scaleX(.3) rotate(-7deg)}28%{opacity:.8;transform:translateY(calc(-1 * var(--ball-lift) - 7px)) scaleX(.8) rotate(-7deg)}100%{opacity:0;transform:translateY(-5px) scaleX(1) rotate(5deg)}}
+@media(max-height:700px){.quest-stage{height:clamp(168px,24vw,216px)}}
+@media(max-width:370px){.quest-stage--football{--player-width:100px}.quest-stage .journey-rider{width:107px}.quest-stage .journey-princess{width:33px}.quest-stage .journey-guard{width:38px}}
+
+body.calm .quest-stage--rabbit :is(.quest-viewport,.quest-viewport *),body.calm .quest-stage--rabbit .chase-track::after{animation:none!important;transition:none!important}
+body.calm .quest-stage--rabbit:is(.is-escaped,.is-caught) .chase-outcome{animation:none;opacity:1;transform:translate(-50%,0)}
+body.calm .quest-stage--rabbit:is(.is-escaped,.is-caught) .chase-feedback{animation:none;opacity:0}
+body.calm .quest-stage--rabbit.is-caught .chase-stride img{transform:translateX(var(--brake-end))}
+body.calm .journey--royal.is-finishing .journey-rider-walk{visibility:hidden}
+body.calm .journey--royal.is-finishing .journey-rider-halt{visibility:visible}
+body.calm .journey--royal.is-finishing .journey-rider-halt img{transform:translateX(-83.3333%)}
+body.calm .journey--football.is-finishing .journey-ball::after{animation:none}
+@media(prefers-reduced-motion:reduce){
+  .quest-stage :is(.quest-viewport,.quest-foreground),.journey--football.is-finishing .journey-ball::after{animation:none!important;transform:none}
+  .quest-stage--rabbit .quest-viewport *,.quest-stage--rabbit .chase-track::after{animation:none!important;transition:none!important}
+  .quest-stage--rabbit:is(.is-escaped,.is-caught) .chase-outcome{animation:none;opacity:1;transform:translate(-50%,0)}
+  .quest-stage--rabbit:is(.is-escaped,.is-caught) .chase-feedback{animation:none;opacity:0}
+  .journey--royal.is-finishing .journey-rider-walk{visibility:hidden}
+  .journey--royal.is-finishing .journey-rider-halt{visibility:visible}
+  .journey--royal.is-finishing .journey-rider-halt img{transform:translateX(-83.3333%)}
+}

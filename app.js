@@ -1112,8 +1112,13 @@ function playerShell(inner, it) {
 }
 function openPlayer(html) {
   const root = $('#modalRoot');
+  if (Q?.kind === 'adaptive' && window.QuestCinema?.refresh(root, html, Q)) {
+    root.scrollTop = 0;
+    return;
+  }
   root.className = 'modal-root player-mode'; root.innerHTML = html; root.hidden = false; root.onclick = null; root.scrollTop = 0;
   document.body.classList.add('modal-open'); $('.app-shell').inert = true;
+  if (Q?.kind === 'adaptive') window.QuestCinema?.mount(root, Q);
 }
 function renderItem() {
   if (!Q) return;
@@ -1166,6 +1171,7 @@ function doCheck() {
   record(it, res.right);
   if (Q.race) ChaseRun.answer(Q, res.right);
   if (Q.journey) QuestJourney.answer(Q, res.right);
+  if (Q.race || Q.journey) window.QuestCinema?.answer(Q, res.right);
   if (Q.kind === 'storybook') res.storyPraise = StoryQuest.react(Q, res.right);
   if (Q.lives != null && !res.right) {
     Q.lives = Math.max(0, Q.lives - 1);
@@ -1178,7 +1184,10 @@ function doCheck() {
 }
 function showSheet(res) {
   const sh = $('#plSheet'), caught = Q.race?.caught;
-  const revealDelay = caught ? ChaseRun.catchDelay : Q.journey?.justWon ? Q.journey.mode.duration : 0;
+  let revealDelay = 0;
+  if (caught) revealDelay = ChaseRun.catchDelay;
+  else if (Q.race?.escaped) revealDelay = ChaseRun.escapeDelay;
+  else if (Q.journey?.justWon) revealDelay = Q.journey.mode.duration;
   const last = Q.i + 1 >= Q.items.length || (Q.lives != null && Q.lives <= 0);
   const story = Q.kind === 'storybook';
   const praise = res.storyPraise || (res.right ? pick(PRAISE) : pick(ENCOURAGE));
@@ -1193,7 +1202,7 @@ function showSheet(res) {
   cont.onclick = nextItem;
   if (revealDelay) {
     $('#modalRoot').scrollTop = 0;
-    if (matchMedia('(prefers-reduced-motion: reduce)').matches || (Q.journey && document.body.classList.contains('calm'))) cont.focus({ preventScroll: true });
+    if (window.QuestCinema?.reduced() || matchMedia('(prefers-reduced-motion: reduce)').matches) cont.focus({ preventScroll: true });
     else {
       cont.dataset.chaseWait = '';
       cont.disabled = true;

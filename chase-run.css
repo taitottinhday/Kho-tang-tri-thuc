@@ -19,15 +19,11 @@
 .chase-rabbit{left:var(--rabbit-x);z-index:3;width:clamp(94px,15vw,143px);aspect-ratio:5/4;--stride-speed:var(--rabbit-speed)}
 .chase-stride{position:absolute;inset:0;display:block;overflow:hidden}
 .chase-stride img{display:block;width:600%;height:100%;max-width:none;animation:chaseStride var(--stride-speed) step-end infinite}
-.chase-run.is-wrong{--rabbit-speed:.88s;--wolf-speed:.45s}
-.chase-run.is-correct{--rabbit-speed:.4s;--wolf-speed:.77s}
 .chase-run.is-escaped{--rabbit-speed:.31s;--wolf-speed:1s}
 .chase-run.is-escaped .chase-rabbit{transition:left .74s cubic-bezier(.42,0,.8,1)}
 .chase-paw{position:absolute;left:20%;right:17%;bottom:0;height:8px;border-radius:50%;background:rgba(34,52,32,.38);filter:blur(3px);animation:chaseShadow var(--stride-speed) ease-in-out infinite}
 .chase-speed-lines{position:absolute;z-index:-1;left:-29px;top:42%;width:35px;height:21px;border-top:2px solid rgba(255,250,224,.9);border-bottom:2px solid rgba(255,250,224,.75);transform:skewX(-27deg);opacity:0;transition:opacity .2s}
 .chase-run.is-correct .chase-speed-lines{opacity:1;animation:chaseLines .32s linear infinite}
-.chase-bush{position:absolute;z-index:4;bottom:10%;font-size:clamp(18px,3vw,28px);filter:drop-shadow(0 3px 2px rgba(27,60,31,.2));animation:chaseBushSway 1.8s ease-in-out infinite alternate}
-.chase-bush.bush-one{left:4%}.chase-bush.bush-two{right:5%;animation-delay:-.7s}
 .chase-dust{position:absolute;z-index:3;bottom:37%;left:44%;color:#fff3cf;font-size:15px;animation:chaseDust 2.4s ease-out infinite}
 .chase-dust.dust-two{left:69%;bottom:50%;animation-delay:-1.2s}
 .chase-feedback{position:absolute;z-index:6;left:50%;bottom:7px;max-width:calc(100% - 20px);padding:5px 11px;border:1px solid rgba(255,255,255,.65);border-radius:99px;background:rgba(25,61,39,.71);color:#fff;font:900 9px/1.2 Nunito,sans-serif;text-align:center;text-shadow:0 1px 2px rgba(0,0,0,.25);box-shadow:0 3px 9px rgba(25,58,34,.2);transform:translateX(-50%);backdrop-filter:blur(6px);transition:background .25s}
@@ -61,7 +57,6 @@
 }
 @keyframes chaseShadow{0%,100%{transform:scaleX(.78);opacity:.64}27%,73%{transform:scaleX(1);opacity:1}50%{transform:scaleX(.87);opacity:.76}}
 @keyframes chaseLines{to{transform:translateX(-10px) skewX(-27deg);opacity:.35}}
-@keyframes chaseBushSway{to{transform:rotate(7deg) translateY(-2px)}}
 @keyframes chaseDust{0%{opacity:0;transform:translate(0,8px) scale(.5)}35%{opacity:.9}100%{opacity:0;transform:translate(-35px,-22px) scale(1.3)}}
 @keyframes chaseOutcomePop{to{opacity:1;transform:translate(-50%,-50%) scale(1)}}
 @keyframes chaseCatchPop{to{opacity:1;transform:translate(-50%,0) scale(1)}}

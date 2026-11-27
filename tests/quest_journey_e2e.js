@@ -75,23 +75,35 @@ async function main() {
       anim.play(); return a !== b;
     `);
     assert.ok(ballTransform, 'Bóng lăn và nhảy nhẹ');
+    await browser.eval(`
+      window.savedStage = document.querySelector('.journey-scene');
+      window.savedStride = savedStage.querySelector('.journey-foot-run img').getAnimations()[0];
+    `);
     for (let i=1; i<=3; i++) {
       await answer(true);
       const progress = await state();
       assert.equal(progress.steps, i);
       assert.equal(progress.won, false);
       await click('#plCont');
+      assert.ok(await browser.eval(`
+        const scene = document.querySelector('.journey-scene');
+        return scene === savedStage && scene.querySelector('.journey-foot-run img').getAnimations()[0] === savedStride;
+      `), 'Chuyển câu giữ cảnh và chu kỳ chạy hiện tại');
     }
+    assert.ok(await browser.eval('await savedStride.ready; return savedStride.playbackRate > 1.2;'));
     await answer(true);
     assert.deepEqual(await state(), { index:3, count:4, steps:4, won:true, finishing:true, badge:'VÀO GÔN!', wait:true });
-    await browser.sleep(1500);
+    await browser.sleep(await browser.eval('return Q.journey.mode.duration + 100'));
     const scored = await browser.eval(`
+      const kick = document.querySelector('.journey-foot-kick img').getAnimations()[0];
+      await kick.finished;
       const ball = document.querySelector('.journey-ball-visual').getBoundingClientRect(), goal = document.querySelector('.journey-goal').getBoundingClientRect();
       return { inside: ball.x + ball.width / 2 > goal.left && ball.x + ball.width / 2 < goal.right && ball.y > goal.top && ball.bottom < goal.bottom,
         kick: getComputedStyle(document.querySelector('.journey-foot-kick')).visibility,
+        pose: kick.effect.getComputedTiming().progress,
         net: document.querySelector('.journey-net').getAnimations().some(a => a.animationName === 'journeyNet') };
     `);
-    assert.deepEqual(scored, { inside:true, kick:'visible', net:true });
+    assert.deepEqual(scored, { inside:true, kick:'visible', pose:1, net:true });
     await browser.shot(path.join(out, 'football-win-' + width + '.png'));
     await click('#plCont');
     await answer(false);
@@ -113,12 +125,16 @@ async function main() {
     for (let i=0; i<3; i++) { await answer(true); await click('#plCont'); }
     await answer(true);
     assert.deepEqual(await state(), { index:4, count:4, steps:4, won:true, finishing:true, badge:'CÔNG CHÚA RA ĐÓN!', wait:true });
-    await browser.sleep(1530);
+    await browser.sleep(await browser.eval('return Q.journey.mode.duration + 100'));
     const wave = await browser.eval(`
       const person = document.querySelector('.journey-princess');
-      return { visible: getComputedStyle(person).visibility, wave: person.querySelector('img').getAnimations().some(a => a.animationName === 'chaseStride') };
+      const horse = document.querySelector('.journey-rider-halt');
+      const halt = horse.querySelector('img').getAnimations()[0];
+      await halt.finished;
+      return { visible: getComputedStyle(person).visibility, wave: person.querySelector('img').getAnimations().some(a => a.animationName === 'chaseStride'),
+        halted: getComputedStyle(horse).visibility, pose: halt.effect.getComputedTiming().progress };
     `);
-    assert.deepEqual(wave, { visible:'visible', wave:true });
+    assert.deepEqual(wave, { visible:'visible', wave:true, halted:'visible', pose:1 });
     await browser.shot(path.join(out, 'royal-win-' + width + '.png'));
     await click('#plCont');
     assert.ok(await browser.eval(`return document.querySelector('.lesson-complete h3').textContent.includes('Đã gặp Công chúa')`));

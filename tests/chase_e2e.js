@@ -9,7 +9,7 @@ async function main() {
   const browser = await launch(width,height);
   try {
     await browser.goto('index.html');
-    await browser.eval("db.onboarded = true; hideWelcome?.(); closeModal(); render(); go('adaptive');");
+    await browser.eval("db.onboarded = true; if (typeof hideWelcome === 'function') hideWelcome(); closeModal(); render(); go('adaptive');");
     await browser.sleep(250);
     const lessonCheck = await browser.eval(`
       const before=S.grade, duplicates=[]; let checked=0;
@@ -59,6 +59,8 @@ async function main() {
       const state = await answer(browser, true, i !== 4);
       if (i === 4) {
         assert(state.escaped && state.gap === 80 && state.escapeClass, 'đúng hết làm Thỏ thoát sói');
+        assert(state.continueDisabled, 'chờ Thỏ chạy thoát trước khi xem kết quả');
+        await browser.sleep(await browser.eval('return ChaseRun.escapeDelay'));
         await browser.shot(path.join(out,'escape-'+width+'.png'));
         await browser.eval("document.querySelector('#plCont').click();"); await browser.sleep(200);
       }

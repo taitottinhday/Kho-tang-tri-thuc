@@ -3,6 +3,7 @@
 window.ChaseRun = (() => {
   const missLimit = 3;
   const catchDelay = 900;
+  const escapeDelay = 1120;
   const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
   const safePercent = race => Math.round(race.gap / 80 * 100);
   const mistakeCount = race => 'Sai ' + race.mistakes + '/' + missLimit;
@@ -12,12 +13,12 @@ window.ChaseRun = (() => {
   }
   function playerFrame(q) {
     const race = q.race, safe = safePercent(race);
-    return '<section class="chase-run" aria-label="Trò chơi Thỏ Lá chạy khỏi sói" style="--rabbit-x:' + race.rabbitX + '%;--wolf-x:' + race.wolfX + '%;--safe:' + safe + '%">' +
-      '<div class="chase-backdrop" aria-hidden="true"><img src="assets/chase-forest.webp" alt="" /></div>' +
+    return '<section class="chase-run quest-stage quest-stage--rabbit" data-quest-stage aria-label="Trò chơi Thỏ Lá chạy khỏi sói" style="--rabbit-x:' + race.rabbitX + '%;--wolf-x:' + race.wolfX + '%;--safe:' + safe + '%">' +
+      '<div class="quest-viewport" aria-hidden="true"><div class="chase-backdrop"><img src="assets/chase-forest.webp" alt="" /></div>' +
+      '<div class="chase-track"><span class="chase-dust dust-one"></span><span class="chase-dust dust-two"></span>' +
+      runner('wolf') + runner('rabbit') + '<span class="chase-brake-dust"></span></div><div class="quest-foreground"></div><div class="quest-light"></div></div>' +
       '<div class="chase-hud"><span class="chase-title"><i>🏁</i> THỎ LÁ CHẠY TRỐN</span><span class="chase-safe" data-chase-mistakes>' + mistakeCount(race) + '</span></div>' +
       '<div class="chase-meter" role="progressbar" aria-label="Khoảng cách an toàn với sói" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + safe + '"><span></span><b>AN TOÀN</b></div>' +
-      '<div class="chase-track" aria-hidden="true"><span class="chase-bush bush-one">🌿</span><span class="chase-bush bush-two">🌱</span><span class="chase-dust dust-one">✦</span><span class="chase-dust dust-two">✧</span>' +
-      runner('wolf') + runner('rabbit') + '<span class="chase-brake-dust"></span></div>' +
       '<div class="chase-feedback" data-chase-feedback aria-live="polite">' + race.feedback + '</div>' +
       '<div class="chase-outcome" data-chase-outcome aria-hidden="true"></div></section>';
   }
@@ -59,6 +60,7 @@ window.ChaseRun = (() => {
     }
     const root = document.querySelector('.chase-run');
     if (!root) return;
+    if (race.caught || race.escaped) window.QuestCinema?.resetCamera(root);
     root.style.setProperty('--rabbit-x', race.rabbitX + '%');
     root.style.setProperty('--wolf-x', race.wolfX + '%');
     root.style.setProperty('--safe', safePercent(race) + '%');
@@ -73,5 +75,5 @@ window.ChaseRun = (() => {
       root.querySelector('[data-chase-outcome]').textContent = race.caught ? 'SÓI BẮT KỊP THỎ LÁ!' : '🌟 THỎ LÁ ĐÃ THOÁT! 🌟';
     }
   }
-  return { createRace, playerFrame, answer, missLimit, catchDelay };
+  return { createRace, playerFrame, answer, missLimit, catchDelay, escapeDelay };
 })();
