@@ -4,6 +4,7 @@ const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const { URL } = require('url');
+const { options: seasonOptions } = require('../season-options.js');
 
 const MAX_DOC = 10 * 1024 * 1024;
 const MAX_IMAGE = 300 * 1024;
@@ -366,6 +367,7 @@ function createApiHandler(store, env = process.env) {
     return payload + '.' + crypto.createHmac('sha256', secret()).update(payload).digest('base64url');
   };
   const validToken = req => {
+    if (!env.TEACHER_PASSWORD) return false;
     const token = String(req.headers.authorization || '').replace(/^Bearer\s+/i, ''), [payload, sig, extra] = token.split('.');
     if (!payload || !sig || extra) return false;
     const expected = crypto.createHmac('sha256', secret()).update(payload).digest();
@@ -379,6 +381,19 @@ function createApiHandler(store, env = process.env) {
     const route = url.pathname;
     try {
       if (route === '/api/status' && req.method === 'GET') return json(res, 200, { storage: store.kind });
+      if (route === '/api/site-theme' && req.method === 'GET') {
+        const choice = await store.getData('siteTheme');
+        return json(res, 200, { season: choice?.season || null });
+      }
+      if (route === '/api/site-theme' && req.method === 'PUT') {
+        if (!auth(req, res)) return;
+        const { season } = JSON.parse((await readBody(req, 1000)).toString('utf8')) || {};
+        if (typeof season !== 'string' || !Object.hasOwn(seasonOptions, season)) {
+          return json(res, 400, { error: 'Cảnh nền này không có trong danh sách.' });
+        }
+        const choice = await store.updateData('siteTheme', { season: null }, () => ({ season }));
+        return json(res, 200, choice);
+      }
       if (route === '/api/login' && req.method === 'POST') {
         if (!env.TEACHER_PASSWORD) return json(res,503,{ error:'Chưa bật đăng nhập giáo viên. Thầy hãy đặt TEACHER_PASSWORD trong Railway → Variables rồi khởi động lại dịch vụ.' });
         const ip = getIp(req), now = Date.now(), old = failed.get(ip) || { times: [], lockedUntil: 0 };

@@ -102,7 +102,7 @@ function arenaReveal() {
   const it = ARENA.items[ARENA.i], t = getTopic(it._t);
   $$('.ar-opt').forEach(o => o.classList.add(o.dataset.arOpt === it.dapAn ? 'right' : 'dim'));
   const bl = $('#arBlank'); if (bl) { bl.textContent = it.dapAn; bl.classList.add('filled'); }
-  sfx('good'); speak(fullSentence(it));
+  stopSpeak(); sfx('good');
   $('.ar-timer').outerHTML = '<div class="ar-rule">💡 ' + (t ? md(t.quyTac[0]) : '') + '</div>';
   $('.ar-actions').outerHTML = '<div class="ar-award"><p>Đội nào trả lời đúng?<small>Bấm chọn – có thể chọn nhiều đội (phím 1–' + ARENA.teams.length + ')</small></p><div class="ar-teams">' +
     ARENA.teams.map((tm, k) => '<button class="ar-team" data-team="' + k + '" aria-pressed="false" style="--tc:' + tm.c + '">' + tm.icon + ' Đội ' + tm.name + '</button>').join('') +

@@ -1,76 +1,101 @@
-// Kiểm thử cảnh nền theo mùa: node tests/season_e2e.js [rộng] [cao]
-const { launch } = require('./cdp_driver.js');
-(async () => {
-  const [w, h] = [Number(process.argv[2] || 1366), Number(process.argv[3] || 800)];
-  const b = await launch(w, h); let pass = 0, fail = 0;
-  const ok = (c, n, x) => { c ? pass++ : fail++; console.log((c ? '  ✓ ' : '  ✗ ') + n + (c || !x ? '' : ' — ' + JSON.stringify(x))); };
+
+/* node tests/season_e2e.js [rộng] [cao] */
+'use strict';
+const { launch } = require('./cdp_driver');
+const { buildServer } = require('../server');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+
+async function until(browser, expression) {
+  for (let i = 0; i < 65; i++) {
+    if (await browser.eval('return Boolean(' + expression + ')')) return;
+    await browser.sleep(200);
+  }
+  throw Error('Đợi quá lâu: ' + expression);
+}
+
+async function main() {
+  const width = Number(process.argv[2] || 390), height = Number(process.argv[3] || 844);
+  const testDir = fs.mkdtempSync(path.join(os.tmpdir(), 'vuonchu-theme-'));
+  const password = 'kiem-thu-canh-nen';
+  let server, student, teacher;
   try {
-    await b.goto('index.html', 2200);
-    await b.eval(`for (let i=0;i<60 && typeof seasonId !== 'function';i++) {
-        await new Promise(resolve => setTimeout(resolve,150));
-      }
-      if (typeof seasonId !== 'function') throw Error('Không tải được Vườn Chữ: ' + location.href);
-      S.name = 'Bé Na'; S.avatar = '🦊'; db.onboarded = true; save(); hideWelcome(); render();`);
-    // tự động theo ngày
-    const auto = async d => b.eval(`window.NOEL_TODAY='${d}'; delete db.settings.season; db.settings.noel='auto'; save(); render(); return seasonId()`);
-    for (const [d, id] of [['2026-12-05', 'noel'], ['2027-01-20', 'tet'], ['2026-09-01', 'khaigiang'], ['2026-09-25', 'trungthu'], ['2026-11-05', 'nhagiao'], ['2026-06-10', 'thieunhi'], ['2026-04-10', 'none']])
-      ok(await auto(d) === id, 'Tự động ' + d + ' → ' + id);
-    await b.eval(`delete window.NOEL_TODAY; return 1`);
-    const painted = ['none', 'khaigiang', 'nhagiao', 'thieunhi'];
-    // bấm nút đổi nền trên Trang học
-    for (const id of ['tet', 'trungthu', 'khaigiang', 'nhagiao', 'thieunhi', 'noel', 'none']) {
-      await b.eval(`go('home'); return 1`); await b.sleep(250);
-      await b.eval(`document.querySelector('[data-season-pick="${id}"]').click(); return 1`); await b.sleep(500);
-      const r = await b.eval(`return { s: document.documentElement.dataset.season || '', noel: document.documentElement.classList.contains('noel'), sky: !!document.querySelector('.cd-sky'), fx: !!document.querySelector('.cd-fx'), snow: !!document.querySelector('canvas.noel-snow:not(.cd-fx)'), saved: db.settings.season, on: document.querySelector('.cd-chip.on')?.dataset.seasonPick }`);
-      ok(r.s === id && r.saved === id && r.on === id, 'Bấm ' + id + ' → đổi nền + lưu + chip sáng', r);
-      if (id !== 'noel') ok(r.sky && r.fx && !r.snow, id + ': có nền và hiệu ứng đúng cảnh', r);
-      if (id === 'noel') ok(r.snow && !r.sky, 'Noel: tuyết rơi, không có nền lễ hội khác', r);
-      if (painted.includes(id)) {
-        const artwork = await b.eval(`
-          const image = new Image();
-          image.src = SEASONS['${id}'].art;
-          await image.decode();
-          const fx = document.querySelector('canvas.cd-fx');
-          const before = fx.toDataURL();
-          await new Promise(resolve => setTimeout(resolve,300));
-          return { width:image.naturalWidth, behind:getComputedStyle(fx).zIndex === '0',
-            moves:before !== fx.toDataURL(), thumb:!!document.querySelector('.cd-chip.on .cd-preview'),
-            fits:document.documentElement.scrollWidth <= innerWidth };
-        `);
-        ok(artwork.width >= 1000 && artwork.behind && artwork.moves && artwork.thumb && artwork.fits,
-          id + ': tải tranh, xem trước, hiệu ứng chuyển động phía sau thẻ và vừa màn hình', artwork);
-        const vista = await b.eval(`
-          const button = document.querySelector('[data-cd-look]');
-          button.click();
-          const dialog = document.querySelector('.cd-look-card');
-          const clear = dialog && getComputedStyle(document.querySelector('.app-shell')).visibility === 'hidden';
-          dialog?.querySelector('.modal-close').click();
-          return clear && document.querySelector('#modalRoot').hidden && document.activeElement === button;
-        `);
-        ok(vista, id + ': xem tranh riêng và quay về đúng nút', vista);
-      }
-    }
-    // giữ qua tải lại + giảm chuyển động
-    await b.eval(`db.settings.season='tet'; save(); return 1`); await b.goto('index.html', 2200);
-    ok(await b.eval(`return document.documentElement.dataset.season`) === 'tet', 'Tải lại vẫn giữ cảnh Tết');
-    const moving = async () => b.eval(`const c=document.querySelector('.cd-fx'); const a=c.getContext('2d').getImageData(0,0,c.width,c.height).data; let s=0; for(let i=0;i<a.length;i+=97)s+=a[i+3]; await new Promise(r=>setTimeout(r,700)); const d=c.getContext('2d').getImageData(0,0,c.width,c.height).data; let t=0; for(let i=0;i<d.length;i+=97)t+=d[i+3]; return s!==t`);
-    ok(await moving(), 'Cánh hoa Tết đang chuyển động');
-    await b.eval(`document.body.classList.add('calm'); return 1`); await b.sleep(400);
-    ok(!(await moving()), 'Giảm chuyển động → đứng yên');
-    // Cài đặt có bộ chọn
-    await b.eval(`document.body.classList.remove('calm'); go('settings'); return 1`); await b.sleep(400);
-    ok(await b.eval(`return document.querySelectorAll('.set-card [data-season-pick]').length`) >= 8, 'Cài đặt có bộ chọn cảnh nền');
-    const gardenNight = await b.eval(`
-      db.settings.theme = 'night';
-      const button = document.querySelector('[data-season-pick=none]');
-      button.focus(); button.click();
-      await new Promise(resolve => setTimeout(resolve,150));
-      return { theme:document.documentElement.dataset.theme, focus:document.activeElement.dataset.seasonPick,
-        meta:document.querySelector('meta[name=theme-color]').content };
+    server = await buildServer({ env: { TEACHER_PASSWORD: password, SESSION_SECRET: 'test-theme-local-only' }, dataDir: testDir });
+    const addr = await server.listen(0, '127.0.0.1');
+    const base = 'http://127.0.0.1:' + addr.port + '/';
+    const endpoint = base + 'api/site-theme';
+    assert.deepEqual(await (await fetch(endpoint)).json(), { season: null });
+    const unauthenticated = await fetch(endpoint, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: '{"season":"tet"}' });
+    assert.equal(unauthenticated.status, 401);
+    assert.deepEqual(await (await fetch(endpoint)).json(), { season: null });
+
+    student = await launch(width, height);
+    await student.goto(base, 2400);
+    await until(student, 'window.SeasonCatalog && window.StoryQuest');
+    const initial = await student.eval(`
+      db.onboarded = true; if (typeof hideWelcome === 'function') hideWelcome(); closeModal(); save();
+      const noChoice = () => !document.querySelector('[data-season-pick], [data-set=noel]');
+      go('home'); const home = noChoice();
+      go('settings'); const settings = noChoice();
+      const initial = seasonId();
+      window.NOEL_TODAY = '2027-09-25';
+      render();
+      return { home, settings, initial, after: seasonId() };
     `);
-    ok(gardenNight.theme === 'night' && gardenNight.focus === 'none' && gardenNight.meta === '#112a20',
-      'Vườn xanh ở chế độ đêm giữ tiêu điểm và dùng màu thanh trạng thái riêng', gardenNight);
-    ok(b.errors.length === 0, 'Không có lỗi JS', b.errors);
-  } finally { await b.close(); }
-  console.log(`\n${pass} đạt, ${fail} lỗi`); process.exit(fail ? 1 : 0);
-})();
+    assert.ok(initial.home && initial.settings);
+    assert.equal(initial.initial, initial.after);
+
+    teacher = await launch(width, height);
+    await teacher.goto(base + 'giao-vien/#giao-dien', 2200);
+    await teacher.eval('document.querySelector("#loginPass").value=' + JSON.stringify(password) + ';document.querySelector("#loginForm").requestSubmit()');
+    await until(teacher, 'document.querySelectorAll(".teacher-theme-choice input").length === 7');
+
+    const selected = initial.initial === 'tet' ? 'trungthu' : 'tet';
+    await student.eval(`
+      startQuiz({ kind:'quick', title:'Bài đang làm', items:[{ loai:'chon', de:'Bé đọc ___ách.', dapAn:'s', luaChon:['s','x'] }] });
+      document.querySelector('[data-answer="s"]').click();
+      window.openQuiz = Q;
+    `);
+    const choose = season => teacher.eval('document.querySelector("input[name=season][value=\\"' + season + '\\"]").click()');
+    await choose(selected);
+    assert.equal(await student.eval('return seasonId()'), initial.initial);
+    assert.deepEqual(await (await fetch(endpoint)).json(), { season: null });
+    await teacher.eval('document.querySelector(".theme-form").requestSubmit()');
+    await until(teacher, 'document.querySelector(".theme-form [role=status]").textContent.includes("Đã công bố")');
+    await until(student, 'document.documentElement.dataset.season === ' + JSON.stringify(selected));
+    assert.equal(await student.eval(`return Q === openQuiz && Q.i === 0 && document.querySelector('[data-answer="s"]').classList.contains('is-sel')`), true);
+
+    const storage = await teacher.eval('return sessionStorage.getItem("vuonchu.teacherToken")');
+    const headers = { Authorization: 'Bearer ' + storage, 'Content-Type': 'application/json' };
+    assert.equal((await fetch(endpoint, { method:'PUT', headers, body:'{"season":"invalid"}' })).status, 400);
+    for (const season of ['noel','khaigiang','nhagiao','thieunhi','trungthu','none']) {
+      const saved = await fetch(endpoint, { method:'PUT', headers, body:JSON.stringify({ season }) });
+      assert.equal(saved.status, 200);
+      await student.eval('dispatchEvent(new Event("focus"))');
+      await until(student, 'document.documentElement.dataset.season === ' + JSON.stringify(season));
+      const shown = await student.eval('return { snow: !!document.querySelector(".noel-snow:not(.cd-fx)"), scene: !!document.querySelector(".cd-sky.cd-' + season + '"), fx: !!document.querySelector(".cd-fx") }');
+      assert.deepEqual(shown, { snow: season === 'noel', scene: season !== 'noel', fx: season !== 'noel' });
+    }
+    const out = path.join('qa-results','vuon-truyen'); fs.mkdirSync(out,{ recursive:true });
+    await teacher.shot(path.join(out, 'teacher-theme-' + width + '.png'));
+
+    // Mất endpoint tại lúc tải lại vẫn dùng được cảnh đã công bố gần nhất.
+    await student.send('Page.addScriptToEvaluateOnNewDocument', { source: `
+      const liveFetch = window.fetch;
+      window.fetch = (url, ...opts) => url === '/api/site-theme' ? Promise.reject(Error('offline')) : liveFetch(url, ...opts);
+    ` });
+    await student.goto(base, 2400);
+    assert.equal(await student.eval('return seasonId()'), 'none');
+    assert.deepEqual(student.errors, []);
+    assert.deepEqual(teacher.errors, []);
+    console.log(width + '×' + height + ': giáo viên công bố, học sinh tự nhận, giữ bài đang làm và nền khi mất kết nối.');
+  } finally {
+    if (teacher) await teacher.close();
+    if (student) await student.close();
+    if (server) await server.close();
+    fs.rmSync(testDir, { recursive: true, force: true });
+  }
+}
+main().catch(error => { console.error(error); process.exitCode = 1; });

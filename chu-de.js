@@ -1,27 +1,14 @@
-/* Cảnh nền theo mùa / ngày lễ – Claude Code (đợt 15). Nạp SAU noel.js.
-   Học sinh chạm một biểu tượng (🎄 🧧 🌕 🏫 💐 🎈) là cả web đổi sang cảnh nền ĐỘNG của ngày lễ đó:
-   • Giáng sinh – tuyết rơi, cây thông (noel.js)
-   • Tết – tranh cả nhà quây quần bên nồi bánh chưng, ngọn lửa bập bùng, đèn lồng phát sáng, hoa đào – hoa mai rơi, pháo hoa
-   • Trung thu – trăng rằm, đèn ông sao phát sáng, đom đóm, đèn lồng bay lên
-   • Khai giảng – sân trường, mây trôi, máy bay giấy
-   • 20/11 – tranh tri ân thầy cô, cánh hoa và ánh nắng hiên thư viện
-   • Thiếu nhi – hội thả diều, bong bóng và mặt biển lấp lánh
-   • Vườn xanh – thỏ đọc sách bên suối, bướm và đom đóm
-   Tự động theo ngày (Cài đặt → Cảnh nền); “Giảm chuyển động” → mọi thứ đứng yên.
-   Cách nối với phần Noel cũ: mọi mùa đều dùng bộ áo “html.noel” (một bầu trời liền mạch cho mọi trang) nhưng đổi bảng màu
-   bằng html[data-season=…]; riêng tuyết, cây thông, dây đèn, mũ Noel, Lịch Noel chỉ chạy khi mùa là Noel (noelOn()). */
+/* Cảnh nền học sinh lấy từ lựa chọn do giáo viên công bố. Nạp sau noel.js. */
 'use strict';
 (function () {
-  const SEASONS = {
-    noel:      { icon: '🎄', name: 'Giáng sinh', meta: '#b31c35', hint: 'Tuyết rơi, cây thông' },
-    tet:       { icon: '🧧', name: 'Tết',        meta: '#8f1620', hint: 'Cả nhà quây quần bên lửa', art: 'assets/le-hoi-0.webp', fx: 'petal', ax: .55 },
-    trungthu:  { icon: '🌕', name: 'Trung thu',  meta: '#3a1d6b', hint: 'Trăng rằm, đèn ông sao', art: 'assets/le-hoi-1.webp', fx: 'firefly', ax: .5 },
-    khaigiang: { icon: '🏫', name: 'Khai giảng', meta: '#24567a', nightMeta: '#0f2748', art: 'assets/canh-khai-giang.webp', fx: 'balloon' },
-    nhagiao:   { icon: '💐', name: '20/11',      meta: '#673b66', nightMeta: '#4a1330', art: 'assets/canh-nha-giao.webp', fx: 'rose' },
-    thieunhi:  { icon: '🎈', name: 'Thiếu nhi',  meta: '#146773', nightMeta: '#07384a', art: 'assets/canh-thieu-nhi.webp', fx: 'bubble', mobileX: .31 },
-    none:      { icon: '🌱', name: 'Vườn xanh', meta: '#235b41', nightMeta: '#112a20', art: 'assets/canh-vuon-xanh.webp', fx: 'firefly', mobileX: .26 }
-  };
-  const ORDER = ['noel', 'tet', 'trungthu', 'khaigiang', 'nhagiao', 'thieunhi', 'none'];
+  const { options: SEASONS, cacheKey } = SeasonCatalog;
+  const initialKey = 'vuonchu.initialSeason';
+  const validSeason = value => typeof value === 'string' && Object.hasOwn(SEASONS, value);
+  function readSeason(key) {
+    try { const value = localStorage.getItem(key); return validSeason(value) ? value : null; }
+    catch { return null; }
+  }
+  function cacheSeason(key, value) { try { localStorage.setItem(key, value); } catch {} }
   const IMG = { w: 1120, h: 747 };
   const today = () => window.NOEL_TODAY ? new Date(window.NOEL_TODAY) : new Date();
   const calm = () => document.body.classList.contains('calm') || (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
@@ -37,13 +24,17 @@
     if ((m === 5 && day >= 15) || m === 6 || m === 7 || (m === 8 && day < 20)) return 'thieunhi';
     return 'none';
   }
-  function seasonId() {
+  function previousSeason() {
     const s = db.settings.season;
-    if (s && s !== 'auto') return SEASONS[s] ? s : 'none';
+    if (validSeason(s)) return s;
     if (db.settings.noel === 'off') return 'none';
     if (db.settings.noel === 'on') return 'noel';
     return autoSeason();
   }
+  const initial = readSeason(initialKey) || previousSeason();
+  cacheSeason(initialKey, initial);
+  let published = readSeason(cacheKey);
+  function seasonId() { return published || initial; }
   window.seasonId = seasonId;
   window.SEASONS = SEASONS;
   window.noelOn = () => seasonId() === 'noel';        // phần “Noel” cũ (tuyết, lịch, người tuyết…) chỉ chạy đúng mùa Noel
@@ -228,43 +219,7 @@
   }
   function removeScene() { document.querySelector('.cd-sky')?.remove(); fireAt = null; }
 
-  /* ---------- Thẻ đổi cảnh nền (Trang học + Cài đặt) ---------- */
-  function chips(cur, withAuto) {
-    const auto = db.settings.season == null || db.settings.season === 'auto';
-    const items = ORDER.map(id => [id, SEASONS[id].icon, SEASONS[id].name]);
-    if (withAuto) items.unshift(['auto', '🗓️', 'Tự động']);
-    return items.map(([id, ic, nm]) => {
-      const selected = id === 'auto' ? auto : !auto && id === cur;
-      const preview = accents[id] ? '<span class="cd-preview" aria-hidden="true"></span>' : '<span class="cd-ic" aria-hidden="true">' + ic + '</span>';
-      return '<button class="cd-chip' + (selected ? ' on' : '') + '" data-season-pick="' + id + '" aria-pressed="' + selected + '">' +
-        preview + '<b>' + nm + '</b></button>';
-    }).join('');
-  }
-  function pickCard() {
-    const cur = seasonId(), nm = (SEASONS[cur] || { name: 'Vườn xanh' }).name;
-    const look = accents[cur] ? '<button class="cd-look-btn" type="button" data-cd-look>Ngắm cảnh</button>' : '';
-    return '<section class="cd-pick" aria-label="Đổi cảnh nền"><div class="cd-pick-head"><h2>🎨 Đổi cảnh nền</h2><p>Đang dùng <b>' + nm + '</b></p>' +
-      look + '</div><div class="cd-chips">' + chips(cur, true) + '</div></section>';
-  }
-  function pickSeason(id) {
-    const restoreFocus = document.activeElement?.dataset.seasonPick === id;
-    db.settings.season = id; if (id !== 'auto') db.settings.noel = 'auto'; save();
-    if (typeof sfx === 'function') sfx('tap'); render();
-    if (restoreFocus) document.querySelector('[data-season-pick="' + id + '"]')?.focus({ preventScroll:true });
-    const nm = id === 'auto' ? 'Tự động theo ngày' : (SEASONS[id] ? SEASONS[id].name : 'Vườn xanh'); if (typeof toast === 'function') toast((id === 'auto' ? '🗓️ ' : (SEASONS[id] ? SEASONS[id].icon : '🌱') + ' ') + 'Cảnh nền: ' + nm);
-  }
-  function bindPick(root) {
-    root.querySelectorAll('[data-season-pick]').forEach(b => b.onclick = () => pickSeason(b.dataset.seasonPick));
-    const look = root.querySelector('[data-cd-look]');
-    if (!look) return;
-    look.onclick = () => {
-      openModal(SEASONS[seasonId()].name, '', '', 'cd-look-card');
-      document.querySelector('.cd-look-card .modal-close').focus();
-      onModalClose = () => look.focus({ preventScroll:true });
-    };
-  }
-
-  function apply(view) {
+  function apply() {
     const id = seasonId(), root = document.documentElement;
     root.classList.add('noel'); // Dùng chung lớp đặt màu và xếp chồng của các cảnh.
     root.classList.toggle('cd-painted', Boolean(accents[id]));
@@ -280,19 +235,6 @@
     if (curId !== id || (id !== 'noel' && !document.querySelector('.cd-sky'))) {
       if (id !== 'noel') { buildScene(id); startFx(SEASONS[id].fx, id); } else { removeScene(); stopFx(); curId = id; }
     }
-    const v = view || currentView;
-    if (v === 'home' && !document.querySelector('.cd-pick')) {
-      const anchor = document.querySelector('.voyage-actions');
-      if (anchor) { anchor.insertAdjacentHTML('afterend', pickCard()); bindPick(document.querySelector('.cd-pick')); }
-    }
-    if (v === 'settings') { // thay hàng “Trang trí Giáng sinh” bằng bộ chọn cảnh nền
-      const old = document.querySelector('.settings-grid [data-set="noel"]'), row = old && old.closest('.set-row');
-      if (row && !row.dataset.cd) {
-        row.dataset.cd = '1'; row.classList.add('cd-set-row');
-        row.innerHTML = '<span><b>🎨 Cảnh nền ngày lễ</b><small>Chạm để đổi nền động: Noel, Tết, Trung thu, Khai giảng, 20/11, Thiếu nhi. “Tự động” đổi theo ngày thật.</small></span><div class="cd-chips">' + chips(seasonId(), true) + '</div>';
-        bindPick(row);
-      }
-    }
   }
   if (typeof AFTER_RENDER !== 'undefined') AFTER_RENDER.push(apply);
   function syncMotion() {
@@ -302,6 +244,42 @@
   new MutationObserver(syncMotion).observe(document.body, { attributes: true, attributeFilter: ['class'] });
   window.matchMedia('(prefers-reduced-motion: reduce)').addEventListener('change', syncMotion);
   window.applySeason = apply;
-  apply(currentView);
-  if (typeof applyNoel === 'function') applyNoel(currentView);
+  function refreshTheme() {
+    apply();
+    window.applyNoel?.(currentView);
+  }
+  function acceptPublished(season) {
+    if (!validSeason(season) || season === published) return;
+    published = season;
+    refreshTheme();
+  }
+  let checking = false, endpointMissing = false;
+  async function syncTheme() {
+    if (checking || endpointMissing || !navigator.onLine || document.hidden || !location.protocol.startsWith('http')) return;
+    checking = true;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 6000);
+    try {
+      const response = await fetch('/api/site-theme', { cache: 'no-store', signal: controller.signal });
+      if (response.status === 404) endpointMissing = true;
+      if (!response.ok) return;
+      const { season } = await response.json();
+      if (validSeason(season)) {
+        cacheSeason(cacheKey, season);
+        acceptPublished(season);
+      }
+    } catch {
+      // Khi mất mạng, giữ lựa chọn gần nhất.
+    } finally {
+      clearTimeout(timeout);
+      checking = false;
+    }
+  }
+  addEventListener('storage', event => { if (event.key === cacheKey) acceptPublished(event.newValue); });
+  addEventListener('online', syncTheme);
+  addEventListener('focus', syncTheme);
+  document.addEventListener('visibilitychange', syncTheme);
+  setInterval(syncTheme, 10000);
+  refreshTheme();
+  syncTheme();
 })();

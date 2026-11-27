@@ -39,6 +39,13 @@ async function runStore(kind, env, dataDir, cleanup = async () => {}) {
     const wrong = await post('/api/login',{password:'khong-dung'},{'x-forwarded-for':'wrong-login-check'});
     check(wrong.response.status === 401 && /chưa đúng/.test(wrong.body.error),kind + ': mật khẩu sai');
 
+    const readTheme = () => call('/api/site-theme');
+    const setTheme = (season, headers = {}) => call('/api/site-theme', { method:'PUT', headers:{ 'Content-Type':'application/json', ...headers }, body:JSON.stringify({ season }) });
+    check((await readTheme()).body.season === null, kind + ': chưa có cảnh nền được công bố');
+    check((await setTheme('tet')).response.status === 401, kind + ': chỉ giáo viên công bố cảnh nền');
+    check((await setTheme('tet', bearer)).response.status === 200 && (await readTheme()).body.season === 'tet', kind + ': cảnh giáo viên công bố dùng chung');
+    check((await setTheme('invalid', bearer)).response.status === 400 && (await readTheme()).body.season === 'tet', kind + ': lựa chọn sai giữ nguyên nền hiện tại');
+
     const unauth = await post('/api/questions',{type:'choice',topic:'lop-1',grades:[1],prompt:'Đề',answer:'đúng',choices:['đúng','sai']});
     check(unauth.response.status === 401,kind + ': chỉ giáo viên sửa kho câu hỏi');
     const q = {type:'choice',topic:'ma-chu-de-moi',grades:[1,2],prompt:'Em dùng gì để cắt giấy?',answer:'cái kéo',choices:['cái kéo','cái céo'],note:'Đọc dấu hỏi.',active:true};

@@ -2,7 +2,7 @@
    Học theo Santa's Village của Google (mỗi ngày mở một điều bất ngờ tới 24/12) và các trang học tập
    cho thiếu nhi mùa lễ: tuyết rơi nhẹ, rặng thông phủ tuyết, dây đèn nhấp nháy, mũ Noel cho bạn đồng hành,
    đồ trang trí Noel trong Vườn của em và “Lịch Noel” 24 ô.
-   Bật/tắt: Cài đặt → Hiển thị → Trang trí Giáng sinh (Tự động = 15/11 → 10/1). Chế độ “Giảm chuyển động”
+   Cảnh Giáng sinh được giáo viên công bố. Chế độ “Giảm chuyển động”
    hoặc máy đặt prefers-reduced-motion → tuyết đứng yên, đèn không nhấp nháy. */
 'use strict';
 (function () {
@@ -238,7 +238,11 @@
     const on = noelOn();
     document.documentElement.classList.toggle('noel', Boolean(window.seasonId) || on); // Bộ áo chung của các cảnh. Tuyết chỉ chạy vào Noel.
     noelWords(on); syncMeta();
-    if (!on) { stopSnow(); stopSleigh(); const sc = document.querySelector('.noel-scene'); if (sc) sc.remove(); const li = document.querySelector('.noel-lights'); if (li) li.remove(); return; }
+    if (!on) {
+      stopSnow(); stopSleigh();
+      document.querySelectorAll('.noel-scene, .noel-lights, .advent').forEach(node => node.remove());
+      return;
+    }
     ensureScene(); ensureLights(); startSnow();
     if (!sleighTimer && !calm()) scheduleSleigh(true);
     if ((view || currentView) === 'home') {

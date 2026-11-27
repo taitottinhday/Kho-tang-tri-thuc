@@ -37,7 +37,6 @@
       '<div class="btn-row"><button class="soft-btn" id="setTest">▶ Nghe thử</button></div></section>' +
       '<section class="set-card"><h2>🎨 Hiển thị</h2>' +
       '<div class="set-row"><span><b>Giao diện</b><small>Ban đêm dịu mắt hơn khi học buổi tối</small></span>' + seg('theme', c.theme, 'Giao diện', [['auto', 'Tự động'], ['day', '☀️ Ngày'], ['night', '🌙 Đêm']]) + '</div>' +
-      '<div class="set-row"><span><b>🎄 Trang trí Giáng sinh</b><small>Tuyết rơi, cây thông, Lịch Noel. Tự động: 15/11 → 10/1</small></span>' + seg('noel', c.noel || 'auto', 'Trang trí Giáng sinh', [['auto', 'Tự động'], ['on', 'Bật'], ['off', 'Tắt']]) + '</div>' +
       toggle('bigText', c.bigText, 'Chữ lớn', 'Phóng to chữ và nút cho dễ đọc, dễ bấm') +
       toggle('calm', c.calm, 'Giảm chuyển động', 'Tắt pháo giấy và hiệu ứng nhún nhảy') + '</section>' +
       '<section class="set-card"><h2>🩺 Kiểm tra âm thanh</h2><p class="small-print">Bấm lần lượt 2 nút. Nghe được tiếng chuông mà không nghe được giọng đọc → lỗi giọng đọc của trình duyệt. Không nghe được cả hai → kiểm tra loa, âm lượng của máy.</p>' +

@@ -243,7 +243,9 @@ if ('speechSynthesis' in window) {
   findVoice();
   speechSynthesis.onvoiceschanged = () => { findVoice(); if ((currentView === 'teacher' && teacherOK) || currentView === 'settings') render(); };
 }
+let speechTimer = 0;
 function speak(text, rate, retried) {
+  clearTimeout(speechTimer);
   if (!db.settings.sound) {
     if (Date.now() - mutedHintAt > 8000) { mutedHintAt = Date.now(); toast('🔇 Âm thanh đang tắt – bấm nút 🔇 ở góc trên để bật lại.'); }
     return;
@@ -252,7 +254,7 @@ function speak(text, rate, retried) {
   if (!viVoice) findVoice();
   if (!viVoice && !IS_IOS) {
     // Danh sách giọng có thể chưa tải xong ở lần bấm đầu: chờ một nhịp rồi thử lại đúng 1 lần
-    if (!voicesReady && !retried) { setTimeout(() => speak(text, rate, true), 500); return; }
+    if (!voicesReady && !retried) { speechTimer = setTimeout(() => speak(text, rate, true), 500); return; }
     noVoiceHelp(); return;
   }
   const synth = speechSynthesis;
@@ -278,10 +280,13 @@ function speak(text, rate, retried) {
     try { synth.resume(); } catch (e) {}
     synth.speak(u);
   } else if (!busy) { synth.resume(); synth.speak(u); }
-  else setTimeout(() => { synth.resume(); synth.speak(u); }, 60);
+  else speechTimer = setTimeout(() => { synth.resume(); synth.speak(u); }, 60);
 }
 const speakQueue = [];
-function stopSpeak() { if ('speechSynthesis' in window) speechSynthesis.cancel(); }
+function stopSpeak() {
+  clearTimeout(speechTimer);
+  if ('speechSynthesis' in window && (speechSynthesis.speaking || speechSynthesis.pending)) speechSynthesis.cancel();
+}
 
 /* ============================== HIỆU ỨNG ============================== */
 let toastTimer;
@@ -499,7 +504,7 @@ function gardenCard() {
     '<div class="daily-progress"><span style="width:' + (nx ? pct(S.xp - st.xp, nx.xp - st.xp) : 100) + '%"></span></div>' +
     (typeof gardenMini === 'function' ? gardenMini() : '') + '</div>';
 }
-/* Mùa Noel: 'auto' = từ 15/11 đến 10/1; thầy cô/học sinh bật tắt trong Cài đặt → Hiển thị */
+/* Dùng nền cũ trong lúc chưa nạp lựa chọn của giáo viên từ chu-de.js. */
 function noelOn() {
   const m = db.settings.noel || 'auto';
   if (m === 'on') return true; if (m === 'off') return false;
@@ -1109,6 +1114,7 @@ function openPlayer(html) {
 function renderItem() {
   if (!Q) return;
   if (Q.i >= Q.items.length) { finishQuiz(); return; }
+  stopSpeak();
   Q.answered = false; Q.evaluate = null;
   const it = Q.items[Q.i];
   if (it.loai === 'classQuestion') ClassPractice.show(it);
@@ -1125,7 +1131,9 @@ function useHint(it) {
   const key = it.loai === 'chon' ? it.dapAn : it.loai === 'ngheChon' ? it.word : null;
   const wrong = key == null ? [] : $$('[data-answer]').filter(b => b.dataset.answer !== key && !b.disabled);
   let msg = '';
-  if (wrong.length >= 2) {
+  if (Q.kind === 'storybook' && it.giaiThich) {
+    msg = esc(it.giaiThich);
+  } else if (wrong.length >= 2) {
     const b = pick(wrong);
     if (b.classList.contains('is-sel')) { setReady(null); const bl = $('#blank'); if (bl) bl.textContent = '?'; }
     b.disabled = true; b.classList.remove('is-sel'); b.classList.add('removed');
@@ -1146,12 +1154,14 @@ function useHint(it) {
 }
 function doCheck() {
   if (!Q || Q.answered || !Q.evaluate) return;
+  stopSpeak();
   const it = Q.items[Q.i];
   Q.answered = true;
   const res = Q.evaluate();
   Q.log.push({ lv: it._lv, right: res.right });
   record(it, res.right);
   if (Q.kind === 'adaptive' && window.ChaseRun) window.ChaseRun.answer(Q, res.right);
+  if (Q.kind === 'storybook') res.storyPraise = StoryQuest.react(Q, res.right);
   if (Q.lives != null && !res.right) {
     Q.lives = Math.max(0, Q.lives - 1);
     const l = $('#plLives'); if (l) l.outerHTML = livesHtml();
@@ -1164,11 +1174,14 @@ function doCheck() {
 function showSheet(res) {
   const sh = $('#plSheet'), caught = Q.race?.caught;
   const last = Q.i + 1 >= Q.items.length || (Q.lives != null && Q.lives <= 0);
-  const retryStory = Q.kind === 'storybook' && !res.right;
+  const story = Q.kind === 'storybook';
+  const praise = res.storyPraise || (res.right ? pick(PRAISE) : pick(ENCOURAGE));
+  const nextLabel = story ? (res.right ? (last ? 'Nhận bảo vật' : 'Đi qua chốt →') : 'Thử lại ở chốt này')
+    : caught || (Q.lives != null && Q.lives <= 0) ? 'Xem kết quả' : last ? 'Xem kết quả 🎉' : 'Tiếp tục';
   sh.className = 'pl-sheet ' + (res.right ? 'good' : 'bad');
-  sh.innerHTML = '<div class="pl-sheet-in"><div class="pl-sheet-head"><span class="pl-sheet-icon">' + (res.right ? '✓' : '✕') + '</span><b>' + (res.right ? pick(PRAISE) : pick(ENCOURAGE)) + '</b>' + (res.right && Q.kind !== 'placement' ? '<span class="pl-gain">+10 XP</span>' : '') + '<span class="fb-mascot" aria-hidden="true">' + (res.right ? '🥳' : '🤗') + '</span></div>' +
+  sh.innerHTML = '<div class="pl-sheet-in"><div class="pl-sheet-head"><span class="pl-sheet-icon">' + (res.right ? '✓' : '✕') + '</span><b>' + esc(praise) + '</b>' + (res.right && Q.kind !== 'placement' ? '<span class="pl-gain">+10 XP</span>' : '') + '<span class="fb-mascot" aria-hidden="true">' + (res.right ? '🥳' : '🤗') + '</span></div>' +
     (res.html ? '<div class="pl-sheet-body">' + res.html + '</div>' : '') +
-    '<button class="pl-cont" id="plCont">' + (retryStory ? 'Thử lại để mở cảnh ✨' : caught || (Q.lives != null && Q.lives <= 0) ? 'Xem kết quả' : last ? 'Xem kết quả 🎉' : 'Tiếp tục') + '</button></div>';
+    '<button class="pl-cont" id="plCont">' + nextLabel + '</button></div>';
   sh.hidden = false; $('#plFoot').hidden = true;
   const cont = $('#plCont');
   cont.onclick = nextItem;
@@ -1183,11 +1196,16 @@ function showSheet(res) {
         if (cont.isConnected && !$('#quitAsk')) cont.focus({ preventScroll: true });
       }, ChaseRun.catchDelay);
     }
+  } else if (story) {
+    if (res.right) $('#modalRoot').scrollTop = 0;
+    cont.focus({ preventScroll: true });
   } else cont.focus();
-  if (res.say) speak(res.say);
 }
 function nextItem() { if (!Q) return; if (Q.race?.caught || (Q.lives != null && Q.lives <= 0)) { finishQuiz(); return; } if (Q.kind === 'storybook' && Q.log.length && !Q.log[Q.log.length - 1].right) { renderItem(); return; } Q.i++; renderItem(); }
-function ruleHint(it) { const t = getTopic(it._t); return t ? '<div class="pl-hint">💡 ' + md(it.giaiThich || t.quyTac[0]) + '</div>' : ''; }
+function ruleHint(it) {
+  const hint = it.giaiThich || getTopic(it._t)?.quyTac?.[0];
+  return hint ? '<div class="pl-hint">💡 ' + md(hint) + '</div>' : '';
+}
 function subtitle() { return Q.kind === 'lesson' ? LEVELS[Q.level] : (Q.subtitle || 'Luyện tập'); }
 function optionsHtml(opts, attr) {
   return '<div class="answer-options ' + (opts.every(o => o.length <= 6) ? 'short' : '') + '">' + opts.map((o, k) => '<button class="answer-option" ' + attr + '="' + esc(o) + '"><span class="option-letter">' + (k + 1) + '</span><span class="opt-text">' + esc(o) + '</span></button>').join('') + '</div>';
@@ -1276,7 +1294,9 @@ function renderNgheChon(it) {
 function cleanWord(w) { return w.replace(/[.,!?;:"“”()…]/g, ''); }
 function renderLoi(it) {
   const words = it.cau.split(' ');
-  openPlayer(playerShell('<p class="pl-ask">🔎 Chạm vào <b>chữ viết sai</b> trong câu, rồi bấm Kiểm tra:</p><div class="word-sentence">' +
+  const story = Q.kind === 'storybook';
+  const instruction = story ? 'Chạm vào <b>một chữ viết sai</b> trong đoạn.' : 'Chạm vào <b>chữ viết sai</b> trong câu, rồi bấm Kiểm tra:';
+  openPlayer(playerShell('<p class="pl-ask">🔎 ' + instruction + '</p><div class="word-sentence' + (story ? ' forest-reading' : '') + '">' +
     words.map((w, k) => '<button class="word-token" data-tok="' + k + '">' + esc(w) + '</button>').join('') + '</div>', it));
   $$('[data-tok]').forEach(b => b.onclick = () => {
     if (Q.answered) return; sfx('tap');
@@ -1285,6 +1305,7 @@ function renderLoi(it) {
     setReady(() => {
       const right = cleanWord(words[k]) === it.tuSai;
       $$('[data-tok]').forEach(x => { x.disabled = true; x.classList.remove('is-sel'); });
+      if (story && !right) { b.classList.add('incorrect'); return { right, html: ruleHint(it) }; }
       const target = $$('[data-tok]').find(x => cleanWord(words[Number(x.dataset.tok)]) === it.tuSai);
       if (target) { const w = words[Number(target.dataset.tok)]; target.innerHTML = '<s>' + esc(it.tuSai) + '</s> ' + esc(w.replace(it.tuSai, it.tuDung)); target.classList.add('found'); }
       if (!right) b.classList.add('incorrect');
@@ -1319,7 +1340,7 @@ function renderNghe(it) {
   $('#slow').onclick = () => speak(it.cau, 0.55);
   $('#peek').onclick = () => { const r = $('#reveal'); r.hidden = !r.hidden; };
   $('#dictIn').oninput = e => setReady(e.target.value.trim() ? () => checkNghe(it) : null);
-  setTimeout(() => { if (Q && Q.items[Q.i] === it) speak(it.cau, 0.8); }, 350);
+  setTimeout(() => { if (Q && Q.items[Q.i] === it && !Q.answered) speak(it.cau, 0.8); }, 350);
 }
 function checkNghe(it) {
   const typed = $('#dictIn').value, keepCase = it._t === 'viet-hoa';
@@ -1367,10 +1388,12 @@ function saveHistory(kind, topic, title, correct, total, assignmentId, grade = S
 function finishQuiz() {
   clearInterval(qTimer);
   const q = Q; if (!q) return;
+  stopSpeak();
   if (q.kind === 'placement') { finishPlacement(q); return; }
   const caught = q.race?.caught;
   const total = q.kind === 'speed' || caught ? q.log.length : q.items.length, acc = pct(q.correct, total);
   const failed = caught || (q.lives != null && q.lives <= 0) || (q.timeUp && q.kind !== 'speed');
+  const storyWon = q.kind === 'storybook' && !failed && q.correct === total;
   const beforeStage = gardenStage(S.xp);
   let xp = q.correct * 10, starsNow = 0, flowers = 0, passed = false, upTier = null;
   const extra = [], tier = TIERS[q.level] || TIERS.vua;
@@ -1397,10 +1420,7 @@ function finishQuiz() {
   if (q.kind === 'daily' && !(S.daily.day === dayKey() && S.daily.done)) { xp += 20; S.daily = { day: dayKey(), done: true }; extra.push('🎯 Hoàn thành thử thách hôm nay: +20 XP'); }
   if (q.kind === 'adaptive' && q.race?.escaped) extra.push('🐇 Thỏ Lá đã chạy thoát khỏi sói!');
   if (q.kind === 'adaptive' && !failed && acc >= 60 && S.adaptiveDay !== dayKey()) { S.adaptiveDay = dayKey(); xp += 15; flowers += 1; extra.push('🕵️ Thám tử chữ hoàn thành nhiệm vụ đầu ngày: +15 XP'); }
-  if (q.kind === 'storybook' && typeof StoryQuest !== 'undefined') {
-    const firstClear = StoryQuest.complete(q.storyId, !failed && q.correct >= total);
-    if (firstClear) { xp += 25; flowers += 2; extra.push('📖 Mở chương truyện tiếp theo · nhận +2 bông hoa!'); }
-  }
+  if (storyWon && StoryQuest.complete(q.storyId, true)) { xp += 25; flowers += 2; }
   if (q.kind === 'speed') { xp = q.correct * 5; if (q.correct > S.bestSpeed) { S.bestSpeed = q.correct; extra.push('🏆 Kỉ lục mới: ' + q.correct + ' điểm!'); } }
   if (failed && !caught) xp = Math.round(xp / 2);
   S.xp += xp; S.flowers += flowers;
@@ -1415,14 +1435,15 @@ function finishQuiz() {
   const afterStage = gardenStage(S.xp);
   const gated = q.kind === 'lesson' || q.kind === 'skip';
   const good = !failed && (q.kind === 'speed' ? q.correct >= 5 : gated ? passed : acc >= 60);
-  if (good) { sfx('win'); if (!award) confetti(); }
+  if (good) { sfx('win'); if (!award && !storyWon) confetti(); }
   const next = q.kind === 'lesson' && passed && !q.assignmentId ? nextTopic() : null;
   const head = q.kind === 'speed' ? (q.correct + ' điểm') : (q.correct + ' / ' + total + ' câu đúng');
-  const title = caught ? '🐺 Sói đã bắt kịp Thỏ Lá!' : q.race?.escaped ? '🐇 Thỏ Lá đã thoát khỏi sói!' : failed ? (q.timeUp ? '⏰ Hết giờ rồi!' : '💧 Cây khát nước rồi!') : q.kind === 'speed' ? (good ? 'Nhanh quá!' : 'Lần sau sẽ nhanh hơn!')
+  const title = storyWon ? '📖 Em đã qua tất cả các chốt!' : caught ? '🐺 Sói đã bắt kịp Thỏ Lá!' : q.race?.escaped ? '🐇 Thỏ Lá đã thoát khỏi sói!' : failed ? (q.timeUp ? '⏰ Hết giờ rồi!' : '💧 Cây khát nước rồi!') : q.kind === 'speed' ? (good ? 'Nhanh quá!' : 'Lần sau sẽ nhanh hơn!')
     : q.kind === 'lesson' ? (passed ? (acc === 100 ? 'Tuyệt vời! Qua mức ' + tier.name + ' không sai câu nào!' : 'Qua màn mức ' + tier.name + '! 🎉') : 'Mình luyện thêm chút nữa nhé!')
     : q.kind === 'skip' ? (passed ? '🚀 Em đã vượt cấp!' : 'Chưa đủ để vượt cấp')
     : acc === 100 ? 'Tuyệt vời! Không sai câu nào!' : acc >= 60 ? 'Bài làm tốt lắm!' : 'Mình luyện thêm chút nữa nhé!';
-  const msg = caught ? 'Lượt chạy dừng sau ' + q.race.mistakes + ' câu sai. Mình thử lại với câu hỏi mới để giúp Thỏ Lá chạy thoát nhé!'
+  const msg = storyWon ? 'Thỏ Lá cất bảo vật vào túi. Mình đi tiếp nhé!'
+    : caught ? 'Lượt chạy dừng sau ' + q.race.mistakes + ' câu sai. Mình thử lại với câu hỏi mới để giúp Thỏ Lá chạy thoát nhé!'
     : q.race?.escaped ? 'Em trả lời đúng tất cả câu hỏi nên Thỏ Lá đã chạy thật nhanh tới nơi an toàn!'
     : q.kind === 'adaptive' && q.correct < total ? 'Sói đã tiến gần hơn một chút. Mình luyện tiếp để giúp Thỏ Lá chạy xa hơn nhé!'
     : failed ? 'Không sao cả! Em ôn lại một chút rồi thử lại nhé, giọt nước sẽ đầy lại.'
@@ -1433,16 +1454,19 @@ function finishQuiz() {
   const body = '<div class="lesson-complete"><div class="result-mascot" aria-hidden="true">' + S.avatar + '</div><div class="complete-medal">' + medal + '</div>' +
     '<h3>' + title + '</h3><p>' + msg + '</p>' +
     '<div class="score-pills"><span>✅ ' + head + '</span><span>⭐ +' + xp + ' XP</span>' + (q.kind !== 'speed' ? '<span>🎯 ' + acc + '%</span>' : '') + '</div>' +
+    (storyWon ? StoryQuest.discovery(q.storyId) : '') +
     extra.map(x => '<div class="unlock-note">' + x + '</div>').join('') +
     StreakRoom.celebrate(prizes) +
     (afterStage !== beforeStage ? '<div class="unlock-note">' + afterStage.icon + ' Khu vườn của em đã lớn thành <b>' + afterStage.name + '</b>!</div>' : '') +
     fresh.map(b => '<div class="unlock-note badge-new">' + b.icon + ' Huy hiệu mới: <b>' + b.name + '</b></div>').join('') +
     '<div class="modal-actions center">' + (next ? '<button class="primary-btn big" id="goNext">Bài tiếp: ' + next.bieuTuong + ' ' + esc(next.ten) + ' →</button>' : '') +
+    (storyWon ? StoryQuest.nextAction(q.storyId) : '') +
     (upTier ? '<button class="soft-btn big" id="upTier">Lên mức ' + TIERS[upTier].name + ' ' + '★'.repeat(TIERS[upTier].stars) + '</button>' : '') +
     (q.kind === 'boss' && !failed && typeof showCertificate === 'function' ? '<button class="primary-btn big" id="getCert">📜 Nhận giấy khen</button>' : '') +
     '<button class="soft-btn" id="again">↻ ' + (failed ? 'Thử lại' : 'Làm lại') + '</button><button class="soft-btn" id="toMap">🗺️ Con đường</button><button class="' + (next ? 'soft-btn' : 'primary-btn big') + '" id="home">Về trang học</button></div></div>';
   openModal('Kết quả của em', head, body, 'result');
   Q = null;
+  if (storyWon) $('#storyNext').onclick = () => StoryQuest.follow(q.storyId);
   $('#again').onclick = () => {
     if (q.kind === 'adaptive' && window.StoryQuest?.beginAdaptive) { closeModal(); StoryQuest.beginAdaptive(); return; }
     if (q.kind === 'storybook' && typeof StoryQuest !== 'undefined') { StoryQuest.start(q.storyId); return; }

@@ -13,16 +13,9 @@ const fs = require('fs'), path = require('path');
       if (typeof seasonId !== 'function') throw Error('Không tải được Vườn Chữ: ' + location.href);
       S.name = 'Bé Na'; S.avatar = '🦊'; hideWelcome(); render();`);
     for (const id of ['noel', 'tet', 'trungthu', 'khaigiang', 'nhagiao', 'thieunhi', 'none']) {
-      await b.eval(`db.settings.season='${id}'; save(); go('${view}'); return 1`);
+      await b.eval(`dispatchEvent(new StorageEvent('storage', { key: SeasonCatalog.cacheKey, newValue:'${id}' })); go(${JSON.stringify(view)});`);
       await b.sleep(1600);
       await b.shot(path.join(out, `${id}-${view}-${w}.png`));
-      const preview = await b.eval(`const button = document.querySelector('[data-cd-look]');
-        if (!button) return false; button.click(); return true;`);
-      if (preview) {
-        await b.sleep(300);
-        await b.shot(path.join(out, `${id}-preview-${w}.png`));
-        await b.eval(`closeModal();`);
-      }
     }
     console.log('errors:', b.errors, b.consoleMsgs);
   } finally { await b.close(); }

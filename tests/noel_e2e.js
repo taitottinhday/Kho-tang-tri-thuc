@@ -10,6 +10,7 @@ const fs = require('fs');
   const wait = ms => b.sleep(ms);
   try {
     await b.goto('index.html', 2500);
+    await b.eval(`window.setTestSeason = season => dispatchEvent(new StorageEvent('storage', { key:SeasonCatalog.cacheKey, newValue:season })); setTestSeason('noel');`);
     await b.eval(`document.querySelector('#wlCreate').click(); await new Promise(r=>setTimeout(r,300));
       document.querySelector('#nameInput').value='Bé Na'; document.querySelector('[data-char="🦊"]')?.click();
       document.querySelector('#saveProfile').click(); await new Promise(r=>setTimeout(r,400));
@@ -118,12 +119,12 @@ const fs = require('fs');
       const cls = document.body.classList.contains('calm'); sw.click(); await new Promise(r=>setTimeout(r,300)); const d2 = c.toDataURL(); await new Promise(r=>setTimeout(r,300)); return { cls, same, movingAgain: d2 !== c.toDataURL(), calmAfter: document.body.classList.contains('calm') };`);
     ok(calm.cls && calm.same && calm.movingAgain && !calm.calmAfter, 'Công tắc Giảm chuyển động: tuyết đứng yên ngay, tắt thì rơi lại', calm);
     // 10. Tắt Noel → về giao diện thường, bật lại được
-    const off = await b.eval(`db.settings.noel = 'off'; render(); await new Promise(r=>setTimeout(r,200)); const r1 = { noel: noelOn(), snow: !!document.querySelector('.noel-snow:not(.cd-fx)'), meta: document.querySelector('meta[name=theme-color]').content, praise: PRAISE.length };
-      db.settings.noel = 'auto'; render(); await new Promise(r=>setTimeout(r,200)); return Object.assign(r1, { back: document.documentElement.classList.contains('noel'), meta2: document.querySelector('meta[name=theme-color]').content, praise2: PRAISE.length });`);
+    const off = await b.eval(`setTestSeason('none'); render(); await new Promise(r=>setTimeout(r,200)); const r1 = { noel: noelOn(), snow: !!document.querySelector('.noel-snow:not(.cd-fx)'), meta: document.querySelector('meta[name=theme-color]').content, praise: PRAISE.length };
+      setTestSeason('noel'); render(); await new Promise(r=>setTimeout(r,200)); return Object.assign(r1, { back: document.documentElement.classList.contains('noel'), meta2: document.querySelector('meta[name=theme-color]').content, praise2: PRAISE.length });`);
     ok(!off.noel && !off.snow && off.meta === '#235b41' && off.back && off.meta2 === '#b31c35' && off.praise2 === off.praise + 3, 'Chuyển từ Noel về Vườn xanh và trở lại đúng (tuyết, màu thanh trạng thái, lời khen)', off);
-    await b.eval(`db.settings.noel = 'off'; go('games'); await new Promise(r=>setTimeout(r,300)); return 1;`);
+    await b.eval(`setTestSeason('none'); go('games'); await new Promise(r=>setTimeout(r,300)); return 1;`);
     await b.shot(out + '/noel-off-games-' + w + '.png');
-    const night = await b.eval(`db.settings.noel = 'auto'; db.settings.theme = 'night'; render(); await new Promise(r=>setTimeout(r,300)); return { theme: document.documentElement.dataset.theme, meta: document.querySelector('meta[name=theme-color]').content };`);
+    const night = await b.eval(`setTestSeason('noel'); db.settings.theme = 'night'; render(); await new Promise(r=>setTimeout(r,300)); return { theme: document.documentElement.dataset.theme, meta: document.querySelector('meta[name=theme-color]').content };`);
     ok(night.theme === 'night' && night.meta === '#3b0c1a', 'Chế độ đêm + Noel: nền đỏ rượu vang, thanh trạng thái cùng màu', night);
     await b.shot(out + '/night-games-' + w + '.png');
     await b.eval(`db.settings.theme = 'day'; render(); go('home'); await new Promise(r=>setTimeout(r,300)); document.querySelector('#mobileMenu').click(); await new Promise(r=>setTimeout(r,400)); return 1;`);

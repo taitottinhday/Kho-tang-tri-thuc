@@ -352,7 +352,7 @@ function makeRunner(c, results) {
       await sleep(200); rec(w, 'kết quả bài', await lint());
       await c.ev("closeModal(); go('home'); 1"); await sleep(150);
       await step('giấy khen', "if (typeof showCertificate==='function') showCertificate({ grade: S.grade })"); await c.ev("closeModal(); 1");
-      await step('quà Lịch Noel', "window.NOEL_TODAY='2026-12-05T09:00:00'; S.history.unshift({d:dayKey(new Date(window.NOEL_TODAY)),kind:'lesson',topic:'x',acc:90}); render(); const a=document.querySelector('[data-adv=\"5\"]'); if(a) a.click()");
+      await step('quà Lịch Noel', "window.NOEL_TODAY='2026-12-05T09:00:00'; dispatchEvent(new StorageEvent('storage',{key:SeasonCatalog.cacheKey,newValue:'noel'})); S.history.unshift({d:dayKey(new Date(window.NOEL_TODAY)),kind:'lesson',topic:'x',acc:90}); render(); const a=document.querySelector('[data-adv=\"5\"]'); if(a) a.click()");
       await c.ev("closeModal(); 1"); await sleep(100); rec(w, 'trang chủ ngày 5/12', await lint());
       await c.ev("delete window.NOEL_TODAY; render(); 1");
       await step('Góc thầy cô: hỏi phép', "teacherOK=false; go('teacher')"); await c.ev("closeModal(); teacherOK=true; 1");
@@ -362,8 +362,9 @@ function makeRunner(c, results) {
       await step('học thử', "switchPlayer(); const g=document.getElementById('wlGuest'); if(g) g.click()");
     },
     async states(w) {
-      const STATES = { 'ban đêm': "db.settings.theme='night'", 'chữ lớn': "db.settings.bigText=true", 'tắt Noel': "db.settings.noel='off'", 'chữ lớn + đêm + tắt Noel': "db.settings.bigText=true; db.settings.theme='night'; db.settings.noel='off'",
-        'cảnh Tết': "db.settings.season='tet'", 'cảnh Trung thu': "db.settings.season='trungthu'", 'cảnh Khai giảng': "db.settings.season='khaigiang'", 'cảnh 20/11': "db.settings.season='nhagiao'", 'cảnh Thiếu nhi · chữ lớn': "db.settings.season='thieunhi'; db.settings.bigText=true", 'cảnh Tết · đêm': "db.settings.season='tet'; db.settings.theme='night'" };
+      const setScene = id => 'localStorage.setItem(SeasonCatalog.cacheKey,' + JSON.stringify(id) + ')';
+      const STATES = { 'ban đêm': "db.settings.theme='night'", 'chữ lớn': "db.settings.bigText=true", 'Vườn xanh': setScene('none'), 'chữ lớn + đêm + Vườn xanh': "db.settings.bigText=true; db.settings.theme='night';" + setScene('none'),
+        'cảnh Tết': setScene('tet'), 'cảnh Trung thu': setScene('trungthu'), 'cảnh Khai giảng': setScene('khaigiang'), 'cảnh 20/11': setScene('nhagiao'), 'cảnh Thiếu nhi · chữ lớn': setScene('thieunhi') + '; db.settings.bigText=true', 'cảnh Tết · đêm': setScene('tet') + "; db.settings.theme='night'" };
       await setSize(w);
       for (const [name, js] of Object.entries(STATES)) {
         await fresh(SEED_RICH); await c.ev(`(()=>{ ${js}; save(); return 1 })()`); await c.nav(BASE);

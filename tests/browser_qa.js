@@ -421,11 +421,13 @@
       browser.eval('closeModal()');
     }
     nav('home');
-    click('[data-season-pick=tet]');
+    check('Student home has no season selector', !el('[data-season-pick]'));
+    const publishedScene = id => browser.eval('dispatchEvent(new StorageEvent("storage",{key:SeasonCatalog.cacheKey,newValue:' + JSON.stringify(id) + '}))');
+    publishedScene('tet');
     check('Tết has its own scene and live canvas', doc().documentElement.dataset.season === 'tet' && el('.cd-art') && el('.cd-fx') && !el('.noel-lights'));
-    click('[data-season-pick=trungthu]');
+    publishedScene('trungthu');
     check('Mid-Autumn has its own scene', doc().documentElement.dataset.season === 'trungthu' && el('.cd-trungthu'));
-    click('[data-season-pick=noel]');
+    publishedScene('noel');
     check('Noel returns with snow', doc().documentElement.dataset.season === 'noel' && el('.noel-snow') && !el('.cd-fx'));
     frame.contentWindow.eval("const t = new Date(); t.setDate(t.getDate()-1); S.lastDay = dayKey(t); S.streak = 2; S.bestStreak = 2; StreakRoom.award(); save();");
     click('.streak-pill[data-view=streak]');
