@@ -220,7 +220,7 @@ function validateStudent(profile) {
   if (profile.wrongLog && typeof profile.wrongLog === 'object') for (const [key, value] of Object.entries(profile.wrongLog).slice(0, 50)) {
     if (key.length <= 140) wrongLog[key] = clampCount(value);
   }
-  return { id: String(profile.id), name, grade, avatar: text(profile.avatar, 16), xp: clampCount(profile.xp), streak: clampCount(profile.streak),
+  return { id: String(profile.id), name, grade, avatar: text(profile.avatar, 16), gender: ['nam', 'nu'].includes(profile.gender) ? profile.gender : '', xp: clampCount(profile.xp), streak: clampCount(profile.streak),
     bestStreak: clampCount(profile.bestStreak), lastDay: text(profile.lastDay, 24), attempts: clampCount(profile.attempts), correct: clampCount(profile.correct),
     topics, history, wrongLog, teacherNotes: [] };
 }

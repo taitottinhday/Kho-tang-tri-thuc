@@ -14,13 +14,20 @@ const CLASS_LIST = [
 ];
 const SURNAMES = ['Nguyễn', 'Trần', 'Lê', 'Phạm', 'Hoàng', 'Huỳnh', 'Phan', 'Vũ', 'Võ', 'Đặng', 'Bùi', 'Đỗ', 'Hồ', 'Ngô', 'Dương'];
 const MIDDLE_NAMES = ['Minh', 'Hoàng', 'Gia', 'Ngọc', 'Khánh', 'Bảo', 'Thành', 'Quốc', 'Thảo', 'Phương', 'Thuỳ', 'Thanh', 'Anh', 'Hải', 'Đức', 'Tuệ', 'Mai', 'Diệu'];
-const GIVEN_NAMES = ['An', 'Bình', 'Châu', 'Dũng', 'Em', 'Giang', 'Hà', 'Huy', 'Hân', 'Khang', 'Lan', 'Linh', 'Long', 'Mai', 'Minh', 'My', 'Nam', 'Ngân', 'Nhi', 'Phúc', 'Quân', 'Quỳnh', 'Sơn', 'Thảo', 'Trang', 'Trí', 'Tú', 'Uyên', 'Vy', 'Yến'];
+const GIVEN_NAMES = {
+  nam: ['Bảo', 'Bình', 'Dũng', 'Hải', 'Huy', 'Khang', 'Kiên', 'Khôi', 'Long', 'Minh', 'Nam', 'Phúc', 'Quân', 'Sơn', 'Tùng', 'Tuấn', 'Trí', 'Vinh'],
+  nu: ['Châu', 'Chi', 'Giang', 'Hà', 'Hân', 'Lan', 'Linh', 'Mai', 'My', 'Ngân', 'Nhi', 'Phương', 'Quỳnh', 'Thảo', 'Trang', 'Uyên', 'Vy', 'Yến']
+};
 const AVATARS = ['🐻', '🐰', '🦊', '🐼', '🐱', '🐸', '🐯', '🐨', '🦁', '🐵'];
 
-function studentName(classIndex, seat) {
+function studentGender(classIndex, seat) {
+  return (seat + classIndex) % 2 === 0 ? 'nam' : 'nu';
+}
+
+function studentName(classIndex, seat, gender) {
   const surname = SURNAMES[(seat * 7 + classIndex * 3) % SURNAMES.length];
   const middle = MIDDLE_NAMES[(seat * 11 + classIndex * 5) % MIDDLE_NAMES.length];
-  const given = GIVEN_NAMES[(seat * 13 + classIndex * 7) % GIVEN_NAMES.length];
+  const given = GIVEN_NAMES[gender][(seat * 13 + classIndex * 7) % GIVEN_NAMES[gender].length];
   return surname + ' ' + middle + ' ' + given;
 }
 
@@ -82,43 +89,53 @@ async function main() {
     }
 
     const existing = await request('/api/students?classCode=' + encodeURIComponent(classroom.code), { token });
-    const existingIds = new Set((existing.students || []).map(student => student.id));
+    const existingById = new Map((existing.students || []).map(student => [student.id, student]));
     let added = 0;
+    let updated = 0;
     for (let seat = 0; seat < 35; seat++) {
       const id = 'mock-hue-' + definition.section + '-' + String(seat + 1).padStart(3, '0');
-      if (existingIds.has(id)) continue;
+      const gender = studentGender(classIndex, seat);
+      const saved = existingById.get(id);
+      const name = studentName(classIndex, seat, gender);
+      if (saved && saved.gender === gender && saved.name === name) continue;
+      const profile = saved ? { ...saved, name, gender } : {
+        id,
+        name,
+        grade: definition.grade,
+        avatar: AVATARS[(seat + classIndex) % AVATARS.length],
+        xp: 0,
+        streak: 0,
+        attempts: 0,
+        correct: 0,
+        topics: {},
+        history: [],
+        wrongLog: {},
+        gender
+      };
+      delete profile.classCode;
+      delete profile.updatedAt;
       await request('/api/sync', {
         method: 'POST',
         body: {
           classCode: classroom.code,
-          profile: {
-            id,
-            name: studentName(classIndex, seat),
-            grade: definition.grade,
-            avatar: AVATARS[(seat + classIndex) % AVATARS.length],
-            xp: 0,
-            streak: 0,
-            attempts: 0,
-            correct: 0,
-            topics: {},
-            history: [],
-            wrongLog: {}
-          }
+          profile
         }
       });
-      added++;
+      if (saved) updated++;
+      else added++;
     }
     totalStudents += added;
-    rows.push({ name: classroom.name || definition.name, code: classroom.code, students: added || 35 });
+    totalStudents += updated;
+    rows.push({ name: classroom.name || definition.name, code: classroom.code, added, updated });
   }
 
   console.log('Đã tạo dữ liệu mẫu trên ' + BASE_URL);
   console.log('Giáo viên phụ trách 7 lớp: ' + TEACHER.name + ' (@' + TEACHER.username + ')');
   console.log('Học sinh hư cấu: ' + totalStudents + ' (35 em/lớp)');
-  for (const classroom of rows) console.log(classroom.name + ' · mã ' + classroom.code + ' · ' + classroom.students + ' học sinh');
+  for (const classroom of rows) console.log(classroom.name + ' · mã ' + classroom.code + ' · thêm ' + classroom.added + ', cập nhật ' + classroom.updated);
   if (issuedPassword) console.log('\nMật khẩu cấp lần đầu cho giáo viên ' + TEACHER.name + ' (hãy lưu lại):\n' + issuedPassword);
   else console.log('\nTài khoản giáo viên đã có sẵn. Mật khẩu hiện tại không bị thay đổi.');
-  console.log('\nMỗi hồ sơ chỉ có tên và lớp, chưa có kết quả học tập.');
+  console.log('\nMỗi lớp có khoảng một nửa nam và một nửa nữ, sắp xen kẽ theo thứ tự tên. Hồ sơ chưa có kết quả học tập.');
 }
 
 main().catch(error => {

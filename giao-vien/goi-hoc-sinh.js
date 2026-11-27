@@ -703,9 +703,9 @@ async function page(view) {
     let rows = [];
     const draw = () => {
       const code = $('#ciClass', d).value;
-      rows = students.filter(s => s.classCode === code).map(s => ({ id: s.classCode + ':' + s.id, name: String(s.name || '').trim() })).filter(r => r.name)
+      rows = students.filter(s => s.classCode === code).map(s => ({ id: s.classCode + ':' + s.id, name: String(s.name || '').trim(), profileGender: s.gender })).filter(r => r.name)
         .sort((a, b) => a.name.split(' ').pop().localeCompare(b.name.split(' ').pop(), 'vi') || a.name.localeCompare(b.name, 'vi'));
-      rows.forEach(r => { r.gender = saved[r.id] || guessGender(r.name); });
+      rows.forEach(r => { r.gender = saved[r.id] || r.profileGender || guessGender(r.name); });
       const girls = rows.filter(r => r.gender === 'nu').length;
       $('#ciCount', d).textContent = rows.length ? rows.length + ' bạn · ' + girls + ' nữ · ' + (rows.length - girls) + ' nam' : '';
       $('#ciList', d).innerHTML = rows.length ? rows.map((r, i) => '<div class="caller-import-row"><span>' + GV.esc(r.name) + '</span><span class="caller-import-pick" role="group" aria-label="Giới tính của ' + GV.esc(r.name) + '">' +

@@ -97,7 +97,7 @@ async function runStore(kind, env, dataDir, cleanup = async () => {}) {
     const classResult = await post('/api/classes',{},bearer);
     check(classResult.response.status === 201 && /^[A-HJ-NP-Z2-9]{6}$/.test(classResult.body.code),kind + ': tạo mã lớp 6 kí tự dễ đọc');
     const code = classResult.body.code;
-    const profile = {id:'student-test-1',name:'Mai An',grade:2,avatar:'🐰',xp:120,streak:3,bestStreak:4,lastDay:'2026-11-26',attempts:20,correct:17,
+    const profile = {id:'student-test-1',name:'Mai An',grade:2,gender:'nu',avatar:'🐰',xp:120,streak:3,bestStreak:4,lastDay:'2026-11-26',attempts:20,correct:17,
       topics:{'ma-chu-de-moi':{stars:2,best:90,attempts:10,correct:9,done:true}},history:Array.from({length:65},(_,i)=>({d:'2026-11-' + (i%26+1),title:'Lượt ' + i,correct:3,total:4,acc:75})),
       wrongLog:Object.fromEntries(Array.from({length:65},(_,i)=>['tu-'+i,i+1])),pin:'KHONG_DUOC_LUU'};
     const synced = await post('/api/sync',{classCode:code,profile});
@@ -107,6 +107,7 @@ async function runStore(kind, env, dataDir, cleanup = async () => {}) {
     let students = await call('/api/students',{headers:bearer});
     check(students.response.status === 200 && students.body.students.length === 1,kind + ': giáo viên xem học sinh');
     const student = students.body.students[0];
+    check(student.gender === 'nu',kind + ': lưu giới tính hợp lệ trong hồ sơ học sinh');
     check(student.history.length === 60 && Object.keys(student.wrongLog).length === 50 && !Object.hasOwn(student,'pin'),kind + ': giới hạn lịch sử/sai và không lưu PIN');
     const note = await post('/api/students/' + code + '/' + profile.id + '/notes',{text:'Em nhớ đọc kĩ dấu hỏi nhé.'},bearer);
     check(note.response.status === 200 && note.body.teacherNotes[0].text.includes('dấu hỏi'),kind + ': gửi nhận xét');
