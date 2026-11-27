@@ -1,354 +1,703 @@
-/* Trò gọi tên ngẫu nhiên: Đom đóm Thám hiểm Vườn Chữ. */
-'use strict';
-(function () {
-  const TEACHER_TOKEN = 'vuonchu.teacherToken';
-  const SESSION_PREFIX = 'vuonchu.callRound.';
-  const $ = (selector, root = document) => root.querySelector(selector);
-  const esc = value => String(value == null ? '' : value).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+import * as PIXI from '../assets/vendor/pixi.min.mjs';
+import { makeRoster, parseNames, selectBatch, recordBatch, normalizeDailyState, buildDetectiveClues, secureShuffle } from './goi-hoc-sinh-core.mjs';
 
-  function randomIndex(length) {
-    if (length <= 1) return 0;
-    if (window.crypto && crypto.getRandomValues) {
-      const limit = 0x100000000 - (0x100000000 % length);
-      const sample = new Uint32Array(1);
-      do { crypto.getRandomValues(sample); } while (sample[0] >= limit);
-      return sample[0] % length;
-    }
-    return Math.floor(Math.random() * length);
-  }
-  function shuffle(list) {
-    const out = list.slice();
-    for (let i = out.length - 1; i > 0; i--) {
-      const j = randomIndex(i + 1);
-      [out[i], out[j]] = [out[j], out[i]];
-    }
-    return out;
-  }
-  function studentId(student, classCode) {
-    return String(student.id || (classCode + ':' + String(student.name || '').normalize('NFC').toLocaleLowerCase('vi')));
-  }
+/* Three original classroom mini-games. PIXI draws each living scene; GSAP choreographs the story. */
+const KEY = 'vuonchu.callerGames.v1';
+const $ = (selector, root = document) => root.querySelector(selector);
+const $$ = (selector, root = document) => Array.from(root.querySelectorAll(selector));
+const esc = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
+const gsap = window.gsap;
+const localDate = () => { const date = new Date(); return [date.getFullYear(), String(date.getMonth() + 1).padStart(2, '0'), String(date.getDate()).padStart(2, '0')].join('-'); };
+const GAME = {
+  prince: { scope: 'girls', name: 'Hoàng tử cưỡi ngựa', subtitle: 'Khu vườn trước lâu đài', icon: '♘', scene: 'garden', start: 'Mở cổng khu vườn' },
+  penalty: { scope: 'boys', name: 'Sút phạt đền', subtitle: 'Trận cầu dưới ánh đèn', icon: '⚽', scene: 'stadium', start: 'Bắt đầu loạt sút' },
+  detective: { scope: 'all', name: 'Thám tử tìm nghi phạm', subtitle: 'Văn phòng hồ sơ bí ẩn', icon: '⌕', scene: 'office', start: 'Mở hồ sơ vụ án' }
+};
+const LINES = {
+  prince: ['Nên chọn ai đây ta…', '{name} à… hay là…', 'Bạn này cười xinh quá!', 'Ơ khoan đã, để ta nghĩ lại…', 'Gió vừa mách ta một điều bí mật…', 'Kỵ mã của ta đang phân vân rồi!'],
+  penalty: ['Quả phạt đền này cực kỳ quan trọng!', 'Sút về phía {name} à?!', 'Ồ không, đổi hướng rồi!', 'Thủ môn đang đoán sai hướng!', 'Bóng dội cột! Vẫn đang lăn…', 'Cả sân vận động nín thở nào!'],
+  detective: ['Có người sắp phải trả lời câu hỏi của cô giáo…', 'Hồ sơ {name} có gì đáng ngờ nhỉ?', 'Một manh mối nữa sắp được bật mí!', 'Hừm… ta nghĩ mình biết rồi…', 'Có thể là em sao? Khoan đã!', 'Kính lúp chưa nói lời cuối cùng!']
+};
+const PALETTES = [
+  ['#f6b5a5', '#e97d75', '#553e4f'], ['#c2a0e9', '#7561c5', '#44356c'], ['#f5c98b', '#e78d4f', '#604754'],
+  ['#98d7ca', '#359d91', '#344e61'], ['#a7c9f1', '#5a82ca', '#3d496c'], ['#f3a9c8', '#d76b9c', '#5c3f57'],
+  ['#edd987', '#b59a4e', '#46424b'], ['#a9d998', '#66a15b', '#485548']
+];
+const SKINS = ['#f7d4b8', '#eab894', '#d99c75', '#f2c6a6', '#bf805e'];
+const HAIR = ['#493436', '#312e42', '#724838', '#a95e36', '#262a38', '#684d72'];
 
-  async function teacherGet(url) {
-    const token = sessionStorage.getItem(TEACHER_TOKEN) || '';
-    const response = await fetch(url, { headers: token ? { Authorization: 'Bearer ' + token } : {} });
-    const body = await response.json().catch(() => ({}));
-    if (!response.ok) throw Error(body.error || 'Chưa tải được danh sách lớp. Thầy cô thử lại nhé.');
-    return body;
-  }
+function readSaved() {
+  try {
+    const value = JSON.parse(localStorage.getItem(KEY) || '{}');
+    return {
+      lists: { girls: String(value.lists?.girls || ''), boys: String(value.lists?.boys || '') },
+      count: [1, 2, 3].includes(Number(value.count)) ? Number(value.count) : 1,
+      seconds: [10, 15, 20].includes(Number(value.seconds)) ? Number(value.seconds) : 15,
+      sound: value.sound === true,
+      daily: normalizeDailyState(value.daily, localDate())
+    };
+  } catch { return { lists: { girls: '', boys: '' }, count: 1, seconds: 15, sound: false, daily: normalizeDailyState(null, localDate()) }; }
+}
 
-  async function page(view) {
-    const [classData, studentData] = await Promise.all([teacherGet('/api/classes'), teacherGet('/api/students')]);
-    if (!view.isConnected) return;
-    const classes = classData.classes || [];
-    const allStudents = studentData.students || [];
-    if (!classes.length) {
-      view.innerHTML = '<section class="caller-empty-page"><div class="caller-empty-icon">✨</div><h2>Hãy tạo một khu vườn trước nhé!</h2><p>Thầy cô tạo lớp và kết nối học sinh, rồi Đom Đóm sẽ bay đi tìm bạn trả lời.</p><a class="btn primary" href="#lop">Mở mục Lớp học →</a></section>';
-      return;
-    }
+async function page(view) {
+  const saved = readSaved();
+  let settings = saved;
+  let rosters = makeRoster(parseNames(settings.lists.girls), parseNames(settings.lists.boys));
+  let activeGame = '';
+  let busy = false;
+  let scene = null;
+  let musicTimer = 0;
+  let audio = null;
+  let audioStep = 0;
+  let currentTimeline = null;
+  let disposed = false;
+  let lineDeck = {};
 
-    view.innerHTML = `
-      <main class="caller-page" id="teacherCaller">
-        <header class="caller-intro">
-          <div class="caller-intro-mark" aria-hidden="true"><span>✦</span><b>☼</b><i>✧</i></div>
-          <div class="caller-intro-copy">
-            <p class="caller-kicker">MỘT CHUYẾN BAY · MỘT BẠN ĐƯỢC GỌI</p>
-            <h2>Đom Đóm thăm Vườn Chữ</h2>
-            <p>Đom Đóm sẽ bay qua khu vườn và tìm một bạn trả lời. Cả lớp cùng đoán xem bạn nào nhé!</p>
-          </div>
-          <div class="caller-intro-badge"><span>🌱</span><b>Vui mà công bằng</b><small>Mỗi bạn một lượt</small></div>
+  view.innerHTML = `
+    <main class="caller-page" id="teacherCallerGames">
+      <section class="caller-home" id="callerHome">
+        <header class="caller-welcome">
+          <div class="caller-brand-orb" aria-hidden="true"><span>✦</span><b>HÔM NAY AI?</b><i>✦</i></div>
+          <div class="caller-welcome-copy"><span class="caller-eyebrow">SÂN KHẤU GỌI TÊN · VƯỜN CHỮ</span><h2>Chọn một cuộc phiêu lưu</h2><p>Mỗi lượt là một câu chuyện khác nhau. Ai sẽ được mời lên trả lời nhỉ?</p></div>
+          <div class="caller-welcome-badge"><span>🎲</span><b>Chọn công bằng</b><small>Hoạt cảnh chỉ tạo hồi hộp</small></div>
         </header>
 
-        <section class="caller-console" aria-label="Thiết lập lượt gọi tên">
-          <div class="caller-class-select">
-            <label for="callClass">Lớp đang chơi</label>
-            <select id="callClass">${classes.map((c, i) => '<option value="' + esc(c.code) + '"' + (i === 0 ? ' selected' : '') + '>' + esc(c.name || ('Lớp ' + c.code)) + (c.grade ? ' · Khối ' + esc(c.grade) : '') + '</option>').join('')}</select>
-          </div>
-          <div class="caller-roster-info"><span class="caller-roster-icon">👧</span><span><b id="callRosterCount">0 bạn</b><small id="callClassName">Danh sách đã kết nối</small></span></div>
-          <div class="caller-round-info"><span class="caller-round-number"><b id="callUsed">0</b><i>/</i><span id="callTotal">0</span></span><span><b>đã được gọi</b><small id="callRemaining">Còn 0 lượt</small></span></div>
-          <button class="caller-icon-btn" id="callRefresh" type="button" title="Làm mới danh sách học sinh" aria-label="Làm mới danh sách học sinh">↻</button>
-          <button class="caller-icon-btn caller-fullscreen" id="callFullscreen" type="button" title="Chiếu toàn màn hình">⛶ <span>Toàn màn hình</span></button>
+        <section class="caller-game-grid" aria-label="Chọn trò chơi">
+          <button class="caller-game-card prince-card" data-open-game="prince" type="button">
+            <span class="game-card-scene prince-scene" aria-hidden="true"><i class="castle-spire spire-a"></i><i class="castle-spire spire-b"></i><i class="castle-tower"></i><i class="castle-cloud cloud-a"></i><i class="game-horse">♞</i><i class="garden-flower flower-a">✿</i><i class="garden-flower flower-b">✦</i><i class="scene-ribbon">MỞ CỔNG</i></span>
+            <span class="game-card-copy"><span class="game-card-kicker">SÂN KHẤU CỔ TÍCH</span><b>Hoàng tử cưỡi ngựa</b><small>Đoán xem hoàng tử sẽ dừng trước ai…</small><span class="game-card-action">DÀNH CHO NỮ <i>↗</i></span></span>
+          </button>
+          <button class="caller-game-card penalty-card" data-open-game="penalty" type="button">
+            <span class="game-card-scene stadium-scene" aria-hidden="true"><i class="stadium-light"></i><i class="goal-net"></i><i class="stadium-ball">⚽</i><i class="stadium-player">●</i><i class="stadium-crowd">▴ ▴ ▴ ▴ ▴ ▴</i><i class="scene-ribbon">VÀO TRẬN</i></span>
+            <span class="game-card-copy"><span class="game-card-kicker">ĐÊM CHUNG KẾT</span><b>Sút phạt đền</b><small>Bóng đổi hướng phút chót, ai sẽ được gọi?</small><span class="game-card-action">DÀNH CHO NAM <i>↗</i></span></span>
+          </button>
+          <button class="caller-game-card detective-card" data-open-game="detective" type="button">
+            <span class="game-card-scene office-scene" aria-hidden="true"><i class="desk-lamp"></i><i class="case-board"><b>✦</b><b>✦</b><b>✦</b></i><i class="magnifier">⌕</i><i class="rain-lines"></i><i class="scene-ribbon">MỞ HỒ SƠ</i></span>
+            <span class="game-card-copy"><span class="game-card-kicker">VỤ ÁN TRONG LỚP</span><b>Thám tử tìm nghi phạm</b><small>Manh mối đang dẫn tới bạn nào đây?</small><span class="game-card-action">CẢ LỚP <i>↗</i></span></span>
+          </button>
         </section>
 
-        <section class="call-stage" id="callStage" aria-label="Đom Đóm bay chọn học sinh">
-          <div class="call-moon" aria-hidden="true"></div>
-          <div class="call-star s1" aria-hidden="true">✦</div><div class="call-star s2" aria-hidden="true">✧</div><div class="call-star s3" aria-hidden="true">·</div><div class="call-star s4" aria-hidden="true">✦</div><div class="call-star s5" aria-hidden="true">✧</div><div class="call-star s6" aria-hidden="true">·</div>
-          <div class="call-hill hill-back" aria-hidden="true"></div><div class="call-hill hill-front" aria-hidden="true"></div>
-          <div class="call-stage-heading"><span class="call-stage-label"><i></i> VƯỜN ĐOM ĐÓM</span><span class="call-stage-status" id="callStatus">Đom Đóm đang nghỉ trên chiếc lá</span></div>
-          <div class="call-stage-caption"><span>Ai sẽ được Đom Đóm ghé thăm?</span><span class="call-leaf-flower" aria-hidden="true">✿</span></div>
-          <div class="call-board" id="callBoard" role="list" aria-label="Danh sách học sinh trong lớp"></div>
-          <div class="call-empty-roster" id="callEmptyRoster" hidden><span>🍃</span><b>Khu vườn đang chờ các bạn!</b><small>Học sinh cần kết nối với lớp để xuất hiện ở đây.</small><a href="#lop">Xem hướng dẫn kết nối lớp →</a></div>
-          <div class="call-flier" id="callFlier" aria-hidden="true">
-            <span class="call-flier-glow"></span>
-            <svg viewBox="0 0 84 84" class="call-firefly" role="presentation">
-              <defs>
-                <radialGradient id="callGlow" cx="50%" cy="54%" r="55%"><stop offset="0" stop-color="#fff8b4"/><stop offset=".52" stop-color="#ffe66e"/><stop offset="1" stop-color="#ffb947"/></radialGradient>
-                <linearGradient id="callWing" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#e7fff8" stop-opacity=".98"/><stop offset="1" stop-color="#88e2d2" stop-opacity=".58"/></linearGradient>
-                <filter id="callSoftGlow" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="3" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
-              </defs>
-              <g class="call-wings" fill="url(#callWing)" stroke="#d9fff4" stroke-width="1.2"><path d="M38 37C19 11 4 17 18 36c6 8 13 9 20 8z"/><path d="M46 37c19-26 34-20 20-1-6 8-13 9-20 8z"/><path d="M39 45C20 29 11 37 24 49c6 5 11 5 16 2z"/><path d="M45 45c19-16 28-8 15 4-6 5-11 5-16 2z"/></g>
-              <ellipse cx="42" cy="47" rx="12" ry="14" fill="url(#callGlow)" filter="url(#callSoftGlow)"/>
-              <circle cx="42" cy="33" r="10" fill="#426d61"/><circle cx="38.5" cy="32.5" r="1.8" fill="#fff"/><circle cx="45.5" cy="32.5" r="1.8" fill="#fff"/><circle cx="39" cy="33" r=".8" fill="#173f3d"/><circle cx="46" cy="33" r=".8" fill="#173f3d"/>
-              <path d="M39 37q3 3 6 0" fill="none" stroke="#f7b585" stroke-width="1.5" stroke-linecap="round"/>
-              <path d="M35 25q-5-7-8-2m22 2q5-7 8-2" fill="none" stroke="#426d61" stroke-width="2" stroke-linecap="round"/><circle cx="27" cy="22" r="2" fill="#ffe36e"/><circle cx="57" cy="22" r="2" fill="#ffe36e"/>
-              <path d="M37 57q5 5 10 0" fill="none" stroke="#72b999" stroke-width="2" stroke-linecap="round"/>
-            </svg>
-            <span class="call-flier-trail"></span>
+        <section class="caller-setup-card" aria-label="Danh sách học sinh và thiết lập">
+          <div class="caller-setup-heading"><div><span class="caller-eyebrow">CHUẨN BỊ SÂN KHẤU</span><h3>Danh sách lớp</h3></div><span class="caller-local-note"><i></i> Tự lưu trên thiết bị này</span></div>
+          <div class="caller-lists-grid">
+            <label class="caller-list-field girls-field"><span class="caller-list-label"><b>👧 Danh sách Nữ</b><small><strong id="girlsCount">0</strong> bạn</small></span><textarea id="girlsNames" rows="5" placeholder="Dán hoặc nhập tên, mỗi dòng một bạn&#10;Ví dụ:&#10;Nguyễn Ngọc An&#10;Trần Hà Chi"></textarea></label>
+            <label class="caller-list-field boys-field"><span class="caller-list-label"><b>👦 Danh sách Nam</b><small><strong id="boysCount">0</strong> bạn</small></span><textarea id="boysNames" rows="5" placeholder="Dán hoặc nhập tên, mỗi dòng một bạn&#10;Ví dụ:&#10;Lê Minh Khang&#10;Phạm Gia Bảo"></textarea></label>
+            <div class="caller-list-field all-field"><span class="caller-list-label"><b>🌟 Cả lớp</b><small><strong id="allCount">0</strong> bạn · tự gộp</small></span><pre id="allNamesPreview">Danh sách Nữ và Nam sẽ tự gộp ở đây.</pre></div>
           </div>
-          <div class="call-reveal" id="callReveal" hidden aria-live="assertive">
-            <div class="call-reveal-card"><span class="call-reveal-spark">✦ ✧ ✦</span><span class="call-reveal-overline">ĐOM ĐÓM ĐÃ TÌM THẤY BẠN</span><span class="call-reveal-avatar" id="callResultAvatar">🙂</span><strong id="callResultName"></strong><span class="call-reveal-caption">Đến lượt bạn trả lời rồi! Cả lớp cổ vũ nào 🌟</span><span class="call-reveal-spark bottom">✧ ✦ ✧</span></div>
-          </div>
-          <div class="call-firefly-dust" id="callDust" aria-hidden="true"></div>
+          <div class="caller-common-settings"><div class="caller-choice"><span class="caller-setting-label">Gọi bao nhiêu bạn?</span><div class="caller-segment" data-setting="count"><button type="button" data-value="1">1 bạn</button><button type="button" data-value="2">2 bạn</button><button type="button" data-value="3">3 bạn</button></div></div><div class="caller-choice"><span class="caller-setting-label">Nhịp của lượt chơi</span><div class="caller-segment caller-speed" data-setting="seconds"><button type="button" data-value="10"><b>Nhanh</b><small>10 giây</small></button><button type="button" data-value="15"><b>Vừa</b><small>15 giây</small></button><button type="button" data-value="20"><b>Hồi hộp</b><small>20 giây</small></button></div></div></div>
+          <div class="caller-setup-foot"><span>🔒 Tên chỉ lưu trong trình duyệt này, không gửi lên máy chủ.</span><button id="clearLists" type="button">Xóa danh sách</button></div>
         </section>
 
-        <div class="caller-actions">
-          <div class="caller-action-primary"><button class="caller-pick-btn" id="callStart" type="button">✨ Thả Đom Đóm bay</button><span class="caller-shortcut">Có thể nhấn <kbd>Space</kbd> để gọi tên</span></div>
-          <div class="caller-action-secondary"><label class="caller-toggle"><input type="checkbox" id="callNoRepeat" checked><span class="caller-toggle-track"></span><span>Mỗi bạn một lượt</span></label><label class="caller-toggle"><input type="checkbox" id="callSound"><span class="caller-toggle-track"></span><span>Âm thanh</span></label><button class="caller-undo" id="callUndo" type="button" disabled>↶ Hoàn tác lượt</button><button class="caller-reset" id="callReset" type="button">Vòng mới ↻</button></div>
-        </div>
+        <section class="caller-history-home"><div class="caller-history-title"><span>✨</span><div><b>Đã gọi hôm nay</b><small id="todayCount">Chưa có bạn nào</small></div><button id="refreshRound" type="button" title="Cho cả lớp một lượt mới">Làm mới lượt gọi <i>↻</i></button></div><div class="caller-history-chips" id="todayHistory"><span class="caller-history-empty">Lịch sử hôm nay sẽ xuất hiện ở đây.</span></div></section>
+        <p class="caller-fairness-note">🎓 Tên được chọn ngẫu nhiên ngay khi bắt đầu. Các cú lừa, cú sút và manh mối chỉ làm sân khấu hồi hộp hơn.</p>
+      </section>
 
-        <section class="caller-history" aria-label="Các bạn đã được gọi">
-          <div><span class="caller-history-icon">🌟</span><b>Những bạn đã ghé thăm</b><small id="callHistoryHint">Lượt gọi sẽ hiện ở đây</small></div>
-          <div class="caller-history-list" id="callHistory"></div>
+      <section class="caller-play" id="callerPlay" hidden>
+        <header class="caller-play-top"><button class="caller-home-button" id="backHome" type="button">← Chọn trò khác</button><div class="caller-play-title"><span id="playGameIcon">✦</span><div><b id="playGameName"></b><small id="playGameSubtitle"></small></div></div><div class="caller-play-tools"><label class="caller-count-live"><span>Số bạn</span><select id="liveCount"><option value="1">1 bạn</option><option value="2">2 bạn</option><option value="3">3 bạn</option></select></label><label class="caller-count-live"><span>Nhịp chơi</span><select id="liveSpeed"><option value="10">Nhanh · 10s</option><option value="15">Vừa · 15s</option><option value="20">Hồi hộp · 20s</option></select></label><label class="caller-sound"><input type="checkbox" id="soundToggle"><span>♫</span><b>Âm thanh</b></label><button class="caller-tool-icon" id="fullscreenToggle" type="button" title="Toàn màn hình">⛶</button></div></header>
+        <section class="caller-stage" id="gameStage" aria-label="Sân khấu hoạt hình">
+          <div class="caller-pixi-host" id="pixiHost" aria-hidden="true"></div>
+          <div class="caller-stage-shade"></div>
+          <div class="caller-stage-topline"><span class="caller-stage-chip"><i></i><b id="stageTheme">VƯỜN CỔ TÍCH</b></span><span id="stageStatus">Sân khấu đã sẵn sàng</span><button id="roundProgress" type="button">Lượt <b>0</b>/<i>0</i> · <u>Làm mới</u></button></div>
+          <div class="caller-dialogue" id="dialogueBox"><span class="caller-dialogue-avatar" id="dialogueAvatar">✦</span><p id="dialogueText">Chọn nút bên dưới để bắt đầu câu chuyện nhé!</p><span class="dialogue-tail"></span></div>
+          <div class="caller-board-wrap"><div class="caller-name-board" id="nameBoard" role="list" aria-label="Tên học sinh"></div><div class="caller-no-names" id="noNames" hidden><span>📜</span><b>Sân khấu đang chờ tên học sinh</b><small>Về màn hình trước và dán danh sách phù hợp với trò chơi này.</small></div></div>
+          <div class="caller-slow-overlay" id="slowOverlay"><span>✦</span><b>KHOẢNH KHẮC QUYẾT ĐỊNH</b><i></i></div>
+          <div class="caller-result-overlay" id="resultOverlay" hidden><div class="caller-result-rays"></div><div class="caller-result-card"><span class="caller-result-eyebrow" id="resultEyebrow">HỒ SƠ ĐÃ MỞ</span><span class="caller-result-icon" id="resultIcon">🌟</span><b id="resultHeading">Đã tìm ra!</b><div class="caller-result-names" id="resultNames"></div><small id="resultCaption">Mời bạn lên trả lời câu hỏi của cô giáo!</small><div class="caller-result-actions"><button id="playAgain" class="caller-play-again" type="button">Chơi lại ↻</button><button id="resultHome" class="caller-result-home" type="button">Về màn hình chính</button></div></div><div class="caller-confetti" id="confetti" aria-hidden="true"></div></div>
+          <div class="caller-stage-vignette"></div>
         </section>
-        <p class="caller-fairness"><span>🍀</span> Kết quả được chọn ngẫu nhiên từ các bạn còn lượt; Đom Đóm chỉ bay để tạo bất ngờ. Tên học sinh vẫn nằm trong lớp của thầy cô.</p>
-      </main>`;
+        <footer class="caller-play-controls"><div><button id="startStory" class="caller-main-action" type="button"><span>✦</span><b>Bắt đầu câu chuyện</b><i>→</i></button><small id="playHint">Kết quả đã sẵn sàng, cả lớp cùng đoán nhé!</small></div><div class="caller-live-stats"><span><b id="remainingCount">0</b><small>còn lượt</small></span><span class="caller-stat-divider"></span><span><b id="calledCount">0</b><small>đã gọi hôm nay</small></span></div></footer>
+      </section>
+    </main>`;
 
-    const root = $('#teacherCaller', view);
-    const classSelect = $('#callClass', root);
-    const board = $('#callBoard', root);
-    const startButton = $('#callStart', root);
-    const noRepeat = $('#callNoRepeat', root);
-    const soundToggle = $('#callSound', root);
-    let roster = [];
-    let calls = [];
-    let visualRoster = [];
-    let busy = false;
-    let audioContext;
+  const root = $('#teacherCallerGames', view);
+  const home = $('#callerHome', root);
+  const play = $('#callerPlay', root);
+  const gameStage = $('#gameStage', root);
+  const board = $('#nameBoard', root);
+  const startButton = $('#startStory', root);
+  const savedSound = $('#soundToggle', root);
+  $('#girlsNames', root).value = settings.lists.girls;
+  $('#boysNames', root).value = settings.lists.boys;
+  savedSound.checked = settings.sound;
+  $('#liveCount', root).value = String(settings.count);
+  $('#liveSpeed', root).value = String(settings.seconds);
 
-    try { noRepeat.checked = sessionStorage.getItem('vuonchu.callNoRepeat') !== 'false'; } catch {}
-    try { soundToggle.checked = sessionStorage.getItem('vuonchu.callSound') === 'true'; } catch {}
+  function persist() { try { localStorage.setItem(KEY, JSON.stringify(settings)); } catch { /* private mode or storage limit */ } }
+  function setRoster() {
+    rosters = makeRoster(parseNames($('#girlsNames', root).value), parseNames($('#boysNames', root).value));
+    settings.lists = { girls: $('#girlsNames', root).value, boys: $('#boysNames', root).value };
+    $('#girlsCount', root).textContent = rosters.girls.length;
+    $('#boysCount', root).textContent = rosters.boys.length;
+    $('#allCount', root).textContent = rosters.all.length;
+    $('#allNamesPreview', root).textContent = rosters.all.length ? rosters.all.map(student => student.name).join('\n') : 'Danh sách Nữ và Nam sẽ tự gộp ở đây.';
+    persist();
+    updateHomeHistory();
+    if (activeGame) { renderRoster(); updateGameStats(); }
+  }
+  function getGameRoster(game = activeGame) { return rosters[GAME[game]?.scope || 'all'] || []; }
+  function calledSet() { return new Set(settings.daily.round.all || []); }
+  function remaining(scope) { const pool = rosters[scope] || []; const called = calledSet(); return pool.filter(student => !called.has(student.id)); }
+  function updateHomeHistory() {
+    const items = settings.daily.history;
+    $('#todayCount', root).textContent = items.length ? items.length + ' lượt gọi trong hôm nay' : 'Chưa có bạn nào';
+    $('#todayHistory', root).innerHTML = items.length ? items.slice(-16).reverse().map((item, index) => '<span class="caller-history-chip" style="--chip-index:' + index + '"><i>' + (GAME[item.game]?.icon || '✦') + '</i>' + esc(item.name) + '</span>').join('') : '<span class="caller-history-empty">Lịch sử hôm nay sẽ xuất hiện ở đây.</span>';
+    $('#calledCount', root).textContent = items.length;
+  }
+  function updateGameStats() {
+    if (!activeGame) return;
+    const meta = GAME[activeGame];
+    const list = getGameRoster();
+    const left = remaining(meta.scope).length;
+    const used = (settings.daily.round.all || []).filter(id => list.some(student => student.id === id)).length;
+    $('#remainingCount', root).textContent = left;
+    $('#calledCount', root).textContent = settings.daily.history.length;
+    $('#roundProgress', root).innerHTML = 'Lượt <b>' + used + '</b>/<i>' + list.length + '</i> · <u>Làm mới</u>';
+    $('#roundProgress', root).disabled = busy || !used;
+    $('#stageStatus', root).textContent = !list.length ? 'Thêm danh sách để mở sân khấu' : left ? 'Còn ' + left + ' bạn chưa được gọi trong lượt này' : 'Cả nhóm đã có lượt — làm mới để bắt đầu vòng mới';
+    $('#playHint', root).textContent = !list.length ? 'Hãy thêm tên ở danh sách trước khi chơi.' : left ? 'Kết quả được chọn ngay khi bắt đầu; hoạt cảnh chỉ tạo bất ngờ.' : 'Đã hết lượt của nhóm này. Bấm “Làm mới lượt gọi” để chơi tiếp.';
+    startButton.disabled = busy || !left;
+    startButton.querySelector('b').textContent = busy ? 'Đang diễn ra…' : left ? meta.start : 'Đã hết lượt trong vòng';
+    const button = $('#roundProgress', root);
+    button.title = left ? 'Bấm để làm mới lượt gọi' : 'Bắt đầu một vòng mới';
+  }
+  function updateHomeHistoryAndStats() { updateHomeHistory(); updateGameStats(); }
+  function hashDay() { if (settings.daily.date !== localDate()) settings.daily = normalizeDailyState(null, localDate()); }
 
-    function roundKey(code) { return SESSION_PREFIX + encodeURIComponent(code); }
-    function loadRound(code) {
-      try {
-        const data = JSON.parse(sessionStorage.getItem(roundKey(code)) || '{"calls":[]}');
-        return Array.isArray(data.calls) ? data.calls.filter(item => item && item.id != null) : [];
-      } catch { return []; }
-    }
-    function saveRound() {
-      try { sessionStorage.setItem(roundKey(classSelect.value), JSON.stringify({ calls })); } catch {}
-    }
-    function classLabel(code) {
-      const group = classes.find(item => item.code === code);
-      return group ? (group.name || ('Lớp ' + group.code)) : 'Lớp học';
-    }
-    function currentId(student) { return studentId(student, classSelect.value); }
-    function remainingStudents() {
-      const called = new Set(calls.map(item => item.id));
-      return noRepeat.checked ? roster.filter(student => !called.has(currentId(student))) : roster;
-    }
-    function updateCounts() {
-      const left = remainingStudents().length;
-      $('#callRosterCount', root).textContent = roster.length + ' bạn';
-      $('#callTotal', root).textContent = roster.length;
-      $('#callUsed', root).textContent = noRepeat.checked ? Math.min(roster.length, calls.filter(item => roster.some(s => currentId(s) === item.id)).length) : calls.length;
-      $('#callClassName', root).textContent = 'Danh sách đã kết nối · ' + classLabel(classSelect.value);
-      $('#callRemaining', root).textContent = left ? 'Còn ' + left + ' lượt' : (roster.length ? 'Cả lớp đã có lượt' : 'Chưa có học sinh');
-      startButton.disabled = busy || !left;
-      classSelect.disabled = busy;
-      noRepeat.disabled = busy;
-      $('#callRefresh', root).disabled = busy;
-      $('#callUndo', root).disabled = busy || calls.length === 0;
-      $('#callReset', root).disabled = busy || calls.length === 0;
-      if (!busy && roster.length && noRepeat.checked && !left) $('#callStatus', root).textContent = 'Cả lớp đã được ghé thăm — mở vòng mới nhé!';
-      else if (!busy && !roster.length) $('#callStatus', root).textContent = 'Đom Đóm đang chờ các bạn kết nối';
-      else if (!busy && !$('#callResultName', root).textContent) $('#callStatus', root).textContent = 'Đom Đóm đang nghỉ trên chiếc lá';
-    }
-    function updateHistory() {
-      const history = $('#callHistory', root);
-      const list = calls.slice(-7).reverse();
-      history.innerHTML = list.length ? list.map((item, index) => '<span class="caller-history-chip" style="--history-delay:' + index * 45 + 'ms"><i>' + esc(item.avatar || '🙂') + '</i>' + esc(item.name) + '</span>').join('') : '<span class="caller-history-empty">Sân khấu đang đợi tiếng vỗ tay đầu tiên…</span>';
-      $('#callHistoryHint', root).textContent = calls.length ? calls.length + ' lượt trong vòng này' : 'Lượt gọi sẽ hiện ở đây';
-    }
-    function updateTileStates() {
-      const called = new Set(calls.map(item => item.id));
-      const last = calls[calls.length - 1];
-      Array.from(board.children).forEach(tile => {
-        const wasCalled = called.has(tile.dataset.id);
-        tile.classList.toggle('is-called', wasCalled && (!last || tile.dataset.id !== last.id));
-        tile.classList.toggle('is-winner', !!last && tile.dataset.id === last.id);
-      });
-    }
-    function drawBoard() {
-      visualRoster = visualRoster.length ? visualRoster : roster.slice();
-      const empty = $('#callEmptyRoster', root);
-      empty.hidden = roster.length > 0;
-      board.innerHTML = visualRoster.map((student, index) => {
-        const id = currentId(student);
-        return '<article class="call-tile" role="listitem" data-id="' + esc(id) + '" style="--tile-delay:' + Math.min(index, 20) * 35 + 'ms"><span class="call-tile-avatar">' + esc(student.avatar || '🙂') + '</span><span class="call-tile-name">' + esc(student.name || 'Bạn nhỏ') + '</span><span class="call-tile-spark" aria-hidden="true">✦</span></article>';
-      }).join('');
-      updateTileStates();
-      updateCounts();
-    }
-    function showReveal(student) {
-      $('#callResultAvatar', root).textContent = student.avatar || '🙂';
-      $('#callResultName', root).textContent = student.name || 'Bạn nhỏ';
-      $('#callReveal', root).hidden = false;
-      $('#callStatus', root).textContent = 'Đom Đóm đã chọn được một người bạn!';
-      $('#callDust', root).innerHTML = Array.from({ length: 12 }, (_, i) => '<i style="--dust-angle:' + (i * 30) + 'deg;--dust-color:' + ['#ffe873', '#ffc27c', '#b4f2c8', '#f6a7b7'][i % 4] + ';animation-delay:' + (i * 14) + 'ms"></i>').join('');
-      $('#callReveal', root).classList.remove('is-shown');
-      requestAnimationFrame(() => $('#callReveal', root).classList.add('is-shown'));
-    }
-    function playNote(frequency, duration = .09, volume = .045) {
-      if (!soundToggle.checked) return;
-      try {
-        audioContext ||= new (window.AudioContext || window.webkitAudioContext)();
-        if (audioContext.state === 'suspended') audioContext.resume();
-        const oscillator = audioContext.createOscillator();
-        const gain = audioContext.createGain();
-        oscillator.type = 'sine'; oscillator.frequency.value = frequency;
-        gain.gain.setValueAtTime(volume, audioContext.currentTime);
-        gain.gain.exponentialRampToValueAtTime(.001, audioContext.currentTime + duration);
-        oscillator.connect(gain); gain.connect(audioContext.destination);
-        oscillator.start(); oscillator.stop(audioContext.currentTime + duration);
-      } catch {}
-    }
-    function placeFlier(student) {
-      const tile = Array.from(board.children).find(node => node.dataset.id === currentId(student));
-      if (!tile) return null;
-      const stageBox = $('#callStage', root).getBoundingClientRect();
-      const tileBox = tile.getBoundingClientRect();
-      const flier = $('#callFlier', root);
-      flier.style.left = (tileBox.left - stageBox.left + tileBox.width / 2) + 'px';
-      flier.style.top = (tileBox.top - stageBox.top + tileBox.height / 2) + 'px';
-      return tile;
-    }
-    function wait(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
-
-    async function pickStudent() {
-      if (busy) return;
-      $('#callReveal', root).hidden = true;
-      const pool = remainingStudents();
-      if (!pool.length) { updateCounts(); return; }
-      const chosen = pool[randomIndex(pool.length)];
-      const detours = shuffle(roster.filter(student => currentId(student) !== currentId(chosen))).slice(0, Math.min(6, Math.max(2, roster.length - 1)));
-      const route = detours.concat(chosen);
-      const reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-      const delays = reduced ? route.map(() => 80) : route.map((_, i) => Math.min(720, 220 + i * 95));
-      busy = true;
-      visualRoster = shuffle(roster);
-      drawBoard();
-      const flier = $('#callFlier', root);
-      $('#callDust', root).innerHTML = '';
-      flier.hidden = false;
-      flier.classList.add('is-flying');
-      $('#callStage', root).classList.remove('is-reveal');
-      $('#callStage', root).classList.add('is-active');
-      $('#callStatus', root).textContent = 'Một ánh đom đóm vừa thức giấc…';
-      startButton.textContent = 'Đom Đóm đang bay…';
-      updateCounts();
-      await wait(reduced ? 80 : 250);
-      for (let i = 0; i < route.length; i++) {
-        if (!root.isConnected) return;
-        board.querySelectorAll('.is-hovered').forEach(tile => tile.classList.remove('is-hovered'));
-        const target = placeFlier(route[i]);
-        if (target) target.classList.add('is-hovered');
-        $('#callStatus', root).textContent = i === route.length - 1 ? 'Đom Đóm sắp đáp xuống rồi…' : ['Đom Đóm đang lượn qua tán lá…', 'Ánh sáng đang tìm đường…', 'Bạn nào nhỉ? Cùng đoán nào…'][i % 3];
-        playNote(660 + (i % 3) * 95, .08, .025);
-        await wait(delays[i]);
-      }
-      if (!root.isConnected) return;
-      const chosenId = currentId(chosen);
-      calls.push({ id: chosenId, name: chosen.name || 'Bạn nhỏ', avatar: chosen.avatar || '🙂', at: Date.now() });
-      saveRound();
-      updateTileStates(); updateHistory(); updateCounts();
-      $('#callStage', root).classList.remove('is-active');
-      $('#callStage', root).classList.add('is-reveal');
-      $('#callStatus', root).textContent = 'Đom Đóm đã tìm thấy bạn!';
-      playNote(880, .22, .06); setTimeout(() => playNote(1175, .3, .05), 100);
-      showReveal(chosen);
-      busy = false;
-      startButton.textContent = remainingStudents().length ? '✨ Gọi bạn tiếp theo' : '🌟 Đã hết lượt trong vòng';
-      updateCounts();
-    }
-
-    function setClass() {
-      $('#callReveal', root).hidden = true;
-      $('#callStage', root).classList.remove('is-active', 'is-reveal');
-      $('#callFlier', root).hidden = true;
-      $('#callFlier', root).classList.remove('is-flying');
-      visualRoster = [];
-      roster = allStudents.filter(student => student.classCode === classSelect.value).slice().sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'vi'));
-      calls = loadRound(classSelect.value);
-      $('#callStatus', root).textContent = 'Đom Đóm đang nghỉ trên chiếc lá';
-      drawBoard(); updateHistory();
-    }
-
-    classSelect.onchange = setClass;
-    noRepeat.onchange = () => { try { sessionStorage.setItem('vuonchu.callNoRepeat', String(noRepeat.checked)); } catch {} updateTileStates(); updateCounts(); };
-    soundToggle.onchange = () => { try { sessionStorage.setItem('vuonchu.callSound', String(soundToggle.checked)); } catch {} if (soundToggle.checked) playNote(880, .12); };
-    startButton.onclick = pickStudent;
-    $('#callReset', root).onclick = () => {
-      if (busy || !calls.length) return;
-      calls = []; saveRound();
-      $('#callReveal', root).hidden = true;
-      $('#callStage', root).classList.remove('is-active', 'is-reveal');
-      $('#callFlier', root).hidden = true;
-      $('#callFlier', root).classList.remove('is-flying');
-      $('#callStatus', root).textContent = 'Một vòng mới bắt đầu — các bạn sẵn sàng chưa?';
-      startButton.textContent = '✨ Thả Đom Đóm bay';
-      updateTileStates(); updateHistory(); updateCounts();
-    };
-    $('#callUndo', root).onclick = () => {
-      if (busy || !calls.length) return;
-      calls.pop(); saveRound();
-      $('#callReveal', root).hidden = true;
-      $('#callStage', root).classList.remove('is-active', 'is-reveal');
-      $('#callFlier', root).hidden = true;
-      $('#callFlier', root).classList.remove('is-flying');
-      $('#callStatus', root).textContent = 'Đã hoàn tác lượt gần nhất';
-      startButton.textContent = '✨ Gọi bạn tiếp theo';
-      updateTileStates(); updateHistory(); updateCounts();
-    };
-    $('#callRefresh', root).onclick = async event => {
-      const button = event.currentTarget;
-      button.disabled = true; button.classList.add('is-spinning');
-      try {
-        const fresh = await teacherGet('/api/students');
-        if (!root.isConnected) return;
-        allStudents.splice(0, allStudents.length, ...(fresh.students || []));
-        setClass();
-      } catch (error) {
-        const toast = $('#toast'); toast.textContent = error.message; toast.className = 'toast bad'; toast.hidden = false;
-        setTimeout(() => { if (toast.isConnected) toast.hidden = true; }, 4000);
-      } finally { button.disabled = false; button.classList.remove('is-spinning'); }
-    };
-    $('#callFullscreen', root).onclick = async () => {
-      try {
-        if (document.fullscreenElement) await document.exitFullscreen();
-        else await root.requestFullscreen();
-      } catch { $('#callStatus', root).textContent = 'Trình duyệt chưa cho bật toàn màn hình'; }
-    };
-    const removeFullscreenListener = () => {
-      if (!root.isConnected) {
-        document.removeEventListener('fullscreenchange', updateFullscreenLabel);
-        window.removeEventListener('hashchange', removeFullscreenListener);
-      }
-    };
-    function updateFullscreenLabel() {
-      if (!root.isConnected) return;
-      const button = $('#callFullscreen', root);
-      button.innerHTML = document.fullscreenElement === root ? '⛶ <span>Thoát toàn màn hình</span>' : '⛶ <span>Toàn màn hình</span>';
-    }
-    document.addEventListener('fullscreenchange', updateFullscreenLabel);
-    window.addEventListener('hashchange', removeFullscreenListener);
-    root.addEventListener('keydown', event => {
-      if (event.code === 'Space' && !event.target.closest('button, input, select, textarea, a') && !busy) {
-        event.preventDefault(); pickStudent();
-      }
+  const picker = $$('.caller-segment', root);
+  function syncSegments() {
+    picker.forEach(group => {
+      const name = group.dataset.setting;
+      const selected = settings[name];
+      $$('button', group).forEach(button => button.classList.toggle('is-selected', Number(button.dataset.value) === Number(selected)));
     });
-    setClass();
-    $('#callStart', root).focus({ preventScroll: true });
+  }
+  syncSegments();
+  $$('.caller-segment button', root).forEach(button => button.onclick = () => {
+    const group = button.closest('.caller-segment');
+    const field = group.dataset.setting;
+    settings[field] = Number(button.dataset.value);
+    $('#liveCount', root).value = String(settings.count);
+    $('#liveSpeed', root).value = String(settings.seconds);
+    syncSegments(); persist();
+  });
+  $('#girlsNames', root).addEventListener('input', setRoster);
+  $('#boysNames', root).addEventListener('input', setRoster);
+
+  function makeAvatar(student) {
+    const palette = PALETTES[student.palette % PALETTES.length];
+    const skin = SKINS[(student.signature >>> 4) % SKINS.length];
+    const hair = HAIR[(student.signature >>> 9) % HAIR.length];
+    const style = (student.signature >>> 15) % 4;
+    const fringe = [
+      '<path d="M16 29c1-13 8-20 19-20 10 0 19 7 20 20l-5 3c-2-7-6-10-13-10-7 0-12 3-16 9z"/>',
+      '<path d="M15 30c0-14 8-22 20-22 12 0 20 8 20 21l-7 7-2-9-7 3-6-6-10 7-2 9z"/>',
+      '<path d="M17 29c0-14 7-21 18-21 12 0 19 8 19 21-4-6-8-9-13-9-7 0-11 3-17 10z"/><path d="M17 30c-5 10-3 18 3 21l3-15zm35 0c5 10 3 18-3 21l-3-15z"/>',
+      '<path d="M16 30c0-14 8-22 19-22s19 8 19 22l-7 2-2-7-9 5-7-5-5 8z"/><circle cx="16" cy="17" r="5"/><circle cx="54" cy="17" r="5"/>'
+    ][style];
+    const accessory = (student.signature >>> 20) % 5 === 0 ? '<path d="M32 7l4-6 4 6" fill="none" stroke="#ffe17e" stroke-width="3" stroke-linecap="round"/>' : '';
+    return '<svg class="student-chibi" viewBox="0 0 70 86" aria-hidden="true"><ellipse cx="35" cy="80" rx="19" ry="4" fill="#203a52" opacity=".12"/><path class="chibi-arm arm-left" d="M23 48 13 58"/><path class="chibi-arm arm-right" d="m47 48 10 10"/><path d="M22 46q13-10 26 0l5 27H17z" fill="' + palette[1] + '" stroke="#fff" stroke-width="2.5"/><path d="M29 66h5v12h-8zm9 0h5l4 12h-8z" fill="#52617d"/><ellipse cx="35" cy="30" rx="18" ry="19" fill="' + skin + '" stroke="#fff" stroke-width="2.5"/><g fill="' + hair + '" stroke="#fff" stroke-width="1.4">' + fringe + '</g><ellipse cx="29" cy="32" rx="2" ry="2.8" fill="#354251"/><ellipse cx="41" cy="32" rx="2" ry="2.8" fill="#354251"/><path d="M31 39q4 4 8 0" fill="none" stroke="#b96c65" stroke-width="1.8" stroke-linecap="round"/><ellipse cx="25" cy="37" rx="3" ry="1.6" fill="#e78991" opacity=".55"/><ellipse cx="45" cy="37" rx="3" ry="1.6" fill="#e78991" opacity=".55"/>' + accessory + '</svg>';
+  }
+  function renderRoster() {
+    const meta = GAME[activeGame];
+    const list = getGameRoster();
+    const used = calledSet();
+    const cols = Math.min(9, Math.max(3, Math.ceil(Math.sqrt(Math.max(1, list.length) * 1.8))));
+    board.style.setProperty('--roster-cols', cols);
+    board.classList.toggle('is-detective-board', activeGame === 'detective');
+    board.classList.toggle('is-goal-board', activeGame === 'penalty');
+    board.innerHTML = list.map((student, index) => {
+      const palette = PALETTES[student.palette % PALETTES.length];
+      return '<article class="caller-student ' + (used.has(student.id) ? 'is-done' : '') + '" role="listitem" data-id="' + esc(student.id) + '" style="--student-delay:' + (index % 45 * 18) + 'ms;--student-color:' + palette[0] + ';--student-accent:' + palette[1] + '"><span class="student-avatar-wrap">' + makeAvatar(student) + '<i class="student-spark">✦</i></span><span class="student-name" title="' + esc(student.name) + '">' + esc(student.name) + '</span>' + (activeGame === 'detective' ? '<span class="student-file-code">HS-' + student.caseCode + '</span>' : '') + '</article>';
+    }).join('');
+    $('#noNames', root).hidden = list.length > 0;
+    updateGameStats();
   }
 
-  window.GV && window.GV.register('goi-ten', 'Gọi tên', page);
-})();
+  function randomIndex(length) {
+    if (length < 2) return 0;
+    if (crypto?.getRandomValues) { const max = 0x100000000 - 0x100000000 % length; const word = new Uint32Array(1); do { crypto.getRandomValues(word); } while (word[0] >= max); return word[0] % length; }
+    return Math.floor(Math.random() * length);
+  }
+  const pickLine = (game, name = '') => {
+    if (!lineDeck[game]?.length) lineDeck[game] = secureShuffle(LINES[game]);
+    return lineDeck[game].pop().replaceAll('{name}', name || '…');
+  };
+  const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+  function soundContext() {
+    if (!audio) { try { audio = new (window.AudioContext || window.webkitAudioContext)(); } catch { return null; } }
+    if (audio.state === 'suspended') audio.resume();
+    return audio;
+  }
+  function tone(freq, duration = .12, volume = .035, wave = 'sine', delaySeconds = 0) {
+    if (!savedSound.checked) return;
+    const ctx = soundContext(); if (!ctx) return;
+    const oscillator = ctx.createOscillator(); const gain = ctx.createGain();
+    oscillator.type = wave; oscillator.frequency.setValueAtTime(freq, ctx.currentTime + delaySeconds);
+    gain.gain.setValueAtTime(.0001, ctx.currentTime + delaySeconds); gain.gain.exponentialRampToValueAtTime(volume, ctx.currentTime + delaySeconds + .015); gain.gain.exponentialRampToValueAtTime(.0001, ctx.currentTime + delaySeconds + duration);
+    oscillator.connect(gain); gain.connect(ctx.destination); oscillator.start(ctx.currentTime + delaySeconds); oscillator.stop(ctx.currentTime + delaySeconds + duration + .03);
+  }
+  const MUSIC = { prince: [523.25, 659.25, 783.99, 659.25, 587.33, 698.46], penalty: [392, 440, 523.25, 392, 349.23, 466.16], detective: [293.66, 349.23, 392, 311.13, 349.23, 261.63] };
+  function startMusic() {
+    if (!savedSound.checked || musicTimer) return;
+    const notes = MUSIC[activeGame];
+    const tick = () => { if (!savedSound.checked || !activeGame) { clearInterval(musicTimer); musicTimer = 0; return; } tone(notes[audioStep++ % notes.length], .34, .012, activeGame === 'detective' ? 'triangle' : 'sine'); };
+    tick(); musicTimer = setInterval(tick, activeGame === 'detective' ? 610 : 490);
+  }
+  function stopMusic() { clearInterval(musicTimer); musicTimer = 0; }
+  async function typeDialogue(text, duration = 520) {
+    const box = $('#dialogueBox', root); const target = $('#dialogueText', root);
+    box.classList.remove('is-speaking'); void box.offsetWidth; box.classList.add('is-speaking');
+    target.textContent = '';
+    const letters = Array.from(text);
+    const interval = Math.max(8, Math.min(34, duration / Math.max(letters.length, 1)));
+    for (const character of letters) { if (!root.isConnected) return; target.textContent += character; await delay(interval); }
+  }
+  function setEmotion(students, className = 'is-candidate') {
+    $$('.caller-student', board).forEach(tile => tile.classList.remove('is-candidate', 'is-winner', 'is-pointed'));
+    if (activeGame !== 'detective') $$('.caller-student', board).forEach(tile => tile.classList.remove('is-eliminated'));
+    students.forEach(student => {
+      const tile = $('.caller-student[data-id="' + CSS.escape(student.id) + '"]', board);
+      if (tile) tile.classList.add(className);
+    });
+  }
+  async function spotlight(duration = 1100) {
+    gameStage.classList.add('is-slow');
+    if (scene) scene.setSlow(true);
+    tone(activeGame === 'penalty' ? 145 : 94, .9, .055, 'sine');
+    await delay(duration);
+    gameStage.classList.remove('is-slow');
+    if (scene) scene.setSlow(false);
+  }
+  function reveal(batch) {
+    const meta = GAME[activeGame];
+    const overlay = $('#resultOverlay', root);
+    $('#resultEyebrow', root).textContent = activeGame === 'detective' ? 'HỒ SƠ ĐÃ MỞ' : activeGame === 'penalty' ? 'BẢNG TỈ SỐ VỪA SÁNG' : 'LỜI MỜI TỪ LÂU ĐÀI';
+    $('#resultIcon', root).textContent = meta.icon;
+    $('#resultHeading', root).textContent = activeGame === 'detective' ? 'Đã tìm ra nghi phạm!' : activeGame === 'penalty' ? 'VÀOOOO! Được gọi rồi!' : 'Hoàng tử đã chọn!';
+    $('#resultNames', root).innerHTML = batch.map((student, index) => '<span class="caller-result-person" style="--person-index:' + index + '">' + makeAvatar(student) + '<b>' + esc(student.name) + '</b></span>').join('');
+    $('#resultCaption', root).textContent = batch.length > 1 ? 'Các bạn cùng lên trả lời câu hỏi của cô giáo nhé!' : activeGame === 'detective' ? 'Mời em lên trả lời câu hỏi của cô giáo!' : activeGame === 'penalty' ? 'Cả sân vận động đang cổ vũ cho em!' : 'Nàng có đồng ý cùng hoàng tử trả lời câu hỏi không?';
+    overlay.hidden = false;
+    requestAnimationFrame(() => overlay.classList.add('is-shown'));
+    setEmotion(batch, 'is-winner');
+    makeConfetti();
+    if (scene) scene.celebrate();
+    tone(784, .22, .055, 'triangle'); tone(988, .28, .05, 'triangle', .12); tone(1174, .5, .045, 'sine', .26);
+  }
+  function makeConfetti() {
+    const colors = ['#ffe47b', '#ff91a7', '#8fe1d0', '#9bc8ff', '#c3a4ff', '#fff4db'];
+    $('#confetti', root).innerHTML = Array.from({ length: 42 }, (_, index) => '<i style="--confetti-x:' + randomIndex(100) + '%;--confetti-delay:' + (randomIndex(600) / 1000) + 's;--confetti-color:' + colors[index % colors.length] + ';--confetti-turn:' + (randomIndex(700) - 350) + 'deg"></i>').join('');
+  }
+  async function focusOn(student, className = 'is-candidate', wait = 420) {
+    setEmotion([student], className);
+    const tile = $('.caller-student[data-id="' + CSS.escape(student.id) + '"]', board);
+    if (tile && gsap) gsap.fromTo(tile, { scale: .94, y: 5 }, { scale: 1.08, y: -4, duration: .34, ease: 'back.out(2)', yoyo: true, repeat: 1 });
+    if (scene) scene.travel(student.signature / 0xffffffff);
+    await delay(wait);
+  }
+  async function interlude(game, name, wait = 650) {
+    await typeDialogue(pickLine(game, name), Math.min(540, wait));
+    tone(game === 'penalty' ? 440 : game === 'detective' ? 310 : 660, .08, .025, 'sine');
+    await delay(Math.max(50, wait - 500));
+  }
+
+  async function playPrince(batch, pool, totalMs) {
+    await typeDialogue('Nghe tiếng kèn gọi rồi! Cổng vườn đang mở…', 660); tone(880, .35, .04, 'triangle');
+    if (scene) scene.enter();
+    await delay(totalMs * .09);
+    const direct = randomIndex(3) === 0;
+    const decoys = secureShuffle(pool.filter(student => !batch.some(winner => winner.id === student.id))).slice(0, Math.min(3, pool.length - batch.length));
+    const route = direct ? batch.slice(0, 1) : decoys.slice(0, Math.min(2 + randomIndex(2), decoys.length));
+    const beats = Math.max(1, route.length + batch.length);
+    const beat = Math.max(340, totalMs * .5 / beats);
+    for (const student of route) {
+      await focusOn(student, 'is-candidate', beat * .42);
+      await interlude('prince', student.name, beat * .56);
+      if (!direct) { const tile = $('.caller-student[data-id="' + CSS.escape(student.id) + '"]', board); tile?.classList.add('is-relieved'); await delay(beat * .18); tile?.classList.remove('is-relieved'); }
+    }
+    if (!direct && decoys.length) { await typeDialogue('À không, ta đổi ý rồi! Ngựa con, quay lại nào!', 560); tone(260, .24, .045, 'triangle'); if (scene) scene.turnBack(); await delay(beat * .42); }
+    else { await typeDialogue('Ta đã chọn được rồi… nhưng còn một bí mật!', 550); if (scene) scene.turnBack(); await delay(beat * .4); }
+    await spotlight(1250);
+    for (let index = 0; index < batch.length; index++) {
+      const winner = batch[index];
+      if (index > 0) { await typeDialogue('Một hoàng tử khác phi vào khu vườn để đón bạn tiếp theo!', 440); if (scene) scene.newPrince(index); await delay(300); }
+      await focusOn(winner, 'is-pointed', Math.max(320, beat * .42));
+      await typeDialogue('Nàng ' + winner.name + ' có đồng ý cùng ta trả lời câu hỏi không?', 650);
+      if (scene) scene.winner();
+      tone(700, .2, .04, 'triangle'); await delay(Math.max(280, beat * .35));
+    }
+  }
+
+  async function playPenalty(batch, pool, totalMs) {
+    await typeDialogue('Trận đấu đang ở phút quyết định… Đặt bóng nào!', 620); tone(190, .22, .04, 'square');
+    if (scene) scene.enter();
+    await delay(totalMs * .08);
+    const beat = Math.max(520, totalMs * .56 / batch.length);
+    const decoys = secureShuffle(pool.filter(student => !batch.some(winner => winner.id === student.id)));
+    for (let index = 0; index < batch.length; index++) {
+      const falseAim = decoys.length ? decoys[(index * 2 + randomIndex(decoys.length)) % decoys.length] : batch[index];
+      await typeDialogue('Cầu thủ lùi lại… thủ môn đang đoán hướng sút!', Math.min(500, beat * .3));
+      if (scene) scene.prepareShot(index);
+      await delay(beat * .16);
+      await focusOn(falseAim, 'is-candidate', beat * .13);
+      const trick = randomIndex(3);
+      await typeDialogue(trick === 0 ? 'Sút về phía ' + falseAim.name + ' à?! Đổi chân rồi!' : trick === 1 ? 'Bóng dội cột! Vẫn đang lăn…' : 'Thủ môn đổ người! Bóng tuột tay mất rồi!', Math.min(520, beat * .3));
+      if (scene) scene.fakeShot(trick);
+      tone(140 + randomIndex(4) * 30, .19, .04, 'triangle'); await delay(beat * .12);
+      await focusOn(batch[index], 'is-pointed', beat * .14);
+      if (scene) scene.scoreShot(index);
+      tone(560, .18, .035, 'sine'); await delay(beat * .12);
+    }
+    await spotlight(1250);
+    await typeDialogue('VÀOOOO! Người được gọi chính là…', 650);
+  }
+
+  async function playDetective(batch, pool, totalMs) {
+    await typeDialogue('Có một bí mật trong lớp này… thám tử bắt đầu điều tra!', 680); tone(330, .3, .035, 'triangle');
+    if (scene) scene.enter();
+    const clueCount = Math.max(3, Math.min(5, Math.floor(totalMs / Math.max(1, batch.length) / 1250)));
+    const clueSlots = clueCount * batch.length;
+    const beat = Math.max(390, totalMs * .57 / clueSlots);
+    for (let caseIndex = 0; caseIndex < batch.length; caseIndex++) {
+      const target = batch[caseIndex];
+      const clueSet = buildDetectiveClues(pool, target, length => randomIndex(length), clueCount);
+      let clues = clueSet.clues;
+      if (clues.length < 3) {
+        const fallback = ['Hồ sơ mang mã ' + target.caseCode + '.', 'Tên có ' + Array.from(target.name).length + ' kí tự.', 'Họ tên có ' + target.name.trim().split(/\s+/).length + ' tiếng.'];
+        clues = fallback.slice(0, 3).map((text, i) => ({ text, remaining: i === 0 ? pool.filter(person => person.caseCode === target.caseCode) : i === 1 ? pool.filter(person => Array.from(person.name).length === Array.from(target.name).length) : pool.filter(person => person.name.trim().split(/\s+/).length === target.name.trim().split(/\s+/).length), removed: [] }));
+      }
+      for (const clue of clues) {
+        await typeDialogue('Manh mối ' + (caseIndex + 1) + ': ' + clue.text, Math.min(500, beat * .58));
+        if (scene) scene.stampClue();
+        const survivors = new Set(clue.remaining.map(student => student.id));
+        $$('.caller-student', board).forEach(tile => {
+          if (pool.some(student => student.id === tile.dataset.id) && !survivors.has(tile.dataset.id)) tile.classList.add('is-eliminated');
+        });
+        const survivor = clue.remaining[randomIndex(clue.remaining.length)] || target;
+        if (survivor.id === target.id) await focusOn(survivor, 'is-candidate', beat * .38);
+        else { setEmotion([survivor], 'is-candidate'); await delay(beat * .34); }
+        await delay(Math.max(80, beat * .2));
+      }
+      await typeDialogue('Hừm… hình như ta đã biết em là ai rồi…', 440);
+      const decoy = pool.find(student => student.id !== target.id && !batch.some(winner => winner.id === student.id));
+      if (decoy) { await focusOn(decoy, 'is-pointed', Math.max(200, beat * .35)); await typeDialogue('Ơ, không phải em! Kính lúp soi nhầm rồi!', 470); }
+      await focusOn(target, 'is-pointed', 430);
+      if (scene) scene.stampClue();
+      await delay(180);
+      // Restore the board for the next case; each selected student's own clues stay truthful.
+      if (caseIndex < batch.length - 1) { $$('.caller-student', board).forEach(tile => tile.classList.remove('is-eliminated', 'is-candidate', 'is-pointed')); if (scene) scene.nextCase(); }
+    }
+    await spotlight(1250);
+    await typeDialogue('Đã tìm ra: ' + batch.map(student => student.name).join(' và ') + '!', 650);
+  }
+
+  function updateWinnerHistory(batch, game) {
+    recordBatch(settings.daily, batch, game, Date.now());
+    persist(); updateHomeHistoryAndStats();
+  }
+  async function startStory() {
+    if (busy || !activeGame) return;
+    hashDay();
+    const meta = GAME[activeGame];
+    const pool = remaining(meta.scope);
+    if (!pool.length) { updateGameStats(); return; }
+    const batch = selectBatch(pool, settings.count, 'all', settings.daily, randomIndex);
+    if (!batch.length) { updateGameStats(); return; }
+    lineDeck = {};
+    // The fair result is committed before the suspense animation begins.
+    updateWinnerHistory(batch, activeGame);
+    busy = true; updateGameStats();
+    $('#resultOverlay', root).hidden = true; $('#resultOverlay', root).classList.remove('is-shown');
+    $('#slowOverlay', root).classList.remove('is-active'); gameStage.classList.remove('is-slow');
+    renderRoster(); setEmotion([]);
+    $('#stageStatus', root).textContent = 'Câu chuyện đang bắt đầu…';
+    $('#playAgain', root).disabled = true; $('#resultHome', root).disabled = true;
+    if (savedSound.checked) { soundContext(); startMusic(); }
+    if (scene) scene.reset(activeGame);
+    const begin = performance.now(); const totalMs = settings.seconds * 1000;
+    try {
+      if (activeGame === 'prince') await playPrince(batch, pool, totalMs);
+      if (activeGame === 'penalty') await playPenalty(batch, pool, totalMs);
+      if (activeGame === 'detective') await playDetective(batch, pool, totalMs);
+      const remainder = totalMs - (performance.now() - begin);
+      if (remainder > 0) await delay(remainder);
+      if (!root.isConnected || disposed) return;
+      reveal(batch);
+      $('#stageStatus', root).textContent = activeGame === 'detective' ? 'Vụ án đã khép lại!' : activeGame === 'penalty' ? 'Sân vận động vỡ òa!' : 'Lời mời đã được gửi đi!';
+    } catch (error) {
+      console.error('Caller game animation failed', error);
+      if (root.isConnected) { await typeDialogue('Câu chuyện khựng lại một chút — kết quả đã được chọn rồi!', 450); reveal(batch); }
+    } finally {
+      busy = false; stopMusic();
+      if ($('#playAgain', root)) { $('#playAgain', root).disabled = false; $('#resultHome', root).disabled = false; }
+      updateGameStats();
+      startButton.querySelector('b').textContent = remaining(meta.scope).length ? 'Chơi thêm một lượt' : 'Đã hết lượt trong vòng';
+    }
+  }
+
+  function makeScene(mode) {
+    const host = $('#pixiHost', root);
+    const app = new PIXI.Application();
+    const W = 1280; const H = 720;
+    let rootLayer; let world; let actor; let ball; let keeper; let sparks = []; let stopped = false; let observer;
+    const children = [];
+    function shape(parent, draw) { const graphic = new PIXI.Graphics(); draw(graphic); parent.addChild(graphic); return graphic; }
+    const fillRect = (graphic, x, y, w, h, color, alpha = 1) => graphic.rect(x, y, w, h).fill({ color, alpha });
+    const circle = (graphic, x, y, r, color, alpha = 1) => graphic.circle(x, y, r).fill({ color, alpha });
+    const ellipse = (graphic, x, y, rx, ry, color, alpha = 1) => graphic.ellipse(x, y, rx, ry).fill({ color, alpha });
+    const line = (graphic, points, color, width = 2, alpha = 1) => { graphic.moveTo(points[0], points[1]); for (let i = 2; i < points.length; i += 2) graphic.lineTo(points[i], points[i + 1]); graphic.stroke({ color, width, alpha, cap: 'round', join: 'round' }); };
+    function text(parent, content, x, y, style) { const label = new PIXI.Text({ text: content, style: new PIXI.TextStyle(style) }); label.anchor.set(.5); label.x = x; label.y = y; parent.addChild(label); return label; }
+    function drawBackground() {
+      world.removeChildren(); sparks = [];
+      shape(world, g => fillRect(g, 0, 0, W, H, mode === 'garden' ? 0x527db7 : mode === 'stadium' ? 0x111e42 : 0x29283a));
+      if (mode === 'garden') {
+        shape(world, g => { fillRect(g, 0, 380, W, 340, 0x75be8b); ellipse(g, 180, 420, 330, 150, 0x90d18d); ellipse(g, 1080, 430, 360, 168, 0x7dc87f); ellipse(g, 640, 600, 730, 220, 0x4caa78); });
+        shape(world, g => { circle(g, 1050, 98, 53, 0xffe9a0, .86); circle(g, 1033, 80, 47, 0x6f95c0, .38); });
+        for (let i = 0; i < 7; i++) {
+          const x = 95 + i * 184;
+          const cloud = new PIXI.Container(); cloud.x = x; cloud.y = 100 + (i % 3) * 45;
+          shape(cloud, g => { ellipse(g, 0, 10, 45, 16, 0xffffff, .54); circle(g, -19, 4, 19, 0xffffff, .54); circle(g, 8, -5, 25, 0xffffff, .54); circle(g, 30, 4, 16, 0xffffff, .54); }); world.addChild(cloud); children.push(cloud);
+          if (gsap) gsap.to(cloud, { x: x + 45, duration: 11 + i * 1.2, repeat: -1, yoyo: true, ease: 'sine.inOut', delay: i * -.9 });
+        }
+        shape(world, g => {
+          fillRect(g, 480, 135, 320, 280, 0xe7c28c); fillRect(g, 540, 95, 200, 115, 0xffd983);
+          fillRect(g, 462, 185, 62, 236, 0xf6d4a2); fillRect(g, 756, 185, 62, 236, 0xf6d4a2);
+          for (const [x, y, w, h] of [[450, 140, 85, 76], [744, 140, 85, 76], [522, 62, 235, 115]]) {
+            g.moveTo(x, y + h).lineTo(x + w / 2, y).lineTo(x + w, y + h).closePath().fill({ color: 0xab6385 });
+            g.circle(x + w / 2, y + h - 25, 13).fill({ color: 0x7bc6dc });
+          }
+          fillRect(g, 606, 300, 67, 120, 0x966485); g.roundRect(613, 358, 7, 9, 4).fill({ color: 0xffe59a });
+          // fountain and garden border
+          g.ellipse(205, 505, 72, 20).fill({ color: 0xd4f1d5, alpha: .54 }); g.roundRect(169, 442, 70, 51, 16).fill({ color: 0x75bfce }); g.ellipse(204, 442, 47, 13).fill({ color: 0xb2ecdf });
+          for (let i = 0; i < 16; i++) { const px = 50 + i * 82; g.roundRect(px, 510 + (i % 2) * 9, 13, 83, 7).fill({ color: i % 2 ? 0x539662 : 0x3d8156 }); g.circle(px + 5, 503 + (i % 3) * 7, 27, i % 2 ? 0x69aa65 : 0x6ab977); }
+        });
+      } else if (mode === 'stadium') {
+        shape(world, g => { fillRect(g, 0, 165, W, 330, 0x343967); fillRect(g, 0, 495, W, 225, 0x287452); fillRect(g, 0, 480, W, 22, 0x65bb7c); });
+        shape(world, g => {
+          for (let row = 0; row < 6; row++) for (let col = 0; col < 32; col++) {
+            const x = 22 + col * 40 + (row % 2) * 14; const y = 220 + row * 40;
+            circle(g, x, y, 7 + (col % 3), [0xffd58d, 0xf4a1bc, 0xa6d8f5, 0xc8eea8][(col + row * 3) % 4], .85);
+          }
+          for (let i = 0; i < 15; i++) { const x = 42 + i * 86; g.roundRect(x, 92, 4, 375, 2).fill({ color: 0xaec7ff, alpha: .34 }); }
+          g.roundRect(885, 210, 250, 220, 12).stroke({ color: 0xe9f6e9, width: 8, alpha: .84 });
+          for (let i = 1; i < 5; i++) line(g, [885 + i * 50, 214, 885 + i * 50, 426], 0xddebe7, 2, .34);
+          for (let i = 1; i < 4; i++) line(g, [890, 210 + i * 52, 1130, 210 + i * 52], 0xddebe7, 2, .34);
+          line(g, [0, 595, W, 595], 0xd1eed0, 3, .45); line(g, [640, 508, 640, 720], 0xd1eed0, 3, .35);
+          for (let i = 0; i < 6; i++) { const x = 78 + i * 206; g.roundRect(x, 85, 108, 13, 7).fill({ color: 0xfff4c3, alpha: .9 }); g.circle(x + 8, 94, 20, 0xe0eaff, .08); }
+        });
+      } else {
+        shape(world, g => { fillRect(g, 0, 0, W, H, 0x302b3c); fillRect(g, 0, 486, W, 234, 0x594349); fillRect(g, 0, 476, W, 18, 0x86614f); });
+        shape(world, g => {
+          g.roundRect(70, 82, 290, 247, 13).fill({ color: 0x555e7a }); g.roundRect(84, 96, 262, 220, 7).fill({ color: 0x91adc4 }); g.rect(207, 96, 12, 220).fill({ color: 0x66748c }); g.rect(84, 197, 262, 12).fill({ color: 0x66748c });
+          for (let i = 0; i < 34; i++) { const x = 95 + i * 32; const y = (i * 41) % 235 + 98; line(g, [x, y, x - 12, y + 38], 0xe2efff, 2, .44); }
+          // corkboard and red evidence string
+          g.roundRect(710, 88, 440, 308, 14).fill({ color: 0x98664f }); g.roundRect(727, 104, 406, 277, 8).fill({ color: 0xd7ad7a });
+          for (let i = 0; i < 7; i++) { const x = 770 + (i % 4) * 93; const y = 145 + Math.floor(i / 4) * 112; g.roundRect(x, y, 62, 73, 5).fill({ color: i % 2 ? 0xf4e5bd : 0xf8efd5 }); circle(g, x + 31, y + 25, 13, [0xd27b74, 0x85a8b5, 0xd3a35c][i % 3]); line(g, [x + 16, y + 53, x + 47, y + 53], 0x9e8b76, 2, .55); line(g, [x + 16, y + 60, x + 40, y + 60], 0x9e8b76, 2, .45); }
+          line(g, [800, 195, 921, 249, 1019, 187, 1080, 255], 0xbf4858, 3, .9); line(g, [824, 303, 927, 248, 990, 301], 0xbf4858, 3, .9);
+          g.roundRect(542, 490, 352, 28, 10).fill({ color: 0xa77d5e }); g.roundRect(570, 518, 19, 172, 5).fill({ color: 0x77513f }); g.roundRect(850, 518, 19, 172, 5).fill({ color: 0x77513f });
+          g.ellipse(1030, 52, 136, 90).fill({ color: 0xf7c970, alpha: .12 }); g.roundRect(1012, 48, 40, 19, 8).fill({ color: 0xffdfa0, alpha: .92 });
+        });
+      }
+      for (let i = 0; i < 31; i++) {
+        const particle = new PIXI.Container(); particle.x = randomIndex(W); particle.y = 80 + randomIndex(480); children.push(particle);
+        const dot = new PIXI.Graphics().circle(0, 0, 2 + (i % 3)).fill({ color: mode === 'garden' ? 0xfff1a4 : mode === 'stadium' ? 0xffe69e : 0xeab7a4, alpha: .65 }); particle.addChild(dot); world.addChild(particle); sparks.push(particle);
+        if (gsap) gsap.to(particle, { y: particle.y - 17 - randomIndex(42), alpha: .18, duration: 1.5 + randomIndex(25) / 10, repeat: -1, yoyo: true, ease: 'sine.inOut', delay: -randomIndex(30) / 10 });
+      }
+    }
+    function drawPrince() {
+      actor = new PIXI.Container(); actor.x = 640; actor.y = 210; world.addChild(actor);
+      shape(actor, g => {
+        // pony: articulated legs, body, mane, head, saddle, rider
+        ellipse(g, 10, 50, 107, 40, 0x7e4b3d); ellipse(g, -14, 49, 73, 35, 0x9a6148); ellipse(g, 90, 18, 30, 26, 0x93593f); ellipse(g, 109, 26, 22, 13, 0xefa98a); circle(g, 108, 15, 3.5, 0x342d36);
+        g.moveTo(74, 4).lineTo(100, -42).lineTo(127, -35).lineTo(115, 7).closePath().fill({ color: 0x93593f });
+        for (let i = 0; i < 8; i++) circle(g, 82 - i * 8, -7 + (i % 3) * 8, 12, i % 2 ? 0x603b45 : 0xa45851);
+        line(g, [-91, 42, -123, 24, -142, 43], 0x5a3742, 9); line(g, [-44, 79, -49, 130], 0x583f43, 10); line(g, [31, 79, 38, 130], 0x583f43, 10); line(g, [82, 65, 91, 120], 0x583f43, 10); line(g, [-5, 76, -2, 129], 0x583f43, 10);
+        ellipse(g, 29, 31, 40, 11, 0xb8546a); // saddle
+        circle(g, -4, -47, 24, 0xf0c5a4); ellipse(g, -4, -66, 24, 10, 0x583547); // hair
+        g.roundRect(-28, -45, 47, 19, 8).fill({ color: 0x3c3b55 }); circle(g, -11, -48, 2.4, 0x313242); circle(g, 4, -48, 2.4, 0x313242); line(g, [-4, -38, 0, -35, 5, -38], 0xb96f66, 2);
+        g.moveTo(-22, -64).lineTo(-10, -82).lineTo(18, -64).closePath().fill({ color: 0xf0c85e }); g.roundRect(-23, -67, 48, 6, 3).fill({ color: 0xe5ae4b });
+        g.moveTo(-24, -23).lineTo(-55, 22).lineTo(-9, 0).lineTo(20, 31).lineTo(14, -27).closePath().fill({ color: 0x8b5fd0 });
+        g.roundRect(-21, -23, 38, 68, 12).fill({ color: 0x4c79c5 }); line(g, [-20, -8, -39, 14], 0xf0c5a4, 7); line(g, [12, -6, 30, 12], 0xf0c5a4, 7);
+      });
+      const legs = new PIXI.Graphics(); actor.addChild(legs);
+      if (gsap) gsap.to(actor, { y: 202, duration: .78, repeat: -1, yoyo: true, ease: 'sine.inOut' });
+    }
+    function drawFootball() {
+      actor = new PIXI.Container(); actor.x = 550; actor.y = 260; world.addChild(actor);
+      shape(actor, g => {
+        // Goalkeeper, gloved hands and the striker take the spot.
+        g.roundRect(278, -79, 107, 145, 42).fill({ color: 0x4cb7a3 }); circle(g, 330, -102, 34, 0xe9bd9c); g.moveTo(300, -118).quadraticCurveTo(329, -147, 357, -117).lineTo(350, -137).lineTo(313, -139).closePath().fill({ color: 0x31374e });
+        circle(g, 319, -103, 3, 0x3a3b43); circle(g, 340, -103, 3, 0x3a3b43); line(g, [280, -55, 252, -2], 0xe9bd9c, 11); line(g, [384, -55, 407, -8], 0xe9bd9c, 11); circle(g, 249, 0, 13, 0xe7e8f0); circle(g, 409, -3, 13, 0xe7e8f0);
+        // kicker chibi
+        circle(g, 61, -73, 23, 0xeac09e); g.roundRect(41, -54, 42, 70, 12).fill({ color: 0xf3d44d }); line(g, [52, 13, 40, 59], 0x333c63, 11); line(g, [73, 13, 94, 49], 0x333c63, 11); line(g, [45, -35, 23, -2], 0xeac09e, 8); line(g, [78, -35, 104, -6], 0xeac09e, 8); g.moveTo(43, -88).quadraticCurveTo(58, -112, 82, -89).fill({ color: 0x38394c }); circle(g, 54, -71, 2, 0x30323d); circle(g, 68, -71, 2, 0x30323d);
+      });
+      ball = new PIXI.Container(); ball.x = 434; ball.y = 451; world.addChild(ball);
+      shape(ball, g => { circle(g, 0, 0, 22, 0xf8f4db); g.moveTo(-10, -5).lineTo(-4, -15).lineTo(8, -13).lineTo(12, -1).lineTo(2, 9).lineTo(-10, 5).closePath().fill({ color: 0x36405f }); line(g, [-18, -8, -8, -5, -4, -15], 0x414861, 2); line(g, [8, -13, 15, -8, 12, -1], 0x414861, 2); });
+      keeper = actor;
+      if (gsap) gsap.to(keeper, { x: 560, duration: .85, repeat: -1, yoyo: true, ease: 'sine.inOut' });
+    }
+    function drawDetective() {
+      actor = new PIXI.Container(); actor.x = 640; actor.y = 270; world.addChild(actor);
+      shape(actor, g => {
+        // Small original detective, coat, cap and magnifying glass.
+        ellipse(g, 0, 87, 125, 20, 0x201e2b, .19); g.roundRect(-64, 11, 128, 133, 32).fill({ color: 0x8c6255 }); g.moveTo(-64, 41).lineTo(-92, 138).lineTo(-24, 141).lineTo(0, 78).lineTo(28, 142).lineTo(94, 135).lineTo(61, 35).closePath().fill({ color: 0x9a6e58 });
+        circle(g, 0, -29, 50, 0xefc7a2); g.moveTo(-50, -40).quadraticCurveTo(-31, -85, 13, -81).quadraticCurveTo(44, -77, 54, -38).lineTo(29, -48).lineTo(5, -60).lineTo(-12, -45).closePath().fill({ color: 0x4a3b3b });
+        g.roundRect(-59, -55, 119, 15, 8).fill({ color: 0x524148 }); g.roundRect(-28, -98, 60, 42, 14).fill({ color: 0x655052 });
+        circle(g, -17, -27, 4, 0x303345); circle(g, 17, -27, 4, 0x303345); line(g, [-10, -6, 0, -2, 10, -6], 0xb77d6d, 3);
+        line(g, [47, 17, 104, -18], 0xe7cba0, 12); circle(g, 115, -28, 30, 0xe8c679, .72); circle(g, 115, -28, 20, 0x748394, .65); line(g, [135, -7, 164, 16], 0x98744e, 8);
+        g.roundRect(-31, 39, 13, 63, 6).fill({ color: 0xd9b88d }); g.moveTo(-25, 40).lineTo(-17, 56).lineTo(-25, 72).lineTo(-33, 56).closePath().fill({ color: 0xbe6b72 });
+      });
+      if (gsap) gsap.to(actor, { y: 262, duration: 1.35, repeat: -1, yoyo: true, ease: 'sine.inOut' });
+    }
+    function newPrince(index) {
+      if (mode !== 'garden' || !gsap) return;
+      const previous = actor;
+      const colors = [0x945fc2, 0x3f91ad, 0xd65f83];
+      const horses = [0x84523f, 0x6a536f, 0x9a7047];
+      const entrant = new PIXI.Container(); entrant.x = -230; entrant.y = 210; world.addChild(entrant);
+      children.push(entrant); gsap.killTweensOf(previous);
+      shape(entrant, g => {
+        ellipse(g, 0, 46, 93, 34, horses[(index - 1) % horses.length]); ellipse(g, 75, 18, 25, 24, horses[(index - 1) % horses.length]); ellipse(g, 96, 25, 18, 11, 0xf0b294);
+        circle(g, 94, 15, 3, 0x322d35); g.moveTo(65, 7).lineTo(87, -31).lineTo(109, -22).lineTo(96, 9).closePath().fill({ color: horses[(index - 1) % horses.length] });
+        for (let i = 0; i < 7; i++) circle(g, 70 - i * 8, 1 + i % 2 * 8, 10, 0x704051);
+        line(g, [-37, 75, -42, 119], 0x593f42, 9); line(g, [22, 77, 27, 120], 0x593f42, 9); line(g, [67, 59, 76, 110], 0x593f42, 9); line(g, [-82, 38, -110, 20, -125, 40], 0x593f42, 8);
+        circle(g, -1, -44, 22, 0xf0c5a4); ellipse(g, -1, -61, 23, 9, 0x573748); g.roundRect(-22, -44, 43, 17, 7).fill({ color: 0x363951 }); circle(g, -8, -46, 2, 0x30303a); circle(g, 6, -46, 2, 0x30303a);
+        g.moveTo(-16, -61).lineTo(-7, -77).lineTo(15, -61).closePath().fill({ color: 0xf1cb66 }); g.roundRect(-20, -64, 40, 5, 3).fill({ color: 0xe1b44d });
+        g.moveTo(-22, -21).lineTo(-53, 22).lineTo(-10, 1).lineTo(20, 31).lineTo(14, -24).closePath().fill({ color: colors[(index - 1) % colors.length] }); g.roundRect(-19, -20, 38, 59, 10).fill({ color: [0x3f75b8, 0x4e9c8a, 0xc05d73][(index - 1) % 3] });
+        line(g, [-17, -7, -33, 14], 0xf0c5a4, 7); line(g, [12, -7, 30, 11], 0xf0c5a4, 7);
+      });
+      gsap.to(previous, { x: 1480, duration: .48, ease: 'power2.in' });
+      gsap.fromTo(entrant, { x: -230 }, { x: 640, duration: 1.15, ease: 'power3.out' });
+      gsap.to(entrant, { y: 202, duration: .82, repeat: -1, yoyo: true, ease: 'sine.inOut', delay: 1.15 });
+      actor = entrant;
+    }
+    function scaleWorld() {
+      if (!rootLayer || !app.renderer) return;
+      const scale = Math.max(app.screen.width / W, app.screen.height / H);
+      rootLayer.scale.set(scale); rootLayer.x = (app.screen.width - W * scale) / 2; rootLayer.y = (app.screen.height - H * scale) / 2;
+    }
+    const api = {
+      app,
+      async init() {
+        await app.init({ resizeTo: host, backgroundAlpha: 0, antialias: true, autoDensity: true, resolution: Math.min(window.devicePixelRatio || 1, 2), preference: 'webgl' });
+        if (disposed || stopped || !host.isConnected) { app.destroy(true); return; }
+        app.canvas.className = 'caller-pixi-canvas'; host.appendChild(app.canvas);
+        rootLayer = new PIXI.Container(); app.stage.addChild(rootLayer);
+        world = new PIXI.Container(); rootLayer.addChild(world);
+        drawBackground();
+        if (mode === 'garden') drawPrince(); else if (mode === 'stadium') drawFootball(); else drawDetective();
+        scaleWorld(); observer = new ResizeObserver(scaleWorld); observer.observe(host);
+        if (gsap) {
+          gsap.to(rootLayer, { alpha: .96, duration: 2.3, repeat: -1, yoyo: true, ease: 'sine.inOut' });
+          if (mode === 'garden') gsap.to(actor, { rotation: .012, duration: .5, repeat: -1, yoyo: true, ease: 'sine.inOut' });
+        }
+      },
+      travel(value) {
+        if (!actor || !gsap) return;
+        const destination = mode === 'garden' ? 210 + value * 860 : mode === 'stadium' ? 415 + value * 630 : 465 + value * 360;
+        gsap.to(actor, { x: destination, duration: .48 + Math.random() * .26, ease: 'power2.inOut' });
+      },
+      enter() { if (!actor || !gsap) return; if (mode === 'garden') gsap.fromTo(actor, { x: -220 }, { x: 640, duration: 1.6, ease: 'power3.out' }); else if (mode === 'stadium') gsap.fromTo(ball, { x: 310, y: 335, rotation: -5 }, { x: 434, y: 451, rotation: 0, duration: .75, ease: 'bounce.out' }); else gsap.fromTo(actor, { x: 130, alpha: .4 }, { x: 640, alpha: 1, duration: 1.15, ease: 'back.out(1.5)' }); },
+      turnBack() { if (mode === 'garden' && gsap) gsap.to(actor, { x: 370, duration: .75, ease: 'power2.inOut', yoyo: true, repeat: 1 }); },
+      newPrince(index) { newPrince(index); },
+      prepareShot(index) { if (mode === 'stadium' && gsap) gsap.to(actor, { x: 530 + index * 24, y: 357, duration: .25, repeat: 1, yoyo: true, ease: 'power1.inOut' }); },
+      fakeShot(trick) {
+        if (mode === 'stadium' && gsap) {
+          const destination = trick === 0 ? 1020 : trick === 1 ? 840 : 930;
+          gsap.to(ball, { x: destination, y: trick === 1 ? 440 : 315, rotation: 10, duration: .55, ease: trick === 1 ? 'power1.in' : 'power2.in' });
+          gsap.to(keeper, { x: trick === 2 ? 720 : 640, rotation: trick === 2 ? -.16 : .11, duration: .35, yoyo: true, repeat: 1, ease: 'power1.inOut' });
+        }
+      },
+      scoreShot(index) {
+        if (mode === 'stadium' && gsap) gsap.to(ball, { x: 1010 + (index % 3) * 36, y: 268 + (index % 3) * 28, rotation: 13, duration: .68, ease: 'power1.in' });
+        if (mode === 'garden' && gsap) gsap.to(actor, { x: 735, y: 202, duration: .68, ease: 'power2.inOut' });
+      },
+      stampClue() {
+        if (mode === 'office' && gsap) gsap.fromTo(actor, { rotation: -.035, x: actor.x - 6 }, { rotation: .025, x: actor.x + 6, duration: .13, repeat: 3, yoyo: true, ease: 'power1.inOut' });
+      },
+      nextCase() { if (mode === 'office' && gsap) gsap.to(actor, { x: 510 + randomIndex(160), duration: .55, ease: 'power2.inOut' }); },
+      setSlow(flag) { if (app.ticker) app.ticker.speed = flag ? .62 : 1; if (gsap && currentTimeline) currentTimeline.timeScale(flag ? .72 : 1); },
+      reset(game) { if (gsap && actor) { gsap.killTweensOf(actor); actor.rotation = 0; if (game === 'prince') { actor.x = 640; actor.y = 210; gsap.to(actor, { y: 202, duration: .8, repeat: -1, yoyo: true, ease: 'sine.inOut' }); } else if (game === 'office') { actor.x = 640; actor.y = 270; gsap.to(actor, { y: 262, duration: 1.35, repeat: -1, yoyo: true, ease: 'sine.inOut' }); } else { actor.x = 550; actor.y = 260; gsap.to(actor, { x: 560, duration: .85, repeat: -1, yoyo: true, ease: 'sine.inOut' }); } } if (ball && gsap) { gsap.killTweensOf(ball); ball.x = 434; ball.y = 451; ball.rotation = 0; } },
+      celebrate() { if (!gsap || !actor) return; gsap.to(actor, { y: actor.y - 24, duration: .25, repeat: 3, yoyo: true, ease: 'power2.out' }); for (let i = 0; i < sparks.length; i++) { const p = sparks[i]; gsap.fromTo(p, { alpha: .1, scale: .5 }, { alpha: 1, scale: 1.8, duration: .55, delay: i % 10 * .035, yoyo: true, repeat: 1 }); } },
+      destroy() { stopped = true; observer?.disconnect(); [...children, ...sparks, actor, ball, keeper, rootLayer].filter(Boolean).forEach(item => gsap?.killTweensOf(item)); if (app.renderer) app.destroy(true, { children: true, texture: true, textureSource: true }); }
+    };
+    return api;
+  }
+
+  async function openGame(key) {
+    if (!GAME[key]) return;
+    if (scene) { scene.destroy(); scene = null; }
+    activeGame = key;
+    const meta = GAME[key];
+    home.hidden = true; play.hidden = false;
+    $('#playGameIcon', root).textContent = meta.icon;
+    $('#playGameName', root).textContent = meta.name;
+    $('#playGameSubtitle', root).textContent = meta.subtitle;
+    $('#stageTheme', root).textContent = key === 'prince' ? 'KHU VƯỜN TRƯỚC LÂU ĐÀI' : key === 'penalty' ? 'SÂN VẬN ĐỘNG ĐÊM' : 'VĂN PHÒNG THÁM TỬ';
+    $('#dialogueAvatar', root).textContent = key === 'prince' ? '♘' : key === 'penalty' ? '⚽' : '⌕';
+    $('#dialogueText', root).textContent = key === 'prince' ? 'Gió đang lay cờ trên tháp… ai sẽ được mời lên ngựa?' : key === 'penalty' ? 'Khán đài đã sáng đèn. Cầu thủ đang đặt bóng…' : 'Mưa rơi ngoài cửa sổ. Một vụ án mới bắt đầu…';
+    $('#resultOverlay', root).hidden = true; $('#resultOverlay', root).classList.remove('is-shown');
+    gameStage.className = 'caller-stage scene-' + meta.scene;
+    renderRoster();
+    scene = makeScene(meta.scene);
+    scene.init().catch(error => { console.warn('PIXI scene could not start', error); gameStage.classList.add('is-css-fallback'); });
+    updateGameStats();
+    if (savedSound.checked) startMusic();
+  }
+  function goHome() {
+    if (busy) return;
+    stopMusic();
+    if (scene) { scene.destroy(); scene = null; }
+    activeGame = ''; play.hidden = true; home.hidden = false; setRoster();
+  }
+  async function refreshRound() {
+    if (busy || !activeGame) return;
+    settings.daily.round = { girls: [], boys: [], all: [] };
+    persist(); renderRoster(); updateGameStats();
+    await typeDialogue('Một lượt mới bắt đầu! Các bạn sẵn sàng chưa?', 420);
+  }
+  function refreshToday() {
+    if (busy) return;
+    settings.daily.round = { girls: [], boys: [], all: [] };
+    persist(); updateHomeHistory(); updateGameStats();
+    if (activeGame) renderRoster();
+  }
+  $$('.caller-game-card', root).forEach(card => card.onclick = () => openGame(card.dataset.openGame));
+  $('#backHome', root).onclick = goHome; $('#resultHome', root).onclick = goHome;
+  $('#playAgain', root).onclick = () => {
+    const scope = GAME[activeGame].scope;
+    if (!remaining(scope).length) { settings.daily.round = { girls: [], boys: [], all: [] }; persist(); renderRoster(); }
+    startStory();
+  };
+  startButton.onclick = startStory;
+  $('#roundProgress', root).onclick = refreshRound;
+  $('#refreshRound', root).onclick = refreshToday;
+  $('#clearLists', root).onclick = () => { $('#girlsNames', root).value = ''; $('#boysNames', root).value = ''; setRoster(); };
+  $('#liveCount', root).onchange = event => { settings.count = Number(event.target.value); syncSegments(); persist(); };
+  $('#liveSpeed', root).onchange = event => { settings.seconds = Number(event.target.value); syncSegments(); persist(); };
+  savedSound.onchange = () => { settings.sound = savedSound.checked; persist(); if (settings.sound) { soundContext(); startMusic(); tone(659, .12, .035); } else stopMusic(); };
+  $('#fullscreenToggle', root).onclick = async () => {
+    try { if (document.fullscreenElement) await document.exitFullscreen(); else await root.requestFullscreen(); }
+    catch { $('#stageStatus', root).textContent = 'Trình duyệt này chưa bật được chế độ toàn màn hình.'; }
+  };
+  $('#liveSpeed', root).value = String(settings.seconds);
+  $('#liveCount', root).value = String(settings.count);
+  $('#resultOverlay', root).addEventListener('click', event => { if (event.target === event.currentTarget && !busy) event.currentTarget.classList.remove('is-shown'); });
+  root.addEventListener('keydown', event => {
+    if (event.code === 'Space' && activeGame && !busy && !event.target.closest('button, input, select, textarea, a')) { event.preventDefault(); startStory(); }
+    if (event.code === 'Escape' && activeGame && !busy && document.fullscreenElement === root) document.exitFullscreen().catch(() => {});
+  });
+  const cleanWhenLeaving = () => {
+    if (root.isConnected) return;
+    disposed = true; stopMusic(); currentTimeline?.kill(); scene?.destroy(); scene = null;
+    window.removeEventListener('hashchange', cleanWhenLeaving);
+    document.removeEventListener('fullscreenchange', updateFullscreen);
+    if (audio && audio.state !== 'closed') audio.close().catch(() => {});
+  };
+  function updateFullscreen() { if (!root.isConnected) return; $('#fullscreenToggle', root).textContent = document.fullscreenElement === root ? '⤢' : '⛶'; }
+  document.addEventListener('fullscreenchange', updateFullscreen);
+  window.addEventListener('hashchange', cleanWhenLeaving);
+  updateHomeHistory();
+  setRoster();
+}
+
+window.GV && window.GV.register('goi-ten', 'Gọi tên', page);
