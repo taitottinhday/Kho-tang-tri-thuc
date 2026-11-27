@@ -65,11 +65,39 @@ async function main() {
       await click('#storyNext');
     }
     assert.equal(await browser.eval(`return currentView === 'story-grove' && document.querySelectorAll('.forest-hotspot').length === 3`), true);
+    const titles = new Set();
     for (const id of ['seed', 'cloud', 'lantern']) {
-      await click('[data-story-relic="' + id + '"]');
+      const hotspot = '[data-story-relic="' + id + '"]';
+      await click(hotspot);
       assert.equal(await browser.eval(`return document.querySelector('.forest-grove-stage').dataset.discovery`), id);
-      assert.ok(await browser.eval(`return document.querySelector('.forest-reveal p').textContent.length > 25`));
+      const intro = await browser.eval(`return document.querySelector('.forest-reader h2').textContent`);
+      titles.add(intro);
+      assert.ok(await browser.eval(`return document.querySelector('.forest-reader-back').disabled`));
+      const content = new Set();
+      for (let page = 1; page <= 3; page++) {
+        const storyPage = await browser.eval(`
+          const img = document.querySelector('.forest-reader-art'); await img.decode();
+          const text = document.querySelector('.forest-reader-text');
+          const r = document.querySelector('.forest-reader').getBoundingClientRect();
+          return { count:document.querySelector('.forest-reader-count').textContent, reading:text.textContent,
+            fits:r.right <= innerWidth && r.left >= 0, hasArt:img.naturalWidth > 0, readFocus:document.activeElement === text.querySelector('h3') };
+        `);
+        assert.equal(storyPage.count, 'Trang ' + page + ' / 3');
+        assert.ok(storyPage.reading.length > 120 && storyPage.fits && storyPage.hasArt && storyPage.readFocus);
+        content.add(storyPage.reading);
+        if (id === 'lantern' && page === 2) {
+          await browser.sleep(320);
+          await browser.shot(path.join(out, 'tale-' + width + '.png'));
+          await click('.forest-reader-back');
+          assert.equal(await browser.eval(`return document.querySelector('.forest-reader-count').textContent`), 'Trang 1 / 3');
+          await click('.forest-reader-next');
+        }
+        await click('.forest-reader-next');
+      }
+      assert.equal(content.size, 3);
+      assert.ok(await browser.eval(`return document.querySelector('#modalRoot').hidden && document.activeElement === document.querySelector(${JSON.stringify(hotspot)})`));
     }
+    assert.equal(titles.size, 3);
     await browser.sleep(350);
     await browser.shot(path.join(out, 'discovery-' + width + '.png'));
     assert.equal(await browser.eval('return testSpeech.played.length'), 0);
@@ -85,7 +113,7 @@ async function main() {
     await browser.eval("go('stories');");
     assert.equal(await browser.eval("return document.querySelector('.forest-unlock button').disabled"), false);
     assert.deepEqual(browser.errors, []);
-    console.log(width + '×' + height + ': 9 chốt, 3 bảo vật, 3 khám phá và đọc theo yêu cầu đều đạt.');
+    console.log(width + '×' + height + ': 9 chốt, 3 bảo vật, 3 truyện có tranh, lật trang và trở về khu rừng đều đạt.');
   } finally { await browser.close(); }
 }
 main().catch(error => { console.error(error); process.exitCode = 1; });

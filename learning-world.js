@@ -75,7 +75,7 @@ const StoryQuest = (() => {
           (done ? 'Đọc lại' : locked ? 'Chưa mở' : 'Bước vào truyện →') + '</button></div></article>';
       }).join('') + '</div>' +
       '<section class="forest-unlock' + (open ? ' is-open' : '') + '"><img src="' + groveArt + '" alt="" loading="lazy">' +
-      '<div><h2>Khu Rừng Bí Mật</h2><p>' + (open ? 'Ba bảo vật đã mở lối. Chạm vào từng điểm để xem điều bất ngờ.' : 'Hoàn thành cả ba chương để khám phá khu rừng sau cánh cổng.') +
+      '<div><h2>Khu Rừng Bí Mật</h2><p>' + (open ? 'Ba bảo vật đã mở lối. Mỗi điểm sáng cất một truyện ngắn.' : 'Hoàn thành cả ba chương để khám phá khu rừng sau cánh cổng.') +
       '</p><button data-view="story-grove" class="forest-enter"' + (open ? '' : ' disabled') + '>' + (open ? 'Khám phá khu rừng →' : '🔒 Chưa mở') + '</button></div></section></div>';
   }
   function start(id) {
@@ -136,26 +136,59 @@ const StoryQuest = (() => {
     if (!forestOpen()) return '<section class="world-panel"><h1>Khu Rừng Bí Mật</h1><p>Em cần tìm đủ ba bảo vật trong Vườn truyện để vào rừng.</p><button class="world-back" data-view="stories">Về Vườn truyện</button></section>';
     const positions = [[11, 44], [64, 38], [88, 32]];
     return '<div class="learning-world forest-grove"><div class="forest-grove-heading"><button class="world-back" data-view="stories">← Vườn truyện</button>' +
-      '<h1>Khu Rừng Bí Mật</h1><p>Chạm vào một điểm sáng để dùng bảo vật và xem điều gì xảy ra.</p></div>' +
+      '<h1>Khu Rừng Bí Mật</h1><p>Chạm vào một điểm sáng để mở truyện của bảo vật đó.</p></div>' +
       '<div class="forest-grove-stage"><img src="' + groveArt + '" alt="Khu rừng với mầm vàng, tàu mây và hồ đom đóm">' +
       '<span class="forest-magic" aria-hidden="true"></span>' +
-      chapters.map((chapter, index) => '<button type="button" class="forest-hotspot" data-story-relic="' + chapter.id + '" style="--place-x:' + positions[index][0] + '%;--place-y:' + positions[index][1] + '%" aria-label="Dùng ' +
-        esc(chapter.relic) + '" aria-pressed="false">' + chapter.icon + '</button>').join('') + '</div>' +
-      '<div class="forest-grove-result" aria-live="polite"><p>Thỏ Lá đã mang đủ ba bảo vật tới đây.</p></div></div>';
+      chapters.map((chapter, index) => '<button type="button" class="forest-hotspot" data-story-relic="' + chapter.id + '" style="--place-x:' + positions[index][0] + '%;--place-y:' + positions[index][1] + '%" aria-haspopup="dialog" aria-label="Đọc truyện ' +
+        esc(chapter.tale.title) + '">' + chapter.icon + '</button>').join('') + '</div></div>';
+  }
+  function openTale(chapter, opener) {
+    const tale = chapter.tale;
+    openModal(esc(tale.title), esc(chapter.relic), '<div class="forest-reader-page"></div>' +
+      '<nav class="forest-reader-controls" aria-label="Lật trang truyện"><button type="button" class="forest-reader-back">‹ Trang trước</button>' +
+      '<span class="forest-reader-count"></span><button type="button" class="forest-enter forest-reader-next"></button></nav>', 'forest-reader');
+    const reader = $('#modalRoot .forest-reader');
+    const pageRoot = reader.querySelector('.forest-reader-page');
+    const count = reader.querySelector('.forest-reader-count');
+    const back = reader.querySelector('.forest-reader-back');
+    const next = reader.querySelector('.forest-reader-next');
+    let pageIndex = 0;
+
+    function showPage() {
+      const page = tale.pages[pageIndex], last = pageIndex === tale.pages.length - 1;
+      const scene = chapter.scenes[pageIndex];
+      pageRoot.innerHTML = '<img class="forest-reader-art" src="' + storyArt(chapter, pageIndex) + '" alt="' +
+        esc('Thỏ Lá và ' + scene.guide + ' tại ' + scene.place) + '">' +
+        '<article class="forest-reader-text"><h3 tabindex="-1">' + esc(page.heading) + '</h3>' +
+        page.paragraphs.map(paragraph => '<p>' + esc(paragraph) + '</p>').join('') + '</article>';
+      count.textContent = 'Trang ' + (pageIndex + 1) + ' / ' + tale.pages.length;
+      pageRoot.querySelector('h3').setAttribute('aria-description', count.textContent);
+      back.disabled = pageIndex === 0;
+      next.textContent = last ? 'Về khu rừng' : 'Trang sau ›';
+      reader.scrollTop = 0;
+      pageRoot.querySelector('h3').focus({ preventScroll: true });
+      if (!last) new Image().src = storyArt(chapter, pageIndex + 1);
+    }
+
+    back.onclick = () => { if (pageIndex > 0) { pageIndex--; showPage(); } };
+    next.onclick = () => {
+      if (pageIndex === tale.pages.length - 1) closeModal();
+      else { pageIndex++; showPage(); }
+    };
+    onModalClose = () => { if (opener.isConnected) opener.focus({ preventScroll: true }); };
+    showPage();
   }
   function bindGrove() {
-    document.querySelectorAll('[data-story-relic]').forEach(button => button.onclick = () => {
-      if (!forestOpen()) return;
+    const stage = $('.forest-grove-stage');
+    if (!stage) return;
+    stage.querySelectorAll('[data-story-relic]').forEach(button => button.onclick = () => {
+      if (!forestOpen() || !$('#modalRoot').hidden) return;
       const chapter = chapters.find(row => row.id === button.dataset.storyRelic);
-      const result = document.querySelector('.forest-grove-result');
-      const stage = document.querySelector('.forest-grove-stage');
-      document.querySelectorAll('[data-story-relic]').forEach(choice => choice.setAttribute('aria-pressed', String(choice === button)));
+      stage.querySelectorAll('[data-story-relic]').forEach(choice => choice.classList.toggle('is-selected', choice === button));
       const magic = stage.querySelector('.forest-magic');
       magic.replaceWith(magic.cloneNode());
       stage.dataset.discovery = chapter.id;
-      result.innerHTML = '<div class="forest-reveal"><span aria-hidden="true">' + chapter.icon + '</span><div><h2>' +
-        esc(chapter.relic) + '</h2><p>' + esc(chapter.discovery) + '</p></div></div>';
-      result.scrollIntoView({ block: 'nearest' });
+      openTale(chapter, button);
       sfx('good');
     });
   }

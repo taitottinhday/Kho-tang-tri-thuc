@@ -3,7 +3,33 @@
 window.VUON_TRUYEN = [
   {
     id: 'seed', icon: '🌱', title: 'Hạt mầm biết đọc', subtitle: 'Theo tấm bản đồ tới thư viện bên suối.',
-    relic: 'Hạt mầm Ánh Sáng', discovery: 'Một chồi non bật lên. Cả bờ suối sáng theo từng chiếc lá.',
+    relic: 'Hạt mầm Ánh Sáng',
+    tale: {
+      title: 'Tiếng gõ trong túi áo',
+      pages: [
+        {
+          heading: 'Cốc! Cốc!',
+          paragraphs: [
+            'Vừa tới Cổng Lá, Thỏ Lá nghe “cốc, cốc” ngay trong túi áo. Thỏ lục túi. Chỉ có Hạt mầm Ánh Sáng.',
+            'Sóc Nâu mở tấm bản đồ rồi kể chuyện mình đi lạc. Hạt mầm im bặt. Đến chỗ Sóc phải ngủ trong một chiếc ủng, nó lại gõ “cốc, cốc!”.'
+          ]
+        },
+        {
+          heading: 'Đến đoạn hay thì dừng',
+          paragraphs: [
+            'Bên suối, Rái Cá Bông nhỏ một giọt nước lên hạt mầm. Nó vẫn gõ. Bông bèn kể chuyện một con cá muốn leo cây. Tiếng gõ lại im.',
+            'Khi Bông dừng để lấy hơi, hạt mầm lăn sát tới. Thỏ Lá bật cười. “Tớ biết cậu muốn gì rồi!”'
+          ]
+        },
+        {
+          heading: 'Cái lá biết nghe',
+          paragraphs: [
+            'Thỏ đặt hạt mầm cạnh cuốn sách của Cú Mực. Cả ba nghe bác đọc đến trang cuối. Vừa nghe chữ “hết”, hạt mầm nứt vỏ. Hai chiếc lá nhỏ xòe ra như đôi tai.',
+            'Cú Mực khép sách. Từ trong chậu lại có tiếng “cốc, cốc”. Thỏ Lá mỉm cười, lật sang cuốn khác.'
+          ]
+        }
+      ]
+    },
     scenes: [
       {
         place: 'Cổng Lá', guide: 'Sóc Nâu', icon: '🐿️',
@@ -33,7 +59,33 @@ window.VUON_TRUYEN = [
   },
   {
     id: 'cloud', icon: '🚂', title: 'Chuyến tàu mây', subtitle: 'Mang hạt mầm qua cây cầu bảy sắc.',
-    relic: 'Vé Tàu Mây', discovery: 'Chiếc vé sáng lên. Một đoàn tàu tí hon lướt giữa những tán cây.',
+    relic: 'Vé Tàu Mây',
+    tale: {
+      title: 'Hành khách không mang ô',
+      pages: [
+        {
+          heading: 'Chiếc vé ướt',
+          paragraphs: [
+            'Thỏ Lá giơ Vé Tàu Mây lên. “Tu tu!” Tàu ghé ga, mang theo một hành khách tròn xoe. Đó là Mây Con. Bạn làm ướt cả chiếc ghế.',
+            'Sẻ Mây hỏi: “Bạn muốn xuống ga nào?” Mây Con cúi đầu. “Tớ muốn tưới cây. Nhưng trên này chỉ có mây.”'
+          ]
+        },
+        {
+          heading: 'Một cây cầu dẫn xuống thấp',
+          paragraphs: [
+            'Tới cầu bảy sắc, Thỏ Lá thấy Rùa Gió đang nhìn xuống khu rừng. Dưới kia, một luống hoa cúi đầu vì khát.',
+            'Rùa chỉ tay: “Đường ray màu xanh có một nhánh xuống tận gốc cây.” Thỏ chạy báo Cáo Ga. Bác kéo cần, đường ray kêu “cạch” rồi đổi hướng.'
+          ]
+        },
+        {
+          heading: 'Cơn mưa đúng chỗ',
+          paragraphs: [
+            'Tàu dừng trên luống hoa. Mây Con mở cửa, rắc xuống một cơn mưa nhỏ. Từng bông hoa ngẩng đầu, đón những giọt nước mát.',
+            'Lúc về ga, Cáo Ga dán lên ghế một tấm biển: “Dành cho mây.” Bác lót thêm một chiếc khăn. “Lần sau, chúng ta ghé cả vườn rau nhé!”'
+          ]
+        }
+      ]
+    },
     scenes: [
       {
         place: 'Ga Gió', guide: 'Sẻ Mây', icon: '🐦',
@@ -63,7 +115,33 @@ window.VUON_TRUYEN = [
   },
   {
     id: 'lantern', icon: '🏮', title: 'Đêm hội đom đóm', subtitle: 'Mang ánh sáng tới lễ hội trong rừng.',
-    relic: 'Đèn Đom Đóm', discovery: 'Chiếc đèn gọi về cả đàn đom đóm. Chúng vẽ một vì sao trên hồ.',
+    relic: 'Đèn Đom Đóm',
+    tale: {
+      title: 'Ngôi sao của Cá Bé',
+      pages: [
+        {
+          heading: 'Ánh đèn dưới nước',
+          paragraphs: [
+            'Đom Đóm Đèn rủ Thỏ Lá ra hồ xem sao. Cá Bé nhô lên khỏi mặt nước, nhìn chiếc đèn trên tay Thỏ rồi gọi: “Tớ có một ngôi sao! Nó vừa trốn dưới bụng tớ!”',
+            'Thỏ cúi xuống. Cá Bé quẫy đuôi. Đốm sáng dưới nước vỡ thành những mảnh vàng.'
+          ]
+        },
+        {
+          heading: 'Mượn một chiếc đèn',
+          paragraphs: [
+            'Nhím Kim mang tới một chiếc đèn giấy hình sao. Bạn vừa nhấc đèn lên, một ngôi sao khác cũng nhích lên dưới mặt hồ.',
+            'Cá Bé bơi theo rồi ngơ ngác: “Sao của tớ biết bắt chước!” Nhím Kim nghiêng đèn sang trái. Ngôi sao dưới hồ cũng nghiêng sang trái.'
+          ]
+        },
+        {
+          heading: 'Hai bầu trời',
+          paragraphs: [
+            'Nai Sao bảo cả nhóm ngồi yên. Khi mặt hồ phẳng lặng, Cá Bé ngước lên. Trên trời có sao. Dưới nước cũng có sao.',
+            'Thỏ Lá định xách đèn về thì nghe Cá Bé gọi: “Mai cậu kể cho tớ nghe chuyện trên bờ nhé! Tớ sẽ kể chuyện dưới hồ.” Thỏ đặt chiếc đèn xuống. Hai bạn còn nhiều chuyện để kể.'
+          ]
+        }
+      ]
+    },
     scenes: [
       {
         place: 'Đường đom đóm', guide: 'Đom Đóm Đèn', icon: '✨',
