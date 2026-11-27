@@ -178,10 +178,8 @@ function unlockAudio() {
   }
   if (audioUnlocked) return;
   audioUnlocked = true;
-  if (IS_IOS && 'speechSynthesis' in window) {
-    // “mồi” giọng đọc ngay trong cú chạm đầu tiên – sau đó web đọc được cả khi không có cú chạm
-    try { const u = new SpeechSynthesisUtterance(' '); u.volume = 0; u.lang = 'vi-VN'; speechSynthesis.speak(u); } catch (e) {}
-  }
+  // Không phát utterance “mồi” ở iOS: utterance này có thể còn pending tới
+  // lúc người dùng chạm nút đọc, khiến câu thật bị dời sang timer và mất user gesture.
   audioUnlockCbs.splice(0).forEach(f => { try { f(); } catch (e) {} });
 }
 ['touchend', 'click', 'keydown'].forEach(ev => document.addEventListener(ev, unlockAudio, { capture: true, passive: true }));
@@ -263,11 +261,22 @@ function speak(text, rate, retried) {
   if (viVoice) u.voice = viVoice; u.lang = (viVoice && viVoice.lang) || 'vi-VN';
   u.volume = Math.min(1, Math.max(0.15, db.settings.sfxVol == null ? 1 : db.settings.sfxVol + 0.2)); // giọng đọc luôn đủ nghe
   u.rate = Math.max(0.45, (rate || 0.85) * SPEECH_PACE * (db.settings.rate || 1)); // đọc chậm, rõ cho học sinh nhỏ
-  // 'not-allowed' = trình duyệt chặn đọc khi chưa có cú chạm của người dùng → em chỉ cần bấm 🔊, không cần báo lỗi
-  u.onerror = e => { if (!['interrupted', 'canceled', 'not-allowed'].includes(e.error)) toast('Chưa phát được giọng đọc (' + e.error + '). Em bấm 🔊 lại nhé.'); };
+  // Nếu iOS chặn vì thiếu user gesture, hiện gợi ý để người dùng thử lại hoặc mở bằng Safari.
+  u.onerror = e => {
+    if (e.error === 'not-allowed') {
+      toast(IS_IOS ? 'iPhone vừa chặn giọng đọc. Em chạm 🔊 lần nữa hoặc mở trang bằng Safari nhé.' : 'Trình duyệt vừa chặn giọng đọc. Em bấm 🔊 lại nhé.');
+      return;
+    }
+    if (!['interrupted', 'canceled'].includes(e.error)) toast('Chưa phát được giọng đọc (' + e.error + '). Em bấm 🔊 lại nhé.');
+  };
   speakQueue.push(u); if (speakQueue.length > 4) speakQueue.shift(); // giữ tham chiếu: Safari hay “quên” câu nói bị dọn rác
-  // Máy rảnh → đọc ngay (giữ được cú chạm, iPhone cần). Đang đọc dở → Chrome hay “nuốt” câu nếu speak() ngay sau cancel(): chờ một nhịp
-  if (!busy) { synth.resume(); synth.speak(u); }
+  // iOS luôn đọc ngay trong cú chạm; Chromium cần một nhịp sau cancel() khi đang đọc dở.
+  if (IS_IOS) {
+    // iOS yêu cầu speak() chạy ngay trong cú chạm. Sau cancel(), không trì hoãn
+    // utterance thật bằng setTimeout như Chromium để tránh mất quyền phát âm thanh.
+    try { synth.resume(); } catch (e) {}
+    synth.speak(u);
+  } else if (!busy) { synth.resume(); synth.speak(u); }
   else setTimeout(() => { synth.resume(); synth.speak(u); }, 60);
 }
 const speakQueue = [];
