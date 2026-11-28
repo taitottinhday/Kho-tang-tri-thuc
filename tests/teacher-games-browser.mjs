@@ -52,7 +52,7 @@ try {
   await browser.eval(`document.querySelector('#loginPass').value='browser-test';document.querySelector('#loginForm').requestSubmit();return 1`);
   check(await until(`!document.querySelector('#app').hidden`), 'Teacher screen opens with a local test session');
   await browser.eval(`location.hash='goi-ten';return 1`);
-  check(await until(`document.querySelectorAll('.caller-game-card').length===4`), 'Four game cards render');
+  check(await until(`document.querySelectorAll('.caller-game-card').length===6`), 'Six game cards render');
   await browser.shot(path.join(out, 'home.png'));
 
   const girls = Array.from({ length: 23 }, (_, index) => `Nguyễn Ngọc An ${index + 1}`).join('\n');

@@ -79,7 +79,7 @@ export function normalizeDailyState(value, dateKey) {
       .slice(-300).map(item => ({ ...item, id: String(item.id) }));
   }
   const pending = value.pending;
-  if (typeof pending?.id === 'string' && ['prince', 'penalty', 'detective', 'ufo'].includes(pending.game)
+  if (typeof pending?.id === 'string' && ['prince', 'penalty', 'detective', 'ufo', 'postal', 'ferry'].includes(pending.game)
     && Array.isArray(pending.students) && pending.students.length > 0 && pending.students.length <= 3) {
     const seen = new Set();
     const students = pending.students.flatMap(student => {

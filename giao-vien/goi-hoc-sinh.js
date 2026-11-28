@@ -1,5 +1,7 @@
 import { createCinema } from './caller-phim.mjs';
 import { createUfoCinema } from './caller-ufo.mjs';
+import { createDuckVillage } from './caller-vit.mjs';
+import { createKnowledgeFerry } from './caller-do.mjs';
 import { makeRoster, parseNames, reserveDraw, completeDraw, restoreStudent, normalizeDailyState, buildDetectiveClues, secureShuffle } from './goi-hoc-sinh-core.mjs';
 const SPEEDS = [60, 90, 120]; // giây cho một lượt gọi – học sinh tiểu học cần đọc chậm
 const OLD_SPEED = { 10: 60, 15: 60, 20: 90, 25: 60, 35: 90 }; // máy đang lưu nhịp cũ → nhịp mới
@@ -16,7 +18,9 @@ const GAME = {
   prince: { scope: 'girls', name: 'Hoàng tử cưỡi ngựa', subtitle: 'Khu vườn trước lâu đài', icon: '♘', scene: 'garden', start: 'Mở cổng khu vườn' },
   penalty: { scope: 'boys', name: 'Sút phạt đền', subtitle: 'Trận cầu dưới ánh đèn', icon: '⚽', scene: 'stadium', start: 'Bắt đầu loạt sút' },
   detective: { scope: 'all', name: 'Thám tử tìm nghi phạm', subtitle: 'Văn phòng hồ sơ bí ẩn', icon: '⌕', scene: 'office', start: 'Mở hồ sơ vụ án' },
-  ufo: { scope: 'all', name: 'UFO Trả bài', subtitle: 'Tín hiệu lạ trên bầu trời lớp mình', icon: '🛸', scene: 'ufo', start: 'Mở tín hiệu vũ trụ' }
+  ufo: { scope: 'all', name: 'UFO Trả bài', subtitle: 'Tín hiệu lạ trên bầu trời lớp mình', icon: '🛸', scene: 'ufo', start: 'Mở tín hiệu vũ trụ' },
+  postal: { scope: 'all', name: 'Đại úy Vịt triệu tập', subtitle: 'Cả xóm nín thở chờ tiếng gõ cửa', icon: '🦆', scene: 'postal', start: 'Cho Đại úy Vịt xuất phát', journey: createDuckVillage },
+  ferry: { scope: 'all', name: 'Lái đò tri thức', subtitle: 'Vượt sóng đưa cả lớp cập bến', icon: '⛵', scene: 'ferry', start: 'Khởi hành', journey: createKnowledgeFerry }
 };
 const LINES = {
   prince: ['Nên chọn ai đây ta…', '{name} à… hay là…', 'Bạn này cười xinh quá!', 'Ơ khoan đã, để ta nghĩ lại…', 'Gió vừa mách ta một điều bí mật…', 'Kỵ mã của ta đang phân vân rồi!'],
@@ -85,6 +89,11 @@ async function page(view) {
             <span class="game-card-scene ufo-card-scene" aria-hidden="true"><i class="ufo-card-beam"></i><i class="ufo-card-kid"></i><svg class="ufo-card-ship" viewBox="0 0 120 64"><ellipse cx="60" cy="28" rx="19" ry="17" fill="#bff3ff" opacity=".85"/><ellipse cx="60" cy="31" rx="9" ry="8.5" fill="#8fdc7c"/><ellipse cx="56.5" cy="30.5" rx="2.3" ry="3.1" fill="#1b2340"/><ellipse cx="63.5" cy="30.5" rx="2.3" ry="3.1" fill="#1b2340"/><path d="M8 40c9-11 27-16 52-16s43 5 52 16c-8 9-27 14-52 14S16 49 8 40Z" fill="#79b9dc" stroke="#effcff" stroke-width="2"/><g fill="#fff4a3"><circle cx="28" cy="44" r="2.6"/><circle cx="44" cy="48" r="2.6"/><circle cx="60" cy="49" r="2.6"/><circle cx="76" cy="48" r="2.6"/><circle cx="92" cy="44" r="2.6"/></g></svg></span>
             <span class="game-card-copy"><b>UFO Trả bài</b><small>Danh sách cả lớp</small><span class="game-card-action" aria-hidden="true">↗</span></span>
           </button>
+          ${Object.entries(GAME).filter(([, game]) => game.journey).map(([key, game]) => `
+            <button class="caller-game-card journey-card ${key}-card" data-open-game="${key}" type="button">
+              <span class="game-card-scene" aria-hidden="true"><span class="journey-card-mark">${game.icon}</span></span>
+              <span class="game-card-copy"><b>${game.name}</b><small>Danh sách cả lớp</small><span class="game-card-action" aria-hidden="true">↗</span></span>
+            </button>`).join('')}
         </section>
 
         <section class="caller-setup-card" aria-label="Danh sách học sinh và thiết lập">
@@ -99,7 +108,7 @@ async function page(view) {
         </section>
 
         <section class="caller-history-home"><div class="caller-history-title"><span>✨</span><div><b>Đã gọi hôm nay</b><small id="todayCount">Chưa có bạn nào</small></div><button id="refreshRound" type="button" title="Cho cả lớp một lượt mới">Làm mới lượt gọi <i>↻</i></button></div><div class="caller-history-chips" id="todayHistory"><span class="caller-history-empty">Lịch sử hôm nay sẽ xuất hiện ở đây.</span></div><button class="caller-history-more" id="historyMore" type="button" aria-controls="todayHistory" aria-expanded="false" hidden></button></section>
-        <p class="caller-fairness-note">🎓 Tên được chọn ngẫu nhiên ngay khi bắt đầu. Cú lừa, cú sút, manh mối và tín hiệu UFO chỉ làm sân khấu hồi hộp hơn.</p>
+        <p class="caller-fairness-note">🎓 Tên được chọn ngẫu nhiên ngay khi bắt đầu. Hoạt cảnh tạo bất ngờ trước khi công bố kết quả.</p>
       </section>
 
       <section class="caller-play" id="callerPlay" hidden>
@@ -150,7 +159,7 @@ async function page(view) {
   const skipButton = $('#skipStory', root);
   const liveSpeed = $('#liveSpeed', root);
   const storySpeedLabels = Array.from(liveSpeed.options, option => option.textContent);
-  const ufoSpeedLabels = ['Nhanh', 'Vừa', 'Chậm'];
+  const shortSpeedLabels = ['Nhanh', 'Vừa', 'Chậm'];
   const savedSound = $('#soundToggle', root);
   $('#girlsNames', root).value = settings.lists.girls;
   $('#boysNames', root).value = settings.lists.boys;
@@ -168,7 +177,11 @@ async function page(view) {
     $('#allNamesPreview', root).textContent = rosters.all.length ? rosters.all.map(student => student.name).join('\n') : 'Danh sách Nữ và Nam sẽ tự gộp ở đây.';
     persist();
     updateHomeHistory();
-    if (activeGame) { renderRoster(); updateGameStats(); }
+    if (activeGame) {
+      renderRoster();
+      updateGameStats();
+      if (!busy && GAME[activeGame].journey) scene?.reset();
+    }
   }
   function getGameRoster(game = activeGame) { return rosters[GAME[game]?.scope || 'all'] || []; }
   function calledSet() { return new Set(settings.daily.round.all || []); }
@@ -340,7 +353,14 @@ async function page(view) {
     gain.gain.setValueAtTime(.0001, ctx.currentTime + delaySeconds); gain.gain.exponentialRampToValueAtTime(volume, ctx.currentTime + delaySeconds + .015); gain.gain.exponentialRampToValueAtTime(.0001, ctx.currentTime + delaySeconds + duration);
     oscillator.connect(gain); gain.connect(ctx.destination); oscillator.start(ctx.currentTime + delaySeconds); oscillator.stop(ctx.currentTime + delaySeconds + duration + .03);
   }
-  const MUSIC = { prince: [523.25, 659.25, 783.99, 659.25, 587.33, 698.46], penalty: [392, 440, 523.25, 392, 349.23, 466.16], detective: [293.66, 349.23, 392, 311.13, 349.23, 261.63], ufo: [523.25, 659.25, 987.77, 783.99, 659.25, 1174.66] };
+  const MUSIC = {
+    prince: [523.25, 659.25, 783.99, 659.25, 587.33, 698.46],
+    penalty: [392, 440, 523.25, 392, 349.23, 466.16],
+    detective: [293.66, 349.23, 392, 311.13, 349.23, 261.63],
+    ufo: [523.25, 659.25, 987.77, 783.99, 659.25, 1174.66],
+    postal: [587.33, 739.99, 880, 739.99, 659.25, 587.33],
+    ferry: [440, 523.25, 659.25, 587.33, 523.25, 392]
+  };
   function startMusic() {
     if (!savedSound.checked || musicTimer) return;
     const notes = MUSIC[activeGame];
@@ -400,6 +420,32 @@ async function page(view) {
       stamp() { tone(126, .13, .039, 'triangle'); noise(.12, .10, 390); },
       heartbeat() { tone(72, .18, .06); tone(61, .16, .048, 'sine', .19); tone(72, .18, .05, 'sine', .54); },
       chime() { [740, 988, 1175].forEach((note, i) => tone(note, .29, .026, 'sine', i * .081)); },
+      bikeBell() {
+        tone(1244, .18, .037 * strength, 'sine');
+        tone(1661, .16, .026 * strength, 'triangle', .09);
+      },
+      doorKnock() {
+        [0, .16, .33].forEach((when, index) => tone(130 + index * 7, .105, .057 * strength, 'triangle', when));
+      },
+      riverWave() { noise(.75, .18, 480, .42); noise(.46, .10, 1250, .6); },
+      bikeEngine() { [0, .09, .18, .27].forEach(when => tone(86 + Math.random() * 14, .07, .022, 'sawtooth', when)); },
+      brake() { tone(1320, .22, .014, 'sawtooth'); noise(.3, .12, 2100, 1.4); },
+      doorOpen() { tone(196, .26, .03, 'sawtooth'); tone(247, .22, .022, 'triangle', .14); noise(.2, .07, 700); },
+      oops() { [523, 415, 311].forEach((note, i) => tone(note, .2, .032, 'triangle', i * .15)); },
+      hmm() { tone(294, .24, .03, 'sine'); tone(370, .3, .028, 'sine', .27); },
+      gulp() { tone(330, .09, .035, 'sine'); tone(180, .16, .04, 'sine', .1); },
+      cry() { [0, .34, .68, 1.02].forEach(when => { tone(740, .2, .02, 'sine', when); tone(587, .18, .017, 'sine', when + .13); }); },
+      countBeep() { tone(880, .17, .035, 'square'); },
+      boatHorn() { tone(220, .55, .035, 'sawtooth'); tone(277, .55, .025, 'sawtooth'); },
+      wind() { noise(1.5, .13, 620, 1.8); noise(1.1, .07, 1180, 2.6); },
+      thunder() { noise(1.1, .3, 150, .45); noise(.5, .15, 420, .7); tone(52, .8, .07, 'sawtooth'); },
+      splash() { noise(.45, .17, 1500, .6); noise(.3, .1, 700, .8); },
+      bigWave() { noise(1.3, .26, 380, .35); noise(.8, .12, 1300, .5); },
+      rainbow() { [523, 659, 784, 988, 1175, 1319].forEach((note, i) => tone(note, .42, .024, 'sine', i * .11)); },
+      hop() { tone(520 + Math.random() * 260, .08, .018, 'triangle'); },
+      snore() { tone(110, .45, .03, 'triangle'); tone(98, .55, .026, 'triangle', .6); },
+      call() { [659, 880, 784].forEach((note, i) => tone(note, .22, .028, 'triangle', i * .17)); },
+      giggle() { [880, 1047, 988, 1175, 1047].forEach((note, i) => tone(note, .09, .024, 'sine', i * .09)); },
       ufoScan() { [880, 784, 659].forEach((note, i) => tone(note, .24, .025, 'sine', i * .12)); },
       ufoLock() { [523, 784, 1047].forEach((note, i) => tone(note, .34, .032, 'triangle', i * .105)); },
       ufoDepart() { [988, 1175, 1397].forEach((note, i) => tone(note, .22, .02, 'sine', i * .09)); },
@@ -490,12 +536,28 @@ async function page(view) {
     gameStage.classList.remove('is-slow');
     if (scene) scene.setSlow(false);
   }
+  /* tên hiện lần lượt từng chữ (tách theo kí tự tiếng Việt đủ dấu, vẫn xuống dòng theo từ như chữ thường) */
+  function typeOut(node) {
+    const text = node.textContent;
+    const letters = window.Intl?.Segmenter ? Array.from(new Intl.Segmenter('vi').segment(text), part => part.segment) : Array.from(text.normalize('NFC'));
+    node.setAttribute('aria-label', text);
+    node.replaceChildren(...letters.map((letter, index) => {
+      const span = Object.assign(document.createElement('span'), { className: 'journey-letter', textContent: letter });
+      span.style.setProperty('--letter', index);
+      return span;
+    }));
+  }
   function reveal(batch) {
     const meta = GAME[activeGame];
     const isUfo = activeGame === 'ufo';
+    const isJourney = Boolean(meta.journey);
+    const story = isJourney ? scene.resultText(batch) : null;
     const overlay = $('#resultOverlay', root);
     overlay.classList.toggle('ufo-result', isUfo);
-    $('#resultEyebrow', root).textContent = activeGame === 'detective' ? 'HỒ SƠ ĐÃ MỞ' : activeGame === 'penalty' ? 'BẢNG TỈ SỐ VỪA SÁNG' : activeGame === 'ufo' ? 'UFO ĐÃ CHỌN · LÊN TRẢ BÀI' : 'LỜI MỜI TỪ LÂU ĐÀI';
+    overlay.classList.toggle('journey-result', isJourney);
+    overlay.classList.toggle('postal-result', activeGame === 'postal');
+    overlay.classList.toggle('ferry-result', activeGame === 'ferry');
+    $('#resultEyebrow', root).textContent = story ? story.eyebrow : activeGame === 'detective' ? 'HỒ SƠ ĐÃ MỞ' : activeGame === 'penalty' ? 'BẢNG TỈ SỐ VỪA SÁNG' : activeGame === 'ufo' ? 'UFO ĐÃ CHỌN · LÊN TRẢ BÀI' : 'LỜI MỜI TỪ LÂU ĐÀI';
     $('#resultIcon', root).textContent = meta.icon;
     $('#resultIcon', root).hidden = isUfo;
     const heading = $('#resultHeading', root);
@@ -505,13 +567,15 @@ async function page(view) {
       heading.dataset.count = batch.length;
     } else {
       delete heading.dataset.count;
-      heading.textContent = activeGame === 'detective' ? 'Đã tìm ra nghi phạm!' : activeGame === 'penalty' ? 'VÀOOOO! Được gọi rồi!' : 'Hoàng tử đã chọn!';
+      heading.textContent = story ? story.heading : activeGame === 'detective' ? 'Đã tìm ra nghi phạm!' : activeGame === 'penalty' ? 'VÀOOOO! Được gọi rồi!' : 'Hoàng tử đã chọn!';
     }
-    $('#resultNames', root).innerHTML = batch.map((student, index) => '<span class="caller-result-person' + (isUfo ? ' ufo-result-person' : '') + '" style="--person-index:' + index + '">' + (isUfo ? makeAvatar(student) : '<i class="caller-medal" aria-hidden="true">' + esc(Array.from(student.name.trim().split(/\s+/).pop() || '?')[0].toUpperCase()) + '</i>') + '<b>' + esc(student.name) + '</b></span>').join('');
-    $('#resultCaption', root).textContent = isUfo ? '' : batch.length > 1 ? 'Các bạn cùng lên trả lời câu hỏi của cô giáo nhé!' : activeGame === 'detective' ? 'Mời em lên trả lời câu hỏi của cô giáo!' : activeGame === 'penalty' ? 'Cả sân vận động đang cổ vũ cho em!' : 'Nàng có đồng ý cùng hoàng tử trả lời câu hỏi không?';
+    $('#resultNames', root).innerHTML = batch.map((student, index) => '<span class="caller-result-person' + (isUfo ? ' ufo-result-person' : '') + '" style="--person-index:' + index + '">' + (story ? '<i class="journey-portrait" aria-hidden="true"><img src="' + esc(story.portrait(student)) + '" alt=""></i>' : isUfo ? makeAvatar(student) : '<i class="caller-medal" aria-hidden="true">' + esc(Array.from(student.name.trim().split(/\s+/).pop() || '?')[0].toUpperCase()) + '</i>') + '<b>' + esc(student.name) + '</b></span>').join('');
+    if (story?.typed) $$('#resultNames .caller-result-person b', root).forEach(typeOut);
+    $('#resultCaption', root).textContent = isUfo ? '' : story ? story.caption : batch.length > 1 ? 'Các bạn cùng lên trả lời câu hỏi của cô giáo nhé!' : activeGame === 'detective' ? 'Mời em lên trả lời câu hỏi của cô giáo!' : activeGame === 'penalty' ? 'Cả sân vận động đang cổ vũ cho em!' : 'Nàng có đồng ý cùng hoàng tử trả lời câu hỏi không?';
+    if (story?.note) $('#resultCaption', root).append(Object.assign(document.createElement('em'), { className: 'caller-result-note', textContent: story.note }));
     $('#resultCaption', root).hidden = isUfo;
-    $('#playAgain', root).textContent = isUfo ? 'Gọi tiếp' : 'Chơi lại ↻';
-    $('#resultHome', root).textContent = isUfo ? 'Xong' : 'Về màn hình chính';
+    $('#playAgain', root).textContent = story ? story.again : isUfo ? 'Gọi tiếp' : 'Chơi lại ↻';
+    $('#resultHome', root).textContent = isUfo || isJourney ? 'Xong' : 'Về màn hình chính';
     overlay.hidden = false;
     requestAnimationFrame(() => {
       if (overlay.hidden || !root.isConnected) return;
@@ -732,7 +796,7 @@ async function page(view) {
     if (savedSound.checked) { soundContext(); startMusic(); }
     try {
       scene?.reset();
-      if (draw.game === 'ufo') {
+      if (draw.game === 'ufo' || meta.journey) {
         const winnerIds = new Set(batch.map(student => student.id));
         const decoys = secureShuffle(pool.filter(student => !winnerIds.has(student.id)));
         await scene.play(batch, decoys, {
@@ -771,17 +835,19 @@ async function page(view) {
     $('#playGameIcon', root).textContent = meta.icon;
     $('#playGameName', root).textContent = meta.name;
     $('#playGameSubtitle', root).textContent = meta.subtitle;
-    const speedLabels = key === 'ufo' ? ufoSpeedLabels : storySpeedLabels;
+    const speedLabels = key === 'ufo' || meta.journey ? shortSpeedLabels : storySpeedLabels;
     Array.from(liveSpeed.options).forEach((option, index) => { option.textContent = speedLabels[index]; });
-    $('#stageTheme', root).textContent = key === 'prince' ? 'KHU VƯỜN TRƯỚC LÂU ĐÀI' : key === 'penalty' ? 'SÂN VẬN ĐỘNG ĐÊM' : key === 'detective' ? 'VĂN PHÒNG THÁM TỬ' : 'UFO TRẢ BÀI';
+    $('#stageTheme', root).textContent = key === 'prince' ? 'KHU VƯỜN TRƯỚC LÂU ĐÀI' : key === 'penalty' ? 'SÂN VẬN ĐỘNG ĐÊM' : key === 'detective' ? 'VĂN PHÒNG THÁM TỬ' : meta.name.toLocaleUpperCase('vi');
     $('#dialogueAvatar', root).textContent = key === 'prince' ? '♘' : key === 'penalty' ? '⚽' : key === 'detective' ? '⌕' : '🛸';
     $('#dialogueText', root).textContent = key === 'prince' ? 'Gió đang lay cờ trên tháp… ai sẽ được mời lên ngựa?' : key === 'penalty' ? 'Khán đài đã sáng đèn. Cầu thủ đang đặt bóng…' : key === 'detective' ? 'Mưa rơi ngoài cửa sổ. Một vụ án mới bắt đầu…' : 'Bầu trời đêm vừa nhận được một tín hiệu lạ…';
     $('#resultOverlay', root).hidden = true; $('#resultOverlay', root).classList.remove('is-shown');
     gameStage.className = 'caller-stage scene-' + meta.scene;
+    play.classList.toggle('caller-journey-play', Boolean(meta.journey));
     renderRoster();
-    scene = key === 'ufo'
-      ? createUfoCinema($('#callerCinema', root), board, { sound: soundEffect })
-      : createCinema($('#callerCinema', root), meta.scene, { gsap, sound: soundEffect });
+    const cinema = $('#callerCinema', root);
+    if (key === 'ufo') scene = createUfoCinema(cinema, board, { sound: soundEffect });
+    else if (meta.journey) scene = meta.journey(cinema, { avatar: makeAvatar, sound: soundEffect, roster: getGameRoster });
+    else scene = createCinema(cinema, meta.scene, { gsap, sound: soundEffect });
     updateGameStats();
     if (savedSound.checked) startMusic();
   }
@@ -797,7 +863,7 @@ async function page(view) {
     if (busy || !activeGame) return;
     settings.daily.round = { girls: [], boys: [], all: [] };
     persist(); renderRoster(); updateGameStats();
-    if (activeGame !== 'ufo') await typeDialogue('Một lượt mới bắt đầu! Các bạn sẵn sàng chưa?', 420);
+    if (activeGame !== 'ufo' && !GAME[activeGame].journey) await typeDialogue('Một lượt mới bắt đầu! Các bạn sẵn sàng chưa?', 420);
   }
   function refreshToday() {
     if (busy) return;

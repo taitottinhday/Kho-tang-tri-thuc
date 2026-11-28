@@ -382,3 +382,13 @@ Tham khảo: Khan Academy / Kahoot / Quizizz (học sinh cần giúp, bài sai n
 - `server/api.js`: `audit()` ghi `auditLog` (600 mục, không ghi mật khẩu) cho đăng nhập, tài khoản, lớp, học sinh, giao bài, tài liệu, sổ nhận xét, cảnh nền; `GET /api/admin/audit`; `GET|PUT /api/comment-books/:lop/:dot` (chỉ người phụ trách lớp hoặc quản trị).
 - `index.html`: favicon (hết lỗi 404 ở trang đăng nhập), mục Sổ nhận xét, Nhật ký hoạt động, nút Tìm nhanh.
 - Kiểm thử mới: `node tests/dot24_e2e.js 1366 900` và `390 844` (ảnh ở qa-results/dot24/).
+
+## Đợt 25 – Hai trò gọi tên theo video mẫu: “Đại úy Vịt triệu tập” + “Lái đò tri thức” (28/11, phiên Claude -19)
+- Thầy cho biết đã xin phép tác giả hai trò và được đồng ý. Tranh được vẽ mới bằng công cụ tạo ảnh theo mô tả bằng lời (không cắt từ video, không dùng tên trang/kênh của họ). Hai tệp mp4 mẫu để ở thư mục gốc, KHÔNG đưa lên git (quay lớp học thật, có mặt học sinh).
+- Thay phần cảnh của Codex (`caller-journeys.mjs` + 3 ảnh trong `assets/caller-cinema/`) vì còn khác video nhiều. Giữ phần ghép của Codex trong trang Gọi tên (thẻ trò, `journey`, `postal`/`ferry` trong core).
+- Tệp: `caller-vit.mjs`, `caller-do.mjs`, `caller-kit.mjs`, `caller-journeys.css`, `assets/caller-vit/`, `assets/caller-do/`.
+- Giao kèo của một cảnh: `reset()`, `play(batch, decoys, {pace, wait, focus, status})`, `celebrate()`, `resultText(batch)`, `destroy()`. Mọi khoảng chờ phải đi qua `wait()` để nút “Hiện kết quả” cắt ngang được.
+- Máy bật “giảm chuyển động”: vẫn diễn đủ, chỉ tắt rung, chớp, lắc và lia máy.
+- Kiểm thử mới: `node tests/journeys_e2e.mjs [rộng cao] [--students=n] [--game=postal|ferry] [--quick] [--reduced] [--site=https://…/]` — kiểm đúng thứ tự 9 + 18 hành động; ảnh ở `qa-results/journeys/`.
+- Đạt trên bản chụp sạch đúng nội dung commit: journeys 44×2 (1366, 390), teacher-games-check, teacher-games-browser, gv_e2e 64×2 (tệp + PostgreSQL), caller_class 18, caller_empty 11, demo_data 14, teacher_link, server_api 141, admin_api 118, admin_e2e 31×2, season_e2e, phim_e2e 28, layout_sweep --quick 0 lỗi. Trước đó chạy thêm lớp 5, 8, 45, 62 bạn và chế độ giảm chuyển động.
+- Commit này KHÔNG gồm phần giao diện giáo viên/quản trị phiên c3 đang làm dở (từ `gv.js`, `index.html` chỉ lấy một dòng của mỗi tệp).

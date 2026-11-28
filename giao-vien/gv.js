@@ -609,7 +609,7 @@
       '<li><b>Học sinh nhập mã một lần</b> trên máy của em: <b>Cài đặt</b> → <b>Lớp học của em</b> → gõ mã → <b>Kết nối</b>.</li>' +
       '<li><b>Giao bài</b> ở mục <a href="#giao-bai">Giao bài</a>, rồi theo dõi ở mục <a href="#hoc-sinh">Học sinh</a>.</li></ol></section>' +
       '<section class="card section"><h2>Câu hỏi thường gặp</h2>' +
-      qa('Tôi muốn gọi ngẫu nhiên một bạn trả lời', 'Vào mục <a href="#goi-ten">Gọi tên</a>, nhập mỗi tên trên một dòng và chọn một trong bốn trò. Mỗi bạn có một lượt trong vòng chung của cả lớp. Thầy cô có thể chọn 1–3 bạn, bật âm thanh, chiếu toàn màn hình hoặc bấm <b>Hiện kết quả</b> giữa hoạt cảnh.') +
+      qa('Tôi muốn gọi ngẫu nhiên một bạn trả lời', 'Vào mục <a href="#goi-ten">Gọi tên</a>, nhập mỗi tên trên một dòng và chọn một trò. Mỗi bạn có một lượt trong vòng chung của cả lớp. Thầy cô có thể chọn 1–3 bạn, bật âm thanh, chiếu toàn màn hình hoặc bấm <b>Hiện kết quả</b> giữa hoạt cảnh.') +
       qa('Tôi muốn sửa một câu trong bài học bị chưa ổn', 'Vào <a href="#bai-hoc">Bài học</a> → bấm vào bài → bấm <b>Sửa</b> ở câu đó. Không muốn dùng nữa thì bấm <b>Ẩn</b>. Lỡ tay thì bấm <b>Về câu gốc</b>.') +
       qa('Tôi muốn thêm câu của riêng mình', 'Trong từng bài bấm <b>+ Thêm câu</b>. Nếu có nhiều câu, bấm <b>Thêm nhiều câu từ Excel</b>, tải tệp mẫu, điền rồi tải lên.') +
       qa('Tôi muốn gửi phiếu bài tập, bài đọc cho học sinh', 'Vào <a href="#tai-lieu">Tài liệu</a>, kéo tệp vào khung (PDF, Word, PowerPoint, ảnh, âm thanh, tối đa 10 MB). Học sinh xem ở mục <b>Tài liệu của thầy cô</b>.') +
