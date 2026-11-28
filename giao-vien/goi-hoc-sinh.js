@@ -82,7 +82,7 @@ async function page(view) {
             <span class="game-card-copy"><b>Thám tử tìm nghi phạm</b><small>Danh sách cả lớp</small><span class="game-card-action" aria-hidden="true">↗</span></span>
           </button>
           <button class="caller-game-card ufo-card" data-open-game="ufo" type="button">
-            <span class="game-card-scene ufo-card-scene" aria-hidden="true"><i class="ufo-card-beam"></i><i class="ufo-card-ship">🛸</i></span>
+            <span class="game-card-scene ufo-card-scene" aria-hidden="true"><i class="ufo-card-beam"></i><i class="ufo-card-kid"></i><svg class="ufo-card-ship" viewBox="0 0 120 64"><ellipse cx="60" cy="28" rx="19" ry="17" fill="#bff3ff" opacity=".85"/><ellipse cx="60" cy="31" rx="9" ry="8.5" fill="#8fdc7c"/><ellipse cx="56.5" cy="30.5" rx="2.3" ry="3.1" fill="#1b2340"/><ellipse cx="63.5" cy="30.5" rx="2.3" ry="3.1" fill="#1b2340"/><path d="M8 40c9-11 27-16 52-16s43 5 52 16c-8 9-27 14-52 14S16 49 8 40Z" fill="#79b9dc" stroke="#effcff" stroke-width="2"/><g fill="#fff4a3"><circle cx="28" cy="44" r="2.6"/><circle cx="44" cy="48" r="2.6"/><circle cx="60" cy="49" r="2.6"/><circle cx="76" cy="48" r="2.6"/><circle cx="92" cy="44" r="2.6"/></g></svg></span>
             <span class="game-card-copy"><b>UFO Trả bài</b><small>Danh sách cả lớp</small><span class="game-card-action" aria-hidden="true">↗</span></span>
           </button>
         </section>
@@ -402,7 +402,19 @@ async function page(view) {
       chime() { [740, 988, 1175].forEach((note, i) => tone(note, .29, .026, 'sine', i * .081)); },
       ufoScan() { [880, 784, 659].forEach((note, i) => tone(note, .24, .025, 'sine', i * .12)); },
       ufoLock() { [523, 784, 1047].forEach((note, i) => tone(note, .34, .032, 'triangle', i * .105)); },
-      ufoDepart() { [988, 1175, 1397].forEach((note, i) => tone(note, .22, .02, 'sine', i * .09)); }
+      ufoDepart() { [988, 1175, 1397].forEach((note, i) => tone(note, .22, .02, 'sine', i * .09)); },
+      ufoRadar() { [1568, 1568, 1760].forEach((note, i) => tone(note, .07, .02, 'square', i * .16)); },
+      ufoAbduct() {
+        // tiếng "vù… u…" kéo lên: dao động trượt từ trầm lên cao, có rung nhẹ
+        const now = ctx.currentTime;
+        const lift = ctx.createOscillator(); const wobble = ctx.createOscillator(); const depth = ctx.createGain(); const envelope = ctx.createGain();
+        lift.type = 'sine'; lift.frequency.setValueAtTime(190, now); lift.frequency.exponentialRampToValueAtTime(1250, now + 1.9);
+        wobble.frequency.value = 9; depth.gain.value = 26; wobble.connect(depth); depth.connect(lift.frequency);
+        envelope.gain.setValueAtTime(.0001, now); envelope.gain.exponentialRampToValueAtTime(.05, now + .2); envelope.gain.exponentialRampToValueAtTime(.0001, now + 2.05);
+        lift.connect(envelope); envelope.connect(ctx.destination);
+        lift.start(now); wobble.start(now); lift.stop(now + 2.1); wobble.stop(now + 2.1);
+        tone(1568, .3, .025, 'triangle', 1.95); tone(2093, .35, .02, 'sine', 2.05);
+      }
     };
     effects[effect]?.();
   }
@@ -726,7 +738,8 @@ async function page(view) {
         await scene.play(batch, decoys, {
           pace: PACE[settings.seconds] || 1,
           wait: delay,
-          focus: (student, mood) => setEmotion(student ? [student] : [], mood)
+          focus: (student, mood) => setEmotion(student ? [student] : [], mood),
+          status: text => { if (storyRun === run) $('#stageStatus', root).textContent = text; }
         });
       } else {
         const begin = performance.now();
