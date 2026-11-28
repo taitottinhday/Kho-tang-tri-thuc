@@ -18,6 +18,7 @@
     <link rel="stylesheet" href="caller-ufo.css" />
     <link rel="stylesheet" href="caller-journeys.css" />
     <link rel="stylesheet" href="giao-dien-moi.css" />
+    <link rel="stylesheet" href="vai-tro.css" />
   </head>
   <body>
     <!-- Đăng nhập -->
@@ -42,26 +43,7 @@
     <div id="app" class="shell" hidden>
       <aside class="side" aria-label="Menu giáo viên">
         <div class="brand"><span class="brand-logo"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 21c-.6 0-1-.4-1-1v-5.2C6.8 14.4 4 11.3 4 7.5V6a1 1 0 0 1 1-1c3 0 5.5 1.6 6.6 4C12.9 6.3 15.6 4 19 4a1 1 0 0 1 1 1v1.4c0 4.2-3.3 7.6-7 8.1V20c0 .6-.4 1-1 1"/></svg></span><div><b>Vườn Chữ</b><span class="role-chip" id="roleChip">Giáo viên</span></div></div>
-        <nav id="nav">
-          <p class="nav-group">Tổng quan</p>
-          <a href="#tong-quan" data-nav="tong-quan"><svg viewBox="0 0 24 24"><path d="M3 13h8V3H3zm10 8h8V11h-8zM3 21h8v-6H3zm10-18v6h8V3z"/></svg><span>Tổng quan</span></a>
-          <a href="#thong-ke" data-nav="thong-ke"><svg viewBox="0 0 24 24"><path d="M3 4h2v15h16v2H3zm4 7h3v6H7zm5-7h3v13h-3zm5 4h3v9h-3z"/></svg><span>Thống kê</span></a>
-          <p class="nav-group" data-for="admin" hidden>Quản trị trường</p>
-          <a data-for="admin" hidden href="#quan-tri-giao-vien" data-nav="quan-tri-giao-vien"><svg viewBox="0 0 24 24"><path d="M16 11a3 3 0 1 0-3-3 3 3 0 0 0 3 3m-8 0a3 3 0 1 0-3-3 3 3 0 0 0 3 3m0 2c-2.3 0-7 1.2-7 3.5V19h14v-2.5C15 14.2 10.3 13 8 13m8 0c-.3 0-.6 0-1 .1a4.2 4.2 0 0 1 2 3.4V19h6v-2.5c0-2.3-4.7-3.5-7-3.5"/></svg><span>Giáo viên</span></a>
-          <a data-for="admin" hidden href="#nhat-ky" data-nav="nhat-ky"><svg viewBox="0 0 24 24"><path d="M13 3a9 9 0 0 0-9 9H1l3.9 3.9L9 12H6a7 7 0 1 1 2.1 5l-1.4 1.4A9 9 0 1 0 13 3m-1 5v5l4.3 2.5.7-1.2-3.5-2.1V8z"/></svg><span>Nhật ký hoạt động</span></a>
-          <p class="nav-group">Lớp học</p>
-          <a href="#lop" data-nav="lop"><svg viewBox="0 0 24 24"><path d="M12 3 1 9l11 6 9-4.9V17h2V9zM5 13.2v4L12 21l7-3.8v-4L12 17z"/></svg><span>Lớp học</span></a>
-          <a href="#hoc-sinh" data-nav="hoc-sinh"><svg viewBox="0 0 24 24"><path d="M16 11a3 3 0 1 0-3-3 3 3 0 0 0 3 3m-8 0a3 3 0 1 0-3-3 3 3 0 0 0 3 3m0 2c-2.3 0-7 1.2-7 3.5V19h14v-2.5C15 14.2 10.3 13 8 13m8 0c-.3 0-.6 0-1 .1a4.2 4.2 0 0 1 2 3.4V19h6v-2.5c0-2.3-4.7-3.5-7-3.5"/></svg><span>Học sinh</span></a>
-          <a href="#giao-bai" data-nav="giao-bai"><svg viewBox="0 0 24 24"><path d="m14 4 6 6-2 2-1-1-4 4v4l-2 2-4-4-4 4H2v-1l4-4-4-4 2-2h4l4-4-1-1z"/></svg><span>Giao bài</span></a>
-          <a href="#nhan-xet" data-nav="nhan-xet"><svg viewBox="0 0 24 24"><path d="M20 2H4a2 2 0 0 0-2 2v18l4-4h14a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2M6 9h12v2H6zm8 5H6v-2h8zm4-6H6V6h12z"/></svg><span>Sổ nhận xét</span></a>
-          <p class="nav-group">Dạy học</p>
-          <a href="#goi-ten" data-nav="goi-ten"><svg viewBox="0 0 24 24"><path d="M12 2a7 7 0 0 0-4.2 12.6c.7.5 1.2 1.3 1.2 2.2h6c0-.9.5-1.7 1.2-2.2A7 7 0 0 0 12 2m-2 17h4v1h-4zm1 3h2v1h-2zM5 3.6 3.6 2.2 2.2 3.6l1.4 1.4zm14 0 1.4-1.4 1.4 1.4-1.4 1.4zM1 9h3v2H1zm19 0h3v2h-3z"/></svg><span>Gọi tên</span></a>
-          <a href="#bai-hoc" data-nav="bai-hoc"><svg viewBox="0 0 24 24"><path d="M18 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2M6 4h5v8l-2.5-1.5L6 12z"/></svg><span>Bài học</span></a>
-          <a href="#tai-lieu" data-nav="tai-lieu"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zm-1 7V3.5L18.5 9zM8 13h8v2H8zm0 4h8v2H8z"/></svg><span>Tài liệu</span></a>
-          <p class="nav-group">Cài đặt</p>
-          <a href="#giao-dien" data-nav="giao-dien"><svg viewBox="0 0 24 24"><path d="M3 4h18v16H3zm2 2v10l4-4 4 4 3-3 3 3V6zm10 2a2 2 0 1 0 0 4 2 2 0 0 0 0-4"/></svg><span>Giao diện học sinh</span></a>
-          <a href="#huong-dan" data-nav="huong-dan"><svg viewBox="0 0 24 24"><path d="M11 7h2v2h-2zm0 4h2v6h-2zm1-9a10 10 0 1 0 10 10A10 10 0 0 0 12 2m0 18a8 8 0 1 1 8-8 8 8 0 0 1-8 8"/></svg><span>Trợ giúp</span></a>
-        </nav>
+        <nav id="nav" aria-label="Menu chính"></nav>
         <div class="side-foot">
           <div class="me-box" id="meBox" hidden><span class="me-avatar" id="meAvatar" aria-hidden="true"></span><span><b id="meName"></b><small id="meRole"></small></span></div>
           <button class="btn ghost wide" id="changePass" title="Đổi mật khẩu" aria-label="Đổi mật khẩu" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12.65 10A6 6 0 1 0 7 18c2.61 0 4.83-1.67 5.65-4H17v4h4v-4h2v-4zM7 14a2 2 0 1 1 2-2 2 2 0 0 1-2 2"/></svg><span class="cp-label"> Đổi mật khẩu</span></button>
@@ -71,7 +53,7 @@
       </aside>
       <div class="main">
         <header class="top">
-          <h1 id="pageTitle">Tổng quan</h1>
+          <div class="top-title"><span class="crumb" id="crumb" hidden>Quản trị trường</span><h1 id="pageTitle">Tổng quan</h1></div>
           <div class="top-tools">
             <button type="button" class="find-btn" id="quickFind" aria-keyshortcuts="Control+K"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15.5 14h-.8l-.3-.3A6.5 6.5 0 1 0 9.5 16a6.5 6.5 0 0 0 4.2-1.6l.3.3v.8l5 5 1.5-1.5zm-6 0a4.5 4.5 0 1 1 0-9 4.5 4.5 0 0 1 0 9"/></svg><span>Tìm nhanh</span><kbd>Ctrl K</kbd></button>
             <span id="storageBadge" class="badge"></span>

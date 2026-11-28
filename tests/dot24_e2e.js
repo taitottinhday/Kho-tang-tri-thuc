@@ -53,7 +53,7 @@ const fs = require('fs'), os = require('os'), path = require('path');
     ok(await login('lethiquynhhue', 'matkhau-hue-123'), 'Giáo viên đăng nhập');
     ok(await until(`document.querySelectorAll('#vzDays .viz-mark').length===14`), 'Tổng quan có biểu đồ 14 ngày');
     ok(await b.eval(`return [...document.querySelectorAll('.panel a.btn[href^="#giao-bai/"]')].length > 0`), '“Bài còn sai nhiều” có nút Giao ôn');
-    ok(await b.eval(`return !document.querySelector('#nav [data-nav="nhat-ky"]').offsetParent && !document.querySelector('#nav [data-nav="quan-tri-giao-vien"]').offsetParent`), 'Giáo viên không thấy mục quản trị');
+    ok(await b.eval(`return !document.querySelector('#nav [data-nav="nhat-ky"]')?.offsetParent && !document.querySelector('#nav [data-nav="quan-tri-giao-vien"]')?.offsetParent`), 'Giáo viên không thấy mục quản trị');
     ok((await emoji()) === '', 'Tổng quan giáo viên không có biểu tượng cảm xúc', await emoji());
     ok(await fits(), 'Tổng quan không tràn ngang');
     await shot('1-giao-vien-tong-quan');
@@ -96,7 +96,7 @@ const fs = require('fs'), os = require('os'), path = require('path');
     ok((await emoji()) === '', 'Sổ nhận xét không có biểu tượng cảm xúc', await emoji());
     await shot('4-so-nhan-xet');
     // giáo viên gõ thẳng địa chỉ nhật ký → về Tổng quan
-    await go('nhat-ky'); ok(await b.eval(`return document.querySelector('#pageTitle').textContent === 'Tổng quan'`), 'Giáo viên không mở được Nhật ký');
+    await go('nhat-ky'); ok(await b.eval(`return document.querySelector('#pageTitle').textContent === 'Hôm nay'`), 'Giáo viên không mở được Nhật ký');
     const denied = await call('GET', '/api/admin/audit', null, (await call('POST', '/api/login', { username: 'lethiquynhhue', password: 'matkhau-hue-123' })).token);
     ok(!denied.entries && /quyền/.test(denied.error || ''), 'API nhật ký chặn giáo viên', denied);
     const otherBook = await call('GET', '/api/comment-books/' + classes[2].code + '/gk1', null, (await call('POST', '/api/login', { username: 'lethiquynhhue', password: 'matkhau-hue-123' })).token);

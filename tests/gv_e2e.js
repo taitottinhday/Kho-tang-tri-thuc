@@ -34,7 +34,7 @@ const fs = require('fs'), os = require('os'), path = require('path');
     await b.eval(`document.querySelector('#loginPass').value='sai'; document.querySelector('#loginBtn').click(); return 1`);
     ok(await until(`/chưa đúng/.test(document.querySelector('#loginErr').textContent)`), 'Sai mật khẩu → báo lỗi tiếng Việt');
     await b.eval(`document.querySelector('#loginPass').value='${env.TEACHER_PASSWORD}'; document.querySelector('#loginBtn').click(); return 1`);
-    ok(await until(`!document.querySelector('#app').hidden && document.querySelector('.kpi')`), 'Đúng mật khẩu → vào Tổng quan');
+    ok(await until(`!document.querySelector('#app').hidden && document.querySelector('.page-head')`), 'Đúng mật khẩu → vào Tổng quan');
     ok(await b.eval(`return document.querySelector('#storageBadge').textContent.includes('${process.env.PG ? 'an toàn' : 'tạm'}')`), 'Hiện đúng chế độ lưu trữ');
     ok(await fitsX(), 'Tổng quan không tràn ngang'); await shot('1-tong-quan');
     // ===== Tạo lớp =====

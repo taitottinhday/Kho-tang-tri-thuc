@@ -13,6 +13,7 @@
     'doc.upload': ['Tải tài liệu lên', 'teach'], 'doc.publish': ['Công bố tài liệu', 'teach'], 'doc.unpublish': ['Chuyển tài liệu về nháp', 'teach'], 'doc.delete': ['Xoá tài liệu', 'risk'],
     'comments.save': ['Lưu sổ nhận xét', 'teach'], 'theme.change': ['Đổi cảnh nền học sinh', 'teach']
   };
+  window.NHAT_KY_NHAN = ACTIONS; // Bảng điều khiển quản trị dùng chung nhãn
   const GROUPS = { '': 'Mọi hoạt động', access: 'Đăng nhập', account: 'Tài khoản', class: 'Lớp học', teach: 'Dạy học', risk: 'Cần chú ý' };
   const when = iso => { const d = new Date(iso); return isNaN(d) ? '—' : d.toLocaleDateString('vi-VN') + ' ' + d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }); };
   const detailOf = e => { const lesson = e.action.startsWith('assignment.create') && G.lessonById(e.detail.split(' · ')[0]); return lesson ? 'Lớp ' + lesson.lop[0] + ' – ' + lesson.ten + ' · ' + e.detail.split(' · ').slice(1).join(' · ') : e.detail; };

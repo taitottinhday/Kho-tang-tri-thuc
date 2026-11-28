@@ -66,9 +66,9 @@ const fs = require('fs'), os = require('os'), path = require('path');
 
     // giáo viên đăng nhập
     ok(await login('coan', pw), 'Cô An đăng nhập bằng tài khoản được cấp');
-    ok(await b.eval(`return document.querySelector('[data-nav="quan-tri-giao-vien"]').hidden && document.querySelector('#meName').textContent==='Cô Nguyễn Thị An'`), 'Giáo viên không thấy mục quản trị; thanh bên hiện đúng tên');
+    ok(await b.eval(`return !document.querySelector('[data-nav="quan-tri-giao-vien"]') && document.querySelector('#meName').textContent==='Cô Nguyễn Thị An'`), 'Giáo viên không thấy mục quản trị; thanh bên hiện đúng tên');
     await go('quan-tri-giao-vien');
-    ok(await b.eval(`return document.querySelector('#pageTitle').textContent==='Tổng quan'`), 'Gõ thẳng địa chỉ trang quản trị → bị đưa về Tổng quan');
+    ok(await b.eval(`return document.querySelector('#pageTitle').textContent==='Hôm nay'`), 'Gõ thẳng địa chỉ trang quản trị → bị đưa về màn Hôm nay');
     await go('lop');
     const seen = await b.eval(`return [...document.querySelectorAll('.class-card h2')].map(x=>x.textContent)`);
     ok(seen.length === 2 && seen.includes('Lớp 1A') && seen.includes('Lớp 2B') && await b.eval(`return !document.querySelector('[data-owner]') && !document.querySelector('#ncOwner')`), 'Giáo viên thấy đủ 2 lớp mình phụ trách (không thấy 3C), không có nút giao lớp', seen);

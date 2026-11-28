@@ -99,11 +99,51 @@
   function logout(expired) { stopStudentWatch?.(); token = ''; currentUser = null; sessionStorage.removeItem(TOKEN_KEY); cache = { classes: null, students: null, docs: null, questions: null }; showLogin(); if (expired) $('#loginErr').textContent = 'Phiên đăng nhập đã hết hạn hoặc tài khoản vừa được thay đổi. Thầy cô đăng nhập lại nhé.'; }
   $('#logout').onclick = () => { history.replaceState(null, '', location.pathname); logout(false); }; // người đăng nhập sau luôn bắt đầu ở Tổng quan
   const isAdmin = () => currentUser?.role === 'admin';
+  /* Mỗi vai một sản phẩm riêng (đợt 25). Quản trị: bảng điều khiển kiểu Google Admin – người dùng, tổ chức, báo cáo, học liệu.
+     Giáo viên: không gian lớp học kiểu Google Classroom – hôm nay, giảng dạy, đánh giá. Công cụ đứng lớp không nằm trong menu quản trị. */
+  const NAV_ICON = {
+    'tong-quan': '<path d="M3 13h8V3H3zm10 8h8V11h-8zM3 21h8v-6H3zm10-18v6h8V3z"/>',
+    'thong-ke': '<path d="M3 4h2v15h16v2H3zm4 7h3v6H7zm5-7h3v13h-3zm5 4h3v9h-3z"/>',
+    'quan-tri-giao-vien': '<path d="M16 11a3 3 0 1 0-3-3 3 3 0 0 0 3 3m-8 0a3 3 0 1 0-3-3 3 3 0 0 0 3 3m0 2c-2.3 0-7 1.2-7 3.5V19h14v-2.5C15 14.2 10.3 13 8 13m8 0c-.3 0-.6 0-1 .1a4.2 4.2 0 0 1 2 3.4V19h6v-2.5c0-2.3-4.7-3.5-7-3.5"/>',
+    'nhat-ky': '<path d="M13 3a9 9 0 0 0-9 9H1l3.9 3.9L9 12H6a7 7 0 1 1 2.1 5l-1.4 1.4A9 9 0 1 0 13 3m-1 5v5l4.3 2.5.7-1.2-3.5-2.1V8z"/>',
+    'lop': '<path d="M12 3 1 9l11 6 9-4.9V17h2V9zM5 13.2v4L12 21l7-3.8v-4L12 17z"/>',
+    'hoc-sinh': '<path d="M16 11a3 3 0 1 0-3-3 3 3 0 0 0 3 3m-8 0a3 3 0 1 0-3-3 3 3 0 0 0 3 3m0 2c-2.3 0-7 1.2-7 3.5V19h14v-2.5C15 14.2 10.3 13 8 13m8 0c-.3 0-.6 0-1 .1a4.2 4.2 0 0 1 2 3.4V19h6v-2.5c0-2.3-4.7-3.5-7-3.5"/>',
+    'giao-bai': '<path d="m14 4 6 6-2 2-1-1-4 4v4l-2 2-4-4-4 4H2v-1l4-4-4-4 2-2h4l4-4-1-1z"/>',
+    'nhan-xet': '<path d="M20 2H4a2 2 0 0 0-2 2v18l4-4h14a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2M6 9h12v2H6zm8 5H6v-2h8zm4-6H6V6h12z"/>',
+    'goi-ten': '<path d="M12 2a7 7 0 0 0-4.2 12.6c.7.5 1.2 1.3 1.2 2.2h6c0-.9.5-1.7 1.2-2.2A7 7 0 0 0 12 2m-2 17h4v1h-4zm1 3h2v1h-2zM5 3.6 3.6 2.2 2.2 3.6l1.4 1.4zm14 0 1.4-1.4 1.4 1.4-1.4 1.4zM1 9h3v2H1zm19 0h3v2h-3z"/>',
+    'bai-hoc': '<path d="M18 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2M6 4h5v8l-2.5-1.5L6 12z"/>',
+    'tai-lieu': '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zm-1 7V3.5L18.5 9zM8 13h8v2H8zm0 4h8v2H8z"/>',
+    'giao-dien': '<path d="M3 4h18v16H3zm2 2v10l4-4 4 4 3-3 3 3V6zm10 2a2 2 0 1 0 0 4 2 2 0 0 0 0-4"/>',
+    'huong-dan': '<path d="M11 7h2v2h-2zm0 4h2v6h-2zm1-9a10 10 0 1 0 10 10A10 10 0 0 0 12 2m0 18a8 8 0 1 1 8-8 8 8 0 0 1-8 8"/>'
+  };
+  const NAV = {
+    teacher: [['Lớp của tôi', [['tong-quan', 'Hôm nay'], ['lop', 'Lớp học'], ['hoc-sinh', 'Học sinh']]],
+      ['Giảng dạy', [['giao-bai', 'Giao bài'], ['bai-hoc', 'Bài học'], ['tai-lieu', 'Tài liệu'], ['goi-ten', 'Gọi tên']]],
+      ['Đánh giá', [['nhan-xet', 'Sổ nhận xét'], ['thong-ke', 'Thống kê lớp']]],
+      ['Khác', [['giao-dien', 'Giao diện học sinh'], ['huong-dan', 'Trợ giúp']]]],
+    admin: [['', [['tong-quan', 'Bảng điều khiển']]],
+      ['Người dùng', [['quan-tri-giao-vien', 'Giáo viên'], ['hoc-sinh', 'Học sinh']]],
+      ['Tổ chức', [['lop', 'Lớp học']]],
+      ['Báo cáo', [['thong-ke', 'Thống kê toàn trường'], ['nhat-ky', 'Nhật ký hoạt động']]],
+      ['Học liệu', [['bai-hoc', 'Bài học'], ['tai-lieu', 'Tài liệu'], ['giao-dien', 'Giao diện học sinh']]],
+      ['Hỗ trợ', [['huong-dan', 'Trợ giúp']]]]
+  };
+  NAV_ICON['quan-tri-giao-vien'] = '<path d="M20 17a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H9.5a6 6 0 0 1 .5 2h10v11h-9v2M15 7v2H9v13H7v-6H5v6H3v-8H1.5V9a2 2 0 0 1 2-2zM8 4a2 2 0 1 1-4 0 2 2 0 0 1 4 0"/>'; // giáo viên ≠ học sinh
+  const navLabel = page => { for (const [, items] of NAV[isAdmin() ? 'admin' : 'teacher']) for (const [k, t] of items) if (k === page) return t; return ''; };
+  let navRole = '';
+  function buildNav() {
+    const role = isAdmin() ? 'admin' : 'teacher';
+    if (navRole === role && $('#nav').children.length) return;
+    navRole = role;
+    $('#nav').innerHTML = NAV[role].map(([group, items]) => (group ? '<p class="nav-group">' + group + '</p>' : '') +
+      items.map(([k, t]) => '<a href="#' + k + '" data-nav="' + k + '"><svg viewBox="0 0 24 24" aria-hidden="true">' + NAV_ICON[k] + '</svg><span>' + t + '</span></a>').join('')).join('');
+  }
   function showMe() {
     document.body.classList.toggle('role-admin', isAdmin());
     document.body.classList.toggle('role-teacher', !!currentUser && !isAdmin());
     const chip = $('#roleChip'); if (chip) chip.textContent = isAdmin() ? 'Quản trị trường' : 'Giáo viên';
-    $$('#nav [data-for="admin"]').forEach(el => { el.hidden = !isAdmin(); });
+    buildNav();
+    $('#crumb').hidden = !isAdmin();
     const meta = document.querySelector('meta[name=theme-color]'); if (meta) meta.content = isAdmin() ? '#0f1b33' : '#0f766e';
     const box = $('#meBox'); if (!box) return;
     box.hidden = !currentUser;
@@ -134,10 +174,10 @@
     stopStudentWatch?.();
     const [first, sub] = location.hash.slice(1).split('/');
     const page = PAGES[first] && (!['quan-tri-giao-vien', 'nhat-ky'].includes(first) || currentUser?.role === 'admin') ? first : 'tong-quan';
-    $$('#nav a').forEach(a => a.classList.toggle('on', a.dataset.nav === (page === 'cau-do' ? 'bai-hoc' : page)));
     showMe();
+    $$('#nav a').forEach(a => a.classList.toggle('on', a.dataset.nav === (page === 'cau-do' ? 'bai-hoc' : page)));
     const on = $('#nav a.on'); if (on && on.scrollIntoView) on.scrollIntoView({ block: 'nearest', inline: 'nearest' });
-    const title = page === 'tong-quan' && isAdmin() ? 'Tổng quan trường' : PAGES[page];
+    const title = navLabel(page) || PAGES[page];
     $('#pageTitle').textContent = title;
     document.title = title + (isAdmin() ? ' · Quản trị trường' : ' · Trang giáo viên');
     const v = $('#view'); v.innerHTML = '<p class="muted">Đang tải…</p>';
@@ -204,7 +244,12 @@
     bulb: '<svg viewBox="0 0 24 24"><path d="M12 2a7 7 0 0 0-4.2 12.6c.7.5 1.2 1.3 1.2 2.2h6c0-.9.5-1.7 1.2-2.2A7 7 0 0 0 12 2m-2 17h4v1h-4zm1 3h2v1h-2z"/></svg>',
     edit: '<svg viewBox="0 0 24 24"><path d="M3 17.2V21h3.8l11-11-3.8-3.8zM20.7 7a1 1 0 0 0 0-1.4l-2.3-2.3a1 1 0 0 0-1.4 0l-1.8 1.8 3.8 3.8z"/></svg>',
     doc: '<svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zm-1 7V3.5L18.5 9zM8 13h8v2H8zm0 4h8v2H8z"/></svg>',
-    plus: '<svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6z"/></svg>'
+    plus: '<svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6z"/></svg>',
+    shield: '<svg viewBox="0 0 24 24"><path d="M12 1 3 5v6c0 5.6 3.8 10.7 9 12 5.2-1.3 9-6.4 9-12V5zm-1.4 15.2L6.8 12.4l1.4-1.4 2.4 2.4 5.2-5.2 1.4 1.4z"/></svg>',
+    db: '<svg viewBox="0 0 24 24"><path d="M12 2C7 2 4 3.6 4 5.5v13C4 20.4 7 22 12 22s8-1.6 8-3.5v-13C20 3.6 17 2 12 2m6 16.5c-.4.5-2.5 1.5-6 1.5s-5.6-1-6-1.5v-2.4c1.5.8 3.7 1.2 6 1.2s4.5-.4 6-1.2zm0-4.6c-.4.5-2.5 1.6-6 1.6s-5.6-1.1-6-1.6v-2.4c1.5.8 3.7 1.3 6 1.3s4.5-.5 6-1.3zM12 9.5c-3.5 0-5.6-1.1-6-1.5.4-.5 2.5-1.5 6-1.5s5.6 1 6 1.5c-.4.4-2.5 1.5-6 1.5"/></svg>',
+    book: '<svg viewBox="0 0 24 24"><path d="M18 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2M6 4h5v8l-2.5-1.5L6 12z"/></svg>',
+    chat: '<svg viewBox="0 0 24 24"><path d="M20 2H4a2 2 0 0 0-2 2v18l4-4h14a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2M6 9h12v2H6zm8 5H6v-2h8zm4-6H6V6h12z"/></svg>',
+    print: '<svg viewBox="0 0 24 24"><path d="M19 8H5a3 3 0 0 0-3 3v6h4v4h12v-4h4v-6a3 3 0 0 0-3-3m-3 11H8v-5h8zm3-7a1 1 0 1 1 1-1 1 1 0 0 1-1 1m-1-9H6v4h12z"/></svg>'
   };
   const kpi = (label, icon, value, foot, attn, href) => (href ? '<a class="kpi' + (attn ? ' attn' : '') + '" href="' + href + '">' : '<div class="kpi' + (attn ? ' attn' : '') + '">') +
     '<span class="kpi-label">' + label + '<i aria-hidden="true">' + ICON[icon] + '</i></span><span class="kpi-value">' + value + '</span>' + (foot ? '<span class="kpi-foot">' + foot + '</span>' : '') + (href ? '</a>' : '</div>');
@@ -238,67 +283,126 @@
 
   async function pgOverview(v) { return isAdmin() ? overviewAdmin(v) : overviewTeacher(v); }
 
+  /* ===== Giáo viên – màn “Hôm nay” (đợt 25). Tham khảo trang chủ Google Classroom: lớp của tôi đang thế nào,
+     việc gì cần làm ngay; mỗi lớp là một thẻ có dải màu riêng và lối tắt tới Học sinh · Giao bài · Nhận xét. ===== */
+  const termName = () => { const m = new Date().getMonth() + 1; return m === 10 || m === 11 ? 'giữa học kì I' : m === 12 || m === 1 ? 'cuối học kì I' : m === 3 ? 'giữa học kì II' : m === 4 || m === 5 ? 'cuối học kì II' : 'tháng ' + m; };
+  const hello = () => { const h = new Date().getHours(); return h < 11 ? 'Chào buổi sáng' : h < 14 ? 'Chào buổi trưa' : h < 18 ? 'Chào buổi chiều' : 'Chào buổi tối'; };
+  const meter = (n, total) => '<span class="meter" aria-hidden="true"><i style="width:' + (total ? Math.round(100 * n / total) : 0) + '%"></i></span>';
+  function weakest(students) {
+    const sum = new Map();
+    students.forEach(s => Object.entries(s.topics || {}).forEach(([id, x]) => { if (!lessonById(id) || !x.attempts) return; const m = sum.get(id) || { a: 0, c: 0 }; m.a += x.attempts; m.c += x.correct; sum.set(id, m); }));
+    return [...sum].map(([id, m]) => ({ id, t: lessonById(id), acc: pct(m.c, m.a), a: m.a })).filter(r => r.t.lop[0] <= 3 && r.a >= 5 && r.acc < 80).sort((a, b) => a.acc - b.acc)[0];
+  }
+
   async function overviewTeacher(v) {
     const [classes, students] = await Promise.all([load('classes', true), load('students', true)]);
     const help = students.filter(needsHelp);
     const w1 = activity(students, 7), w0 = activity(students, 7, 7), today = activity(students, 1);
     const name = currentUser?.name || 'thầy cô';
-    const head = '<div class="page-head"><div><span class="eyebrow">Lớp của tôi · ' + esc(greetDate()) + '</span><h2>Xin chào, ' + esc(name) + '</h2>' +
-      '<p>' + (classes.length ? classes.length + ' lớp · ' + students.length + ' học sinh đã kết nối' : 'Chưa có lớp nào – tạo lớp để bắt đầu theo dõi học sinh.') + '</p></div>' +
-      '<div class="page-actions"><a class="btn" href="#lop">' + (classes.length ? 'Lớp học' : 'Tạo lớp') + '</a><a class="btn primary" href="#giao-bai">Giao bài mới</a></div></div>';
-    const actions = '<div class="actions-grid">' + action('#giao-bai', 'pin', 'Giao bài', 'Chọn bài cho cả lớp', true) + action('#goi-ten', 'bulb', 'Gọi tên', 'Gọi học sinh lên bảng') +
-      action('#hoc-sinh', 'users', 'Học sinh', 'Kết quả từng em') + action('#bai-hoc', 'edit', 'Soạn câu hỏi', 'Sửa, thêm câu cho bài') + '</div>';
+    const line = !classes.length ? 'Tạo lớp đầu tiên để bắt đầu theo dõi học sinh.' : !students.length ? 'Chưa có em nào kết nối. In phiếu mã lớp để phát cho các em.'
+      : classes.length + ' lớp · hôm nay <b>' + today.active + '/' + students.length + '</b> em đã học' + (help.length ? ' · <b>' + help.length + '</b> em cần nhắc' : ' · các lớp đang học đều');
+    const head = '<div class="page-head today-head"><div><span class="eyebrow">' + esc(greetDate()) + '</span><h2>' + hello() + ', ' + esc(name) + '</h2><p>' + line + '</p></div>' +
+      '<div class="page-actions"><a class="btn" href="#goi-ten">Gọi tên</a><a class="btn primary" href="#giao-bai">Giao bài mới</a></div></div>';
+    const strip = students.length ? '<dl class="today-strip">' +
+      [['Học hôm nay', today.active + '<small> / ' + students.length + '</small>', today.sessions + ' lượt'], ['Học trong 7 ngày', w1.active + '<small> / ' + students.length + '</small>', w1.sessions + ' lượt'],
+        ['Tỷ lệ đúng 7 ngày', w1.acc == null ? '–' : w1.acc + '%', w1.acc == null ? 'Chưa có lượt học' : deltaHtml(w1.acc, w0.acc, ' điểm')], ['Cần quan tâm', help.length, help.length ? 'Đúng dưới 60% hoặc nghỉ 4 ngày' : 'Không có em nào', help.length > 0]]
+        .map(([k, val, foot, attn]) => '<div' + (attn ? ' class="attn"' : '') + '><dt>' + k + '</dt><dd>' + val + '</dd><dd class="foot">' + foot + '</dd></div>').join('') + '</dl>' : '';
+
+    const todos = [];
+    const idleKids = students.filter(s => summary(s).idle >= 4), lowKids = students.filter(s => s.attempts >= 10 && summary(s).acc < 60 && summary(s).idle < 4);
+    const names = list => list.slice(0, 3).map(s => s.name).join(', ') + (list.length > 3 ? '…' : '');
+    if (!classes.length) todos.push(['#lop', 'Tạo lớp học đầu tiên', 'Lớp có mã 6 kí tự để học sinh kết nối', 'Tạo lớp']);
+    classes.filter(c => !students.some(s => s.classCode === c.code)).forEach(c => todos.push(['print:' + c.code, 'Phát mã cho ' + (c.name || 'lớp ' + c.code), 'Chưa có em nào kết nối · mã ' + c.code, 'In phiếu']));
+    if (idleKids.length) todos.push(['#hoc-sinh', idleKids.length + ' em nghỉ học từ 4 ngày', names(idleKids), 'Xem']);
+    if (lowKids.length) todos.push(['#hoc-sinh', lowKids.length + ' em đúng dưới 60%', names(lowKids), 'Xem']);
+    const weak = weakest(students);
+    if (weak) todos.push(['#giao-bai/' + weak.id, 'Ôn lại: Lớp ' + weak.t.lop[0] + ' · ' + weak.t.ten, 'Học sinh mới đúng ' + weak.acc + '% bài này', 'Giao ôn']);
+    if (students.length) todos.push(['#nhan-xet', 'Sổ nhận xét ' + termName(), 'Đã có gợi ý theo kết quả luyện tập', 'Mở sổ']);
+    const todoPanel = '<section class="panel todo-panel"><div class="panel-head"><div><h3>Việc cần làm</h3><p>' + (todos.length ? todos.length + ' việc' : 'Không có việc tồn đọng') + '</p></div></div>' +
+      (todos.length ? '<ol class="todo-list">' + todos.map(([href, t, sub, btn]) => '<li><span class="todo-dot" aria-hidden="true"></span><span class="r-main"><b>' + esc(t) + '</b><small>' + esc(sub) + '</small></span>' +
+        (href.startsWith('print:') ? '<button class="btn sm" type="button" data-print="' + esc(href.slice(6)) + '">' + btn + '</button>' : '<a class="btn sm" href="' + esc(href) + '">' + btn + '</a>') + '</li>').join('') + '</ol>'
+        : '<p class="muted">Mọi việc đã xong. Thầy cô có thể giao bài mới cho lớp.</p>') + '</section>';
+
     if (!classes.length) {
-      v.innerHTML = storageWarn() + head + actions + panel('Bắt đầu trong 3 bước', '', '', '<ol class="steps"><li><b>Tạo lớp</b> ở mục <a href="#lop">Lớp học</a> để có mã lớp 6 kí tự.</li><li><b>Học sinh nhập mã</b> trên máy của em: Cài đặt → Lớp học của em → Kết nối.</li><li><b>Giao bài</b> và theo dõi kết quả ngay tại đây.</li></ol>');
+      v.innerHTML = storageWarn() + head + '<div class="today-grid"><div class="today-main">' + panel('Bắt đầu trong 3 bước', '', '', '<ol class="steps"><li><b>Tạo lớp</b> ở mục <a href="#lop">Lớp học</a> để có mã lớp 6 kí tự.</li><li><b>Học sinh nhập mã</b> trên máy của em: Cài đặt → Lớp học của em → Kết nối.</li><li><b>Giao bài</b> và theo dõi kết quả ngay tại đây.</li></ol>') + '</div><aside class="today-rail">' + todoPanel + '</aside></div>';
       return;
     }
-    const kpis = '<div class="kpis">' +
-      kpi('Học sinh', 'users', students.length, classes.length + ' lớp', false, '#hoc-sinh') +
-      kpi('Học trong 7 ngày', 'pulse', w1.active + ' <small>/ ' + students.length + '</small>', 'Hôm nay: ' + today.active + ' em · ' + w1.sessions + ' lượt') +
-      kpi('Tỷ lệ đúng 7 ngày', 'check', w1.acc == null ? '–' : w1.acc + '%', w1.acc == null ? 'Chưa có lượt học' : deltaHtml(w1.acc, w0.acc, ' điểm')) +
-      kpi('Cần quan tâm', 'alert', help.length, help.length ? 'Đúng dưới 60% hoặc nghỉ từ 4 ngày' : 'Cả lớp đang ổn', help.length > 0, '#hoc-sinh') + '</div>';
+    const tiles = classes.map((c, index) => {
+      const list = students.filter(s => s.classCode === c.code), a7 = activity(list, 7), a30 = activity(list, 30), attn = list.filter(needsHelp).length;
+      return '<article class="class-tile" data-tone="' + (index % 6) + '"><header><a href="#hoc-sinh" data-cls="' + esc(c.code) + '"><h3>' + esc(c.name || 'Lớp ' + c.code) + '</h3></a><p>Khối ' + esc(c.grade || '—') + ' · Mã ' + esc(c.code) + '</p></header>' +
+        '<div class="tile-body"><div class="tile-stat"><span>Học trong 7 ngày</span><b>' + a7.active + '<small> / ' + list.length + ' em</small></b>' + meter(a7.active, list.length) + '</div>' +
+        '<div class="tile-row"><span>Tỷ lệ đúng 30 ngày</span><b>' + (a30.acc == null ? '–' : a30.acc + '%') + '</b></div><div class="tile-row' + (attn ? ' attn' : '') + '"><span>Cần quan tâm</span><b>' + attn + '</b></div></div>' +
+        '<footer><a href="#hoc-sinh" data-cls="' + esc(c.code) + '">Học sinh</a><a href="#giao-bai">Giao bài</a><a href="#nhan-xet">Nhận xét</a></footer></article>';
+    }).join('');
     const byClass = classes.map(c => { const list = students.filter(s => s.classCode === c.code); const a = activity(list, 30); return { nhan: c.name || 'Lớp ' + c.code, gt: a.acc ?? 0, phu: list.length + ' học sinh · ' + a.sessions + ' lượt / 30 ngày', has: a.acc != null }; }).filter(r => r.has);
     const helpRows = help.slice(0, 6).map(s => { const m = summary(s); return '<li><span class="r-main"><b>' + esc(s.name) + '</b><small>' + esc(className(s.classCode)) + '</small></span><span class="tag warn">' + (m.idle >= 4 ? (m.idle === Infinity ? 'Chưa học' : 'Nghỉ ' + m.idle + ' ngày') : 'Đúng ' + m.acc + '%') + '</span></li>'; }).join('');
-    v.innerHTML = storageWarn() + head + actions + kpis + '<div class="dash">' +
-      panel('Lượt học 14 ngày qua', 'Số lượt làm bài học sinh gửi về mỗi ngày', '<a href="#thong-ke">Thống kê chi tiết →</a>', '<div class="viz" id="vzDays"></div>') +
+    v.innerHTML = storageWarn() + head + strip + '<div class="today-grid"><div class="today-main">' +
+      '<div class="section-title"><h3>Lớp của tôi</h3><a href="#lop">Quản lý lớp →</a></div><div class="class-tiles">' + tiles + '</div>' +
+      panel('Lượt học 14 ngày qua', 'Số lượt làm bài học sinh gửi về mỗi ngày', '<a href="#thong-ke">Thống kê lớp →</a>', '<div class="viz" id="vzDays"></div>') +
+      (byClass.length ? panel('Tỷ lệ đúng theo lớp', '30 ngày gần nhất', '', '<div class="viz" id="vzClass"></div>') : '') + recentPanel(students) + '</div>' +
+      '<aside class="today-rail">' + todoPanel +
       panel('Cần quan tâm', help.length ? help.length + ' học sinh' : '', '<a href="#hoc-sinh">Xem tất cả →</a>', help.length ? '<ul class="rows">' + helpRows + '</ul>' : '<p class="muted">Chưa có học sinh nào cần nhắc.</p>') +
-      panel('Tỷ lệ đúng theo lớp', '30 ngày gần nhất', '', byClass.length ? '<div class="viz" id="vzClass"></div>' : '<p class="muted">Khi học sinh làm bài, tỷ lệ đúng của từng lớp hiện ở đây.</p>') +
-      weakPanel(students) + recentPanel(students) + '</div>';
+      weakPanel(students) + '</aside></div>';
+    $$('[data-cls]', v).forEach(a => a.addEventListener('click', () => { studentFilter.cls = a.dataset.cls; }));
+    $$('[data-print]', v).forEach(b => b.onclick = () => printCards(classes.find(c => c.code === b.dataset.print)));
     drawCharts(v, [['#vzDays', 'cot', perDay(students, 14), { donVi: 'lượt', moTa: 'Lượt học 14 ngày qua', cotNhan: 'Ngày', cotGiaTri: 'Lượt học' }],
       ['#vzClass', 'ngang', byClass, { toiDa: 100, dinhDang: x => x + '%', moTa: 'Tỷ lệ đúng theo lớp', cotNhan: 'Lớp', cotGiaTri: 'Tỷ lệ đúng' }]]);
   }
 
+  /* ===== Quản trị – Bảng điều khiển (đợt 25). Tham khảo Google Admin console và Microsoft 365 admin center:
+     dải cảnh báo đầu trang, thẻ quản lý theo lĩnh vực (số chính, chỉ số phụ, lối tắt), nhật ký gần đây, bảng giáo viên. ===== */
+  const mcard = (icon, title, href, big, unit, rows, links, attn) => '<section class="mcard' + (attn ? ' attn' : '') + '"><header><i aria-hidden="true">' + ICON[icon] + '</i><h3>' + title + '</h3><a href="' + href + '" aria-label="Mở ' + title + '">Mở</a></header>' +
+    '<p class="mcard-big"><b>' + big + '</b><span>' + unit + '</span></p><dl>' + rows.map(([k, val, warn]) => '<div' + (warn ? ' class="warn"' : '') + '><dt>' + k + '</dt><dd>' + val + '</dd></div>').join('') + '</dl>' +
+    '<ul class="mcard-links">' + links.map(([h, t]) => '<li>' + (h.startsWith('#') ? '<a href="' + h + '">' + t + '</a>' : '<button type="button" data-do="' + h + '">' + t + '</button>') + '</li>').join('') + '</ul></section>';
+
   async function overviewAdmin(v) {
-    const [classes, students, admin] = await Promise.all([load('classes', true), load('students', true), api('/api/admin/teachers')]);
-    const teachers = admin.teachers || [], unassigned = admin.unassigned || [];
-    const active = teachers.filter(t => t.active), w1 = activity(students, 7), w0 = activity(students, 7, 7);
+    const [classes, students, admin, audit, docs] = await Promise.all([load('classes', true), load('students', true), api('/api/admin/teachers'),
+      api('/api/admin/audit').catch(() => ({ entries: [] })), load('docs').catch(() => [])]);
+    const teachers = admin.teachers || [], unassigned = admin.unassigned || [], entries = audit.entries || [];
+    const active = teachers.filter(t => t.active), locked = teachers.length - active.length, w1 = activity(students, 7);
     const neverIn = active.filter(t => !t.lastLoginAt), idle = active.filter(t => t.lastLoginAt && (Date.now() - new Date(t.lastLoginAt)) > 7 * 864e5);
-    const help = students.filter(needsHelp);
-    const head = '<div class="page-head"><div><span class="eyebrow">Quản trị trường · ' + esc(greetDate()) + '</span><h2>Tổng quan trường</h2>' +
-      '<p>' + teachers.length + ' giáo viên · ' + classes.length + ' lớp · ' + students.length + ' học sinh</p></div>' +
+    const help = students.filter(needsHelp), pg = status.storage === 'postgres';
+    const LBL = window.NHAT_KY_NHAN || {};
+    const week = entries.filter(e => Date.now() - new Date(e.at) < 7 * 864e5);
+    const logins = week.filter(e => e.action === 'login'), lockouts = week.filter(e => e.action === 'login.locked'), risky = week.filter(e => (LBL[e.action] || [])[1] === 'risk');
+    const head = '<div class="page-head console-head"><div><span class="eyebrow">Quản trị trường · ' + esc(greetDate()) + '</span><h2>Bảng điều khiển</h2><p>' + teachers.length + ' giáo viên · ' + classes.length + ' lớp · ' + students.length + ' học sinh</p></div>' +
       '<div class="page-actions"><button class="btn" id="exportSchool" type="button">Xuất báo cáo Excel</button><a class="btn" href="#lop">Tạo lớp</a><a class="btn primary" href="#quan-tri-giao-vien">Thêm giáo viên</a></div></div>';
-    const kpis = '<div class="kpis">' +
-      kpi('Giáo viên', 'teacher', active.length + ' <small>/ ' + teachers.length + '</small>', teachers.length - active.length ? (teachers.length - active.length) + ' tài khoản đang khoá' : 'Đang hoạt động', false, '#quan-tri-giao-vien') +
-      kpi('Lớp học', 'school', classes.length, unassigned.length ? unassigned.length + ' lớp chưa có giáo viên' : 'Tất cả đã có giáo viên', unassigned.length > 0, '#lop') +
-      kpi('Học sinh', 'users', students.length, w1.active + ' em học trong 7 ngày', false, '#hoc-sinh') +
-      kpi('Lượt học 7 ngày', 'pulse', w1.sessions, w0.sessions ? deltaHtml(w1.sessions, w0.sessions, ' lượt') : (w1.acc == null ? 'Chưa có lượt học' : 'Tỷ lệ đúng ' + w1.acc + '%')) + '</div>';
-    const todos = [];
-    if (unassigned.length) todos.push(['#quan-tri-giao-vien', 'warn', '!', unassigned.length + ' lớp chưa có giáo viên', 'Giao lớp để giáo viên theo dõi học sinh']);
-    if (neverIn.length) todos.push(['#quan-tri-giao-vien', 'warn', '!', neverIn.length + ' giáo viên chưa đăng nhập lần nào', neverIn.slice(0, 3).map(t => t.name).join(', ')]);
-    if (idle.length) todos.push(['#quan-tri-giao-vien', '', '!', idle.length + ' giáo viên vắng hơn 7 ngày', idle.slice(0, 3).map(t => t.name).join(', ')]);
-    if (help.length) todos.push(['#hoc-sinh', 'warn', '!', help.length + ' học sinh cần quan tâm', 'Đúng dưới 60% hoặc nghỉ từ 4 ngày']);
-    if (status.storage !== 'postgres') todos.push(['#huong-dan', 'warn', '!', 'Dữ liệu đang lưu tạm', 'Bật PostgreSQL trên Railway để lưu lâu dài']);
-    const todoHtml = todos.length ? todos.map(([href, cls, ic, t, sub]) => '<a class="todo ' + cls + '" href="' + href + '"><i aria-hidden="true">' + ic + '</i><span><b>' + esc(t) + '</b><small>' + esc(sub) + '</small></span></a>').join('') : '<p class="muted">Không có việc gì tồn đọng. Mọi lớp đã có giáo viên.</p>';
+    const alerts = [];
+    if (!pg) alerts.push(['bad', 'Dữ liệu đang lưu tạm', 'Bật PostgreSQL trên Railway để không mất dữ liệu khi máy chủ khởi động lại.', '#huong-dan', 'Hướng dẫn']);
+    if (lockouts.length) alerts.push(['bad', lockouts.length + ' lần bị tạm khoá đăng nhập trong 7 ngày', 'Có người nhập sai mật khẩu nhiều lần liên tiếp.', '#nhat-ky', 'Xem nhật ký']);
+    if (unassigned.length) alerts.push(['warn', unassigned.length + ' lớp chưa có giáo viên', unassigned.slice(0, 4).map(c => c.name || c.code).join(', '), '#lop', 'Giao lớp']);
+    if (neverIn.length) alerts.push(['warn', neverIn.length + ' giáo viên chưa đăng nhập lần nào', neverIn.slice(0, 3).map(t => t.name).join(', '), '#quan-tri-giao-vien', 'Gửi lại phiếu']);
+    if (idle.length) alerts.push(['info', idle.length + ' giáo viên vắng hơn 7 ngày', idle.slice(0, 3).map(t => t.name).join(', '), '#quan-tri-giao-vien', 'Xem']);
+    const alertHtml = '<section class="alerts" aria-label="Cảnh báo hệ thống">' + (alerts.length ? alerts.map(([lv, t, sub, href, btn]) => '<div class="alert-row lv-' + lv + '"><i aria-hidden="true">' + ICON[lv === 'info' ? 'pulse' : 'alert'] + '</i><span class="r-main"><b>' + esc(t) + '</b><small>' + esc(sub) + '</small></span><a class="btn sm" href="' + href + '">' + btn + '</a></div>').join('')
+      : '<div class="alert-row lv-ok"><i aria-hidden="true">' + ICON.check + '</i><span class="r-main"><b>Hệ thống ổn định</b><small>Không có cảnh báo nào cần xử lý.</small></span></div>') + '</section>';
+    const grades = [1, 2, 3].map(g => classes.filter(c => Number(c.grade) === g).length);
+    const docList = Array.isArray(docs) ? docs : [];
+    const cards = '<div class="mgmt-grid">' +
+      mcard('teacher', 'Giáo viên', '#quan-tri-giao-vien', active.length, '/ ' + teachers.length + ' tài khoản hoạt động', [['Chưa đăng nhập', neverIn.length, neverIn.length > 0], ['Đang khoá', locked, locked > 0], ['Vắng hơn 7 ngày', idle.length]],
+        [['#quan-tri-giao-vien', 'Thêm giáo viên'], ['#quan-tri-giao-vien', 'Đặt lại mật khẩu'], ['#quan-tri-giao-vien', 'Khoá / mở tài khoản']], neverIn.length + locked > 0) +
+      mcard('school', 'Lớp học', '#lop', classes.length, 'lớp trong trường', [['Chưa có giáo viên', unassigned.length, unassigned.length > 0], ['Khối 1 · 2 · 3', grades.join(' · ')], ['Bình quân / lớp', (classes.length ? Math.round(students.length / classes.length) : 0) + ' em']],
+        [['#lop', 'Tạo lớp'], ['#lop', 'Giao / chuyển lớp cho giáo viên']], unassigned.length > 0) +
+      mcard('users', 'Học sinh', '#hoc-sinh', students.length, 'em đã kết nối lớp', [['Học trong 7 ngày', w1.active], ['Tỷ lệ đúng 7 ngày', w1.acc == null ? '–' : w1.acc + '%'], ['Cần quan tâm', help.length, help.length > 0]],
+        [['#hoc-sinh', 'Danh sách học sinh'], ['export', 'Xuất báo cáo Excel']]) +
+      mcard('shield', 'Bảo mật & truy cập', '#nhat-ky', logins.length, 'lượt đăng nhập trong 7 ngày', [['Người đã đăng nhập', new Set(logins.map(e => e.by)).size], ['Bị tạm khoá', lockouts.length, lockouts.length > 0], ['Thao tác cần chú ý', risky.length, risky.length > 0]],
+        [['#nhat-ky', 'Nhật ký hoạt động'], ['#quan-tri-giao-vien', 'Quản lý tài khoản']], lockouts.length > 0) +
+      mcard('db', 'Dữ liệu & lưu trữ', '#huong-dan', pg ? 'An toàn' : 'Lưu tạm', pg ? 'PostgreSQL, lưu lâu dài' : 'có thể mất khi máy chủ khởi động lại', [['Nơi lưu', pg ? 'PostgreSQL' : 'Tệp tạm', !pg], ['Nhật ký đang giữ', entries.length + ' / 600 mục']],
+        [['export', 'Tải báo cáo toàn trường'], ['#huong-dan', 'Hướng dẫn cài đặt']], !pg) +
+      mcard('book', 'Học liệu', '#bai-hoc', LESSONS.length, 'bài chính tả lớp 1–3', [['Tài liệu đã tải lên', docList.length], ['Đang công bố', docList.filter(d => d.published).length]],
+        [['#bai-hoc', 'Bài học và câu hỏi'], ['#tai-lieu', 'Tài liệu'], ['#giao-dien', 'Giao diện học sinh']]) + '</div>';
+    const when = iso => { const d = new Date(iso); return isNaN(d) ? '' : d.toLocaleDateString('vi-VN', { day: 'numeric', month: 'numeric' }) + ' · ' + d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }); };
+    const auditHtml = entries.length ? '<ul class="audit-mini">' + entries.slice(0, 7).map(e => '<li><span class="log-dot k-' + esc((LBL[e.action] || [])[1] || 'none') + '" aria-hidden="true"></span><span class="r-main"><b>' + esc((LBL[e.action] || [e.action])[0]) + '</b><small>' + esc(e.name || e.by) + (e.detail ? ' · ' + esc(e.detail) : '') + '</small></span><time>' + esc(when(e.at)) + '</time></li>').join('') + '</ul>'
+      : '<p class="muted">Chưa có hoạt động nào được ghi.</p>';
     const codeOwner = new Map(classes.map(c => [c.code, c.owner || '']));
     const byTeacher = teachers.map(t => { const list = students.filter(s => codeOwner.get(s.classCode) === t.username); const a = activity(list, 7); return { nhan: t.name, gt: a.sessions, phu: t.classes.length + ' lớp · ' + list.length + ' học sinh' + (a.acc != null ? ' · đúng ' + a.acc + '%' : '') }; }).sort((a, b) => b.gt - a.gt);
     const byGrade = [1, 2, 3].map(g => { const codes = new Set(classes.filter(c => Number(c.grade) === g).map(c => c.code)); return { nhan: 'Khối ' + g, gt: students.filter(s => codes.has(s.classCode)).length, phu: codes.size + ' lớp' }; });
     const lastSeen = t => !t.lastLoginAt ? '<span class="tag warn">Chưa đăng nhập</span>' : (d => d <= 0 ? 'Hôm nay' : d === 1 ? 'Hôm qua' : d + ' ngày trước')(Math.floor((Date.now() - new Date(t.lastLoginAt)) / 864e5));
-    const table = teachers.length ? '<div class="table-wrap"><table><thead><tr><th>Giáo viên</th><th class="hide-sm">Lớp</th><th class="num">Học sinh</th><th class="num">Lượt 7 ngày</th><th class="hide-sm">Đăng nhập</th></tr></thead><tbody>' +
-      teachers.map(t => { const row = byTeacher.find(r => r.nhan === t.name); return '<tr><td><b>' + esc(t.name) + '</b>' + (t.active ? '' : ' <span class="tag">Đã khoá</span>') + '<br><small class="muted">@' + esc(t.username) + '</small></td><td class="hide-sm">' + (t.classes.length ? t.classes.map(c => esc(c.name || c.code)).join(', ') : '<span class="muted">Chưa có lớp</span>') + '</td><td class="num">' + t.students + '</td><td class="num">' + (row ? row.gt : 0) + '</td><td class="hide-sm">' + lastSeen(t) + '</td></tr>'; }).join('') + '</tbody></table></div>'
+    const table = teachers.length ? '<div class="table-wrap"><table class="admin-table"><thead><tr><th>Giáo viên</th><th class="hide-sm">Lớp</th><th class="num">Học sinh</th><th class="num">Lượt 7 ngày</th><th class="hide-sm">Đăng nhập</th><th class="hide-sm">Trạng thái</th></tr></thead><tbody>' +
+      teachers.map(t => { const row = byTeacher.find(r => r.nhan === t.name); return '<tr><td><span class="who">' + avatar(t.name) + '<span><b>' + esc(t.name) + '</b><small class="muted">@' + esc(t.username) + '</small></span></span></td><td class="hide-sm">' + (t.classes.length ? t.classes.map(c => esc(c.name || c.code)).join(', ') : '<span class="muted">Chưa có lớp</span>') + '</td><td class="num">' + t.students + '</td><td class="num">' + (row ? row.gt : 0) + '</td><td class="hide-sm">' + lastSeen(t) + '</td><td class="hide-sm">' + (t.active ? '<span class="state on">Hoạt động</span>' : '<span class="state off">Đã khoá</span>') + '</td></tr>'; }).join('') + '</tbody></table></div>'
       : '<p class="muted">Chưa có tài khoản giáo viên. <a href="#quan-tri-giao-vien">Tạo tài khoản đầu tiên →</a></p>';
-    v.innerHTML = storageWarn() + head + kpis + '<div class="dash">' +
+    v.innerHTML = head + alertHtml + cards + '<div class="dash console-dash">' +
       panel('Hoạt động toàn trường', 'Lượt học mỗi ngày trong 14 ngày qua', '<a href="#thong-ke">Thống kê →</a>', '<div class="viz" id="vzDays"></div>') +
-      panel('Việc cần làm', todos.length ? todos.length + ' mục' : '', '', todoHtml) +
+      panel('Nhật ký gần đây', entries.length ? 'Các thay đổi mới nhất trên hệ thống' : '', '<a href="#nhat-ky">Xem tất cả →</a>', auditHtml) +
       panel('Lượt học 7 ngày theo giáo viên', 'Tổng lượt học của học sinh các lớp mỗi giáo viên phụ trách', '', byTeacher.length ? '<div class="viz" id="vzTeacher"></div>' : '<p class="muted">Chưa có giáo viên.</p>') +
       panel('Học sinh theo khối', 'Số học sinh đã kết nối lớp', '', '<div class="viz" id="vzGrade"></div>') +
       panel('Giáo viên', teachers.length + ' tài khoản', '<a href="#quan-tri-giao-vien">Quản lý →</a>', table, 'wide') + recentPanel(students) + '</div>';
@@ -306,6 +410,7 @@
       ['#vzTeacher', 'ngang', byTeacher.slice(0, 8), { donVi: 'lượt', moTa: 'Lượt học 7 ngày theo giáo viên', cotNhan: 'Giáo viên', cotGiaTri: 'Lượt học' }],
       ['#vzGrade', 'ngang', byGrade, { donVi: 'em', moTa: 'Học sinh theo khối', cotNhan: 'Khối', cotGiaTri: 'Học sinh' }]]);
     $('#exportSchool').onclick = () => exportSchool(classes, students, teachers);
+    $$('[data-do="export"]', v).forEach(b => b.onclick = () => exportSchool(classes, students, teachers));
   }
   /* Báo cáo toàn trường cho ban giám hiệu: 3 trang tính – giáo viên, lớp học, học sinh cần quan tâm */
   function exportSchool(classes, students, teachers) {
@@ -357,7 +462,7 @@
       '<section class="panel"><div class="panel-head"><div><h3>Tạo lớp mới</h3><p>Mỗi lớp có một mã 6 kí tự. Học sinh nhập mã một lần trên máy của em (Cài đặt → Lớp học của em).</p></div></div><form id="newClass" class="toolbar"><label class="field"><span>Tên lớp</span><input id="ncName" maxlength="40" placeholder="Ví dụ: Lớp 2A" required></label>' +
       '<label class="field" style="flex:0 1 160px"><span>Khối</span><select id="ncGrade"><option value="1">Lớp 1</option><option value="2" selected>Lớp 2</option><option value="3">Lớp 3</option></select></label>' +
       (isAdmin() ? '<label class="field" style="flex:1 1 200px"><span>Giáo viên phụ trách</span><select id="ncOwner">' + staffOptions('') + '</select></label>' : '') + '<button class="btn primary">Tạo lớp</button></form></section>' +
-      '<div class="grid g2 section">' + (classes.length ? classes.map(c => {
+      (isAdmin() ? classTable(classes, students, nameOf) : '<div class="grid g2 section">' + (classes.length ? classes.map(c => {
         const mine = students.filter(s => s.classCode === c.code), n = mine.length, week = activity(mine, 7), month = activity(mine, 30);
         const stats = '<div class="class-stats"><span><b>' + n + '</b>học sinh</span><span><b>' + week.active + '</b>học trong 7 ngày</span><span><b>' + (month.acc == null ? '–' : month.acc + '%') + '</b>đúng 30 ngày</span></div>';
         const owner = isAdmin() ? '<p class="class-owner">' + (c.owner && nameOf(c.owner) ? 'GVCN: ' + esc(nameOf(c.owner)) : '<span class="tag warn warn-text">Chưa giao giáo viên</span>') + ' <button class="btn sm" data-owner="' + esc(c.code) + '">' + (c.owner ? 'Chuyển lớp' : 'Giao lớp') + '</button></p>' : '';
@@ -365,7 +470,16 @@
           '<div class="class-code"><span>Mã lớp</span><div class="code" aria-label="Mã lớp">' + esc(c.code) + '</div><button class="btn sm" data-copy="' + esc(c.code) + '">Chép mã</button></div>' +
           '<div class="actions" style="justify-content:flex-start"><a class="btn sm primary" href="#hoc-sinh" data-see="' + esc(c.code) + '">Xem học sinh</a><button class="btn sm" data-print="' + esc(c.code) + '">In thẻ mã</button>' +
           '<button class="btn sm" data-rename="' + esc(c.code) + '">Sửa</button><button class="btn sm danger" data-del="' + esc(c.code) + '">Xoá</button></div></section>';
-      }).join('') : '<div class="empty">Chưa có lớp nào.</div>') + '</div>';
+      }).join('') : '<div class="empty">Chưa có lớp nào.</div>') + '</div>');
+    if (isAdmin() && $('#ctQ')) {
+      const filter = () => {
+        const q = norm($('#ctQ').value.trim()), g = $('#ctGrade').value;
+        let shown = 0;
+        $$('.class-row', v).forEach(tr => { const ok = (!g || tr.dataset.grade === g) && (!q || norm(tr.dataset.find).includes(q)); tr.hidden = !ok; shown += ok; });
+        $('#ctCount').textContent = shown + ' / ' + classes.length + ' lớp';
+      };
+      $('#ctQ').oninput = filter; $('#ctGrade').onchange = filter;
+    }
     $('#newClass').onsubmit = async e => {
       e.preventDefault();
       try { const r = await send('/api/classes', 'POST', { name: $('#ncName').value.trim(), grade: Number($('#ncGrade').value), ...(isAdmin() ? { owner: $('#ncOwner').value } : {}) }); toast('Đã tạo lớp, mã ' + r.code); cache.classes = null; route(); } catch (err) { fail(err); }
@@ -391,6 +505,22 @@
       if (!await confirmBox('Xoá ' + (c.name || c.code) + '?', 'Mã lớp sẽ ngừng hoạt động và kết quả học của học sinh lớp này trên máy chủ sẽ bị xoá. Dữ liệu trên máy của các em vẫn còn.', 'Xoá lớp')) return;
       try { await api('/api/classes/' + c.code, { method: 'DELETE' }); cache.classes = cache.students = null; toast('Đã xoá lớp.'); route(); } catch (err) { fail(err); }
     });
+  }
+  /* Quản trị xem toàn trường dạng bảng (lọc theo khối, tìm theo tên lớp/giáo viên) – đợt 25 */
+  function classTable(classes, students, nameOf) {
+    if (!classes.length) return '<div class="empty section">Chưa có lớp nào.</div>';
+    const rows = classes.map(c => {
+      const mine = students.filter(s => s.classCode === c.code), week = activity(mine, 7), month = activity(mine, 30), teacher = c.owner && nameOf(c.owner);
+      return '<tr class="class-card class-row" data-grade="' + esc(c.grade || '') + '" data-find="' + esc((c.name || '') + ' ' + c.code + ' ' + (teacher || '')) + '">' +
+        '<td><h2 class="cls-name">' + esc(c.name || 'Lớp chưa đặt tên') + '</h2><small class="muted">Khối ' + esc(c.grade || '—') + '</small></td>' +
+        '<td><span class="code" aria-label="Mã lớp">' + esc(c.code) + '</span> <button class="btn sm ghost-mini" data-copy="' + esc(c.code) + '" aria-label="Chép mã ' + esc(c.code) + '">Chép</button></td>' +
+        '<td>' + (teacher ? '<span class="class-owner cls-owner">' + esc(teacher) + '</span>' : '<span class="tag warn warn-text">Chưa giao giáo viên</span>') + ' <button class="btn sm" data-owner="' + esc(c.code) + '">' + (c.owner ? 'Chuyển' : 'Giao lớp') + '</button></td>' +
+        '<td class="num">' + mine.length + '</td><td class="num hide-sm">' + week.active + '</td><td class="num hide-sm">' + (month.acc == null ? '–' : month.acc + '%') + '</td>' +
+        '<td class="row-acts"><a class="btn sm" href="#hoc-sinh" data-see="' + esc(c.code) + '">Học sinh</a><button class="btn sm" data-print="' + esc(c.code) + '">In mã</button><button class="btn sm" data-rename="' + esc(c.code) + '">Sửa</button><button class="btn sm danger" data-del="' + esc(c.code) + '">Xoá</button></td></tr>';
+    }).join('');
+    return '<section class="panel section class-table-panel"><div class="toolbar filter-bar"><label class="field"><span>Tìm</span><input id="ctQ" type="search" placeholder="Tên lớp, mã lớp hoặc giáo viên"></label>' +
+      '<label class="field" style="flex:0 1 160px"><span>Khối</span><select id="ctGrade"><option value="">Tất cả</option><option value="1">Khối 1</option><option value="2">Khối 2</option><option value="3">Khối 3</option></select></label><span class="ct-count" id="ctCount">' + classes.length + ' / ' + classes.length + ' lớp</span></div>' +
+      '<div class="table-wrap"><table class="admin-table class-table"><thead><tr><th>Lớp</th><th>Mã lớp</th><th>Giáo viên phụ trách</th><th class="num">Học sinh</th><th class="num hide-sm">Học 7 ngày</th><th class="num hide-sm">Đúng 30 ngày</th><th><span class="sr-only">Thao tác</span></th></tr></thead><tbody>' + rows + '</tbody></table></div></section>';
   }
   function printCards(c) {
     const card = '<div class="print-card"><b>Vườn Chữ Kì Diệu – ' + esc(c.name || '') + '</b><p>Mã lớp của em:</p><div class="code">' + esc(c.code) + '</div>' +
@@ -622,7 +752,7 @@
       qa('Dùng máy chung ở trường', 'Làm xong nhớ bấm <b>Đăng xuất</b>. Web cũng tự đăng xuất sau 12 giờ.') +
       qa('Tôi muốn đổi mật khẩu', 'Bấm <b>Đổi mật khẩu</b> ở cuối thanh bên trái. Đổi xong, các máy khác đang đăng nhập bằng tài khoản này sẽ phải đăng nhập lại. Quên mật khẩu thì nhờ quản trị trường đặt lại.') +
       qa('Vì sao tôi không thấy lớp của đồng nghiệp?', 'Mỗi giáo viên chỉ thấy lớp mình phụ trách và học sinh của lớp đó. Quản trị trường thấy toàn trường và có thể <b>giao</b> hoặc <b>chuyển lớp</b> cho giáo viên khác. Câu hỏi, tài liệu và bài học là kho chung của trường.') +
-      (isAdmin() ? qa('Quản trị: xem ai đã thay đổi gì', 'Mục <a href="#nhat-ky">Nhật ký hoạt động</a> ghi lại đăng nhập, tạo hoặc khoá tài khoản, giao lớp, xoá lớp, tài liệu, giao bài. Báo cáo toàn trường tải ở <b>Tổng quan</b> → <b>Xuất báo cáo Excel</b>.') : '') +
+      (isAdmin() ? qa('Quản trị: xem ai đã thay đổi gì', 'Mục <a href="#nhat-ky">Nhật ký hoạt động</a> ghi lại đăng nhập, tạo hoặc khoá tài khoản, giao lớp, xoá lớp, tài liệu, giao bài. Báo cáo toàn trường tải ở <b>Bảng điều khiển</b> → <b>Xuất báo cáo Excel</b>. Bảng điều khiển gom cảnh báo (lớp chưa có giáo viên, tài khoản chưa đăng nhập, đăng nhập bị khoá) và lối tắt quản lý theo từng lĩnh vực.') : '') +
       (isAdmin() ? qa('Quản trị: thêm giáo viên mới', 'Vào <a href="#quan-tri-giao-vien">Quản lý giáo viên</a> → nhập họ tên, tên đăng nhập, bấm <b>Tạo ngẫu nhiên</b> mật khẩu → <b>Tạo tài khoản</b> → <b>Chép phiếu</b> đăng nhập gửi giáo viên. Sau đó vào <a href="#lop">Lớp học</a> bấm <b>Giao lớp</b>. Giáo viên nghỉ: bấm <b>Xoá</b> và chọn người nhận lớp, học sinh không mất dữ liệu.') : '') + '</section>';
   }
 
