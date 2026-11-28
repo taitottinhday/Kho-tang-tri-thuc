@@ -447,8 +447,10 @@ export function createDuckVillage(host, { sound, roster }) {
       return {
         eyebrow: 'ĐẠI ÚY VỊT · LỆNH TRIỆU TẬP',
         heading: 'GIẤY TRIỆU TẬP',
-        caption: batch.length > 1 ? 'Mời các em lên bảng trình diện ngay!' : 'Mời em lên bảng trình diện ngay!',
-        again: 'Triệu tập tiếp',
+        caption: 'Lên bảng trả bài ngay!',
+        again: 'Gọi tiếp',
+        home: 'Về xóm',
+        leave: 'stay',
         portrait: student => kidArt(student, 'hello')
       };
     },

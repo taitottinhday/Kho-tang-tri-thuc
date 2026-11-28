@@ -59,6 +59,7 @@ async function page(view) {
   let audio = null;
   let audioStep = 0;
   let storyRun = null;
+  let resultLeave = 'home'; // nút phụ trên thẻ kết quả đưa về đâu
   let historyExpanded = false;
   let dialogueSequence = 0;
   let noiseBuffer = null;
@@ -575,7 +576,8 @@ async function page(view) {
     if (story?.note) $('#resultCaption', root).append(Object.assign(document.createElement('em'), { className: 'caller-result-note', textContent: story.note }));
     $('#resultCaption', root).hidden = isUfo;
     $('#playAgain', root).textContent = story ? story.again : isUfo ? 'Gọi tiếp' : 'Chơi lại ↻';
-    $('#resultHome', root).textContent = isUfo || isJourney ? 'Xong' : 'Về màn hình chính';
+    $('#resultHome', root).textContent = story ? story.home : isUfo ? 'Xong' : 'Về màn hình chính';
+    resultLeave = story?.leave || 'home';
     overlay.hidden = false;
     requestAnimationFrame(() => {
       if (overlay.hidden || !root.isConnected) return;
@@ -859,6 +861,21 @@ async function page(view) {
     placeBoardForGame('home');
     activeGame = ''; play.hidden = true; home.hidden = false; setRoster();
   }
+  /* nút phụ trên thẻ kết quả: “Về xóm” ở lại sân khấu, “Sửa danh sách” mở chỗ sửa tên, trò khác về màn chọn trò */
+  function leaveResult() {
+    if (busy) return;
+    if (resultLeave === 'stay') {
+      $('#resultOverlay', root).hidden = true; $('#resultOverlay', root).classList.remove('is-shown');
+      $('#confetti', root).innerHTML = '';
+      scene?.reset();
+      renderRoster(); setEmotion([]);
+      startButton.focus({ preventScroll: true });
+      return;
+    }
+    const toList = resultLeave === 'list';
+    goHome();
+    if (toList) requestAnimationFrame(() => $('.caller-setup-card', root)?.scrollIntoView({ block: 'start', behavior: 'smooth' }));
+  }
   async function refreshRound() {
     if (busy || !activeGame) return;
     settings.daily.round = { girls: [], boys: [], all: [] };
@@ -872,7 +889,7 @@ async function page(view) {
     if (activeGame) renderRoster();
   }
   $$('.caller-game-card', root).forEach(card => card.onclick = () => openGame(card.dataset.openGame));
-  $('#backHome', root).onclick = goHome; $('#resultHome', root).onclick = goHome;
+  $('#backHome', root).onclick = goHome; $('#resultHome', root).onclick = leaveResult;
   $('#historyMore', root).onclick = () => { historyExpanded = !historyExpanded; updateHomeHistory(); };
   $('#playAgain', root).onclick = startStory;
   startButton.onclick = startStory;

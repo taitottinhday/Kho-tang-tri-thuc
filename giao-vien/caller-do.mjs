@@ -425,6 +425,7 @@ export function createKnowledgeFerry(host, { sound, roster }) {
     jumpCarp();
     sound('splash');
     chatter(['Cá chép kìa!', 'Cá chép vượt vũ môn!'], 1200);
+    chatter([title() + ' ơi cứu em!'], 1200);
     pilotSays('Bám chắc vào nhé!', 1100);
     await acting.beat(1250);
     pilotSays('Ngồi yên, có ' + self() + ' đây!', 1000);
@@ -561,6 +562,8 @@ export function createKnowledgeFerry(host, { sound, roster }) {
         caption: title() + ' đã đưa ' + (batch.length > 1 ? 'các em' : 'em') + ' sang tận bờ. Mời ' + (batch.length > 1 ? 'các em' : 'em') + ' lên bảng nhé!',
         note: others > 0 ? 'Cả ' + others + ' bạn đã lên bờ, chỉ còn ' + (batch.length > 1 ? 'các em' : 'em') + ' ngủ quên trên đò.' : '',
         again: 'Chuyến đò mới',
+        home: 'Sửa danh sách',
+        leave: 'list',
         typed: true,
         portrait: sitArt
       };

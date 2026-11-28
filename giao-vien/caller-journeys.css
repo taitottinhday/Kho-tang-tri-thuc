@@ -314,7 +314,8 @@
   box-shadow: 0 0 0 3px #5d3512, 0 24px 60px #030a14b3;
 }
 .caller-journey-play .ferry-result .caller-result-eyebrow { padding: 4px 18px; border-radius: 6px; background: #d93d33; color: #fff; }
-.caller-journey-play .ferry-result .caller-result-card #resultHeading { font-size: clamp(.8rem, 1.6cqw, 1.05rem); font-weight: 700; color: #cfe8d6; }
+/* bảng đen trong video không có dòng tiêu đề: vẫn để tiêu đề cho trình đọc màn hình và con trỏ bàn phím */
+.caller-journey-play .ferry-result .caller-result-card #resultHeading { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .caller-journey-play .ferry-result .caller-result-person b { color: #fffef2; }
 .caller-journey-play .ferry-result #resultCaption { color: #ffe27a; font-size: clamp(.86rem, 1.9cqw, 1.18rem); font-weight: 800; }
 .caller-journey-play .ferry-result .caller-result-note { color: #d7ead9; }
@@ -330,16 +331,25 @@
 .caller-journey-play .postal-result .caller-result-card #resultHeading { color: #c01f28; font-family: "Times New Roman", serif; font-size: clamp(1.5rem, 5cqw, 3rem); font-weight: 800; letter-spacing: .04em; }
 .caller-journey-play .postal-result .caller-result-person b { color: #24160f; }
 .caller-journey-play .postal-result .journey-portrait { border-color: #b62027; }
-.caller-journey-play .postal-result .caller-result-home { border: 2px solid #8a1c20; background: #fff; color: #8a1c20; }
-.caller-journey-play .postal-result .caller-play-again { border: 2px solid #8a1c20; background: #c4262e; color: #fff; box-shadow: none; }
+.caller-journey-play .postal-result .caller-result-card #resultHeading::after {
+  content: "Triệu tập em"; display: block; margin-top: 2px; color: #6b4a3a; font-family: "Be Vietnam Pro", system-ui, sans-serif;
+  font-size: clamp(.74rem, 1.6cqw, 1rem); font-weight: 650; letter-spacing: 0;
+}
+.caller-journey-play .postal-result .caller-result-card #resultHeading:has(+ .caller-result-names .caller-result-person:nth-child(2))::after { content: "Triệu tập các em"; }
+.caller-journey-play .postal-result .caller-result-home { border: 2px solid #b9bec7; background: #fff; color: #2f3a46; }
+.caller-journey-play .postal-result .caller-play-again { border: 2px solid #1d6b3a; background: #2a8249; color: #fff; box-shadow: none; }
 .caller-journey-play .ferry-result .caller-result-home { border: 2px solid #d9ecdd; background: transparent; color: #f3fff5; }
 .caller-journey-play .ferry-result .caller-play-again { border: 2px solid #ffe27a; background: #ffe27a; color: #3a2a06; box-shadow: none; }
-.caller-journey-play .postal-result #resultCaption { color: #4a3326; font-size: clamp(.86rem, 1.9cqw, 1.15rem); font-weight: 750; }
+.caller-journey-play .postal-result #resultCaption { color: #c01f28; font-size: clamp(.86rem, 1.9cqw, 1.15rem); font-weight: 750; }
 .caller-journey-play .postal-result .caller-result-card::after {
-  content: "★"; position: absolute; right: 4.5%; bottom: 20%; display: grid; place-items: center; width: clamp(52px, 8cqw, 86px); aspect-ratio: 1;
-  border: 4px double #c8262e; border-radius: 50%; color: #c8262e; font-size: clamp(1.4rem, 3.4cqw, 2.2rem); rotate: -14deg; opacity: .72;
-  pointer-events: none; animation: sealStamp .5s cubic-bezier(.3, 1.6, .5, 1) .45s both;
+  content: "ĐÃ\A TRIỆU TẬP"; white-space: pre; position: absolute; right: 3.5%; bottom: 17%; display: grid; place-items: center;
+  width: clamp(58px, 10cqw, 108px); aspect-ratio: 1; border: 4px double #c8262e; border-radius: 50%; color: #c8262e; text-align: center;
+  font-size: clamp(.56rem, 1.3cqw, .86rem); font-weight: 900; line-height: 1.35; rotate: -14deg; opacity: .62;
+  z-index: 0; pointer-events: none; animation: sealStamp .5s cubic-bezier(.3, 1.6, .5, 1) .45s both;
 }
+/* con dấu nằm DƯỚI chữ để không bao giờ che tên; gọi 2–3 bạn thì đóng ở góc dưới cho khỏi chạm cột tên */
+.caller-journey-play .postal-result .caller-result-card > :is(b, .caller-result-names, small, .caller-result-actions) { position: relative; z-index: 1; }
+.caller-journey-play .postal-result .caller-result-card:has(.caller-result-person:nth-child(2))::after { right: 2%; bottom: 3%; width: clamp(56px, 8cqw, 86px); }
 
 @keyframes bubbleIn { from { opacity: 0; scale: .55; } to { opacity: 1; scale: 1; } }
 @keyframes bannerIn { 0% { opacity: 0; scale: 1.9; } 20% { opacity: 1; scale: 1; } 82% { opacity: 1; translate: 0 0; } 100% { opacity: 0; translate: 0 -24px; } }
@@ -381,7 +391,7 @@
 @keyframes doGiant { 0% { opacity: 0; transform: translate(-95%, -30%) scale(.45) rotate(-12deg); } 38% { opacity: 1; transform: translate(-45%, -78%) scale(1.05); } 70% { opacity: 1; transform: translate(-5%, -66%) scale(1) rotate(9deg); } 100% { opacity: 0; transform: translate(25%, -34%) scale(.75) rotate(20deg); } }
 @keyframes doDrop { 0% { opacity: 1; translate: 0 0; } 70% { opacity: 1; translate: var(--dx) var(--dy); } 100% { opacity: 0; translate: var(--dx) calc(var(--dy) + 60px); } }
 @keyframes doLogIn { from { opacity: 0; translate: -14px 0; } to { opacity: 1; translate: 0 0; } }
-@keyframes sealStamp { from { opacity: 0; scale: 2.4; } to { opacity: .72; scale: 1; } }
+@keyframes sealStamp { from { opacity: 0; scale: 2.4; } to { opacity: .62; scale: 1; } }
 
 @media (max-width: 820px) {
   .caller-game-grid:has(.journey-card) { grid-template-columns: repeat(2, minmax(0, 1fr)); }

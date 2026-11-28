@@ -30,7 +30,7 @@ const boys = people(BOYS, Math.floor(size / 2), 3);
 /* những hành động bắt buộc phải thấy, theo đúng thứ tự trong video mẫu */
 const STORY = {
   postal: [/Tuýt tuýt! Kiểm tra bài cũ đây!/, /^CỐC CỐC!$/, /Đừng gọi con|Không phải con|đang ôn bài/, /nhầm nhà|chưa phải nhà này/, /Hừm… nhà này à\?/, /hình như nhà bên kia/, /^CỐC CỐC CỐC!$/, /Dạ… em đây ạ…/, /Có giấy triệu tập!/],
-  ferry: [/Lái Đò Tri Thức/, /^3$/, /^2$/, /^1$/, /^Khởi hành!$/, /GIÓ TO!/, /Ối, nón của (thầy|cô)!/, /ĐÙNG!/, /CÁ CHÉP VƯỢT SÓNG!/, /SÓNG LỚN!/, /ẦM!/, /Qua cơn bão rồi/, /nón của (thầy|cô) bay về/, /CẬP BẾN!/, /Còn 3 bạn!/, /Ai còn trên đò\?/, /ơi, tới bờ rồi con!/, /Dạ… em dậy rồi ạ!/]
+  ferry: [/Lái Đò Tri Thức/, /^3$/, /^2$/, /^1$/, /^Khởi hành!$/, /GIÓ TO!/, /Ối, nón của (thầy|cô)!/, /ĐÙNG!/, /CÁ CHÉP VƯỢT SÓNG!/, /(Thầy|Cô) ơi cứu em!/, /SÓNG LỚN!/, /ẦM!/, /Qua cơn bão rồi/, /nón của (thầy|cô) bay về/, /CẬP BẾN!/, /Còn 3 bạn!/, /Ai còn trên đò\?/, /ơi, tới bờ rồi con!/, /Dạ… em dậy rồi ạ!/]
 };
 
 const browser = await launch(width, height);
@@ -128,7 +128,9 @@ try {
     check(missing.length === 0, 'Đủ ' + STORY[game].length + ' hành động đúng thứ tự', { missing, said });
     const result = await browser.eval(`return { names:[...document.querySelectorAll('#resultNames .caller-result-person b')].map(n=>n.textContent), text: document.querySelector('.caller-result-card').innerText, history: JSON.parse(localStorage.getItem('vuonchu.callerGames.v1')).daily }`);
     check(JSON.stringify(result.names) === JSON.stringify(chosen) && result.history.pending === null, 'Công bố đúng bạn đã chọn lúc bắt đầu', { chosen, result: result.names });
-    check(game === 'postal' ? /GIẤY TRIỆU TẬP/i.test(result.text) : /CẬP BẾN TRI THỨC/i.test(result.text), 'Màn kết quả đúng chủ đề', result.text);
+    check(game === 'postal' ? /GIẤY TRIỆU TẬP/i.test(result.text) && /Lên bảng trả bài ngay!/.test(result.text) : /CẬP BẾN TRI THỨC/i.test(result.text) && /đã đưa em sang tận bờ/.test(result.text), 'Màn kết quả đúng chủ đề', result.text);
+    const words = await browser.eval(`return { buttons: [document.querySelector('#playAgain').textContent, document.querySelector('#resultHome').textContent], lead: getComputedStyle(document.querySelector('#resultHeading'), '::after').content, seal: getComputedStyle(document.querySelector('.caller-result-card'), '::after').content }`);
+    check(JSON.stringify(words.buttons) === JSON.stringify(game === 'postal' ? ['Gọi tiếp', 'Về xóm'] : ['Chuyến đò mới', 'Sửa danh sách']) && (game !== 'postal' || (/Triệu tập em/.test(words.lead) && /TRIỆU TẬP/.test(words.seal))), 'Chữ trên thẻ và hai nút đúng như video', words);
     const card = await browser.eval(`const c=document.querySelector('.caller-result-card').getBoundingClientRect(), s=document.querySelector('#resultOverlay').getBoundingClientRect(), b=document.querySelector('#resultHome').getBoundingClientRect(); return { inside: c.left>=s.left-1 && c.right<=s.right+1, button: b.bottom<=s.bottom+1, cardH: c.height, stageH: s.height }`);
     check(card.inside && card.button, 'Thẻ kết quả và nút bấm nằm gọn trong sân khấu', card);
     check((await brokenArt()).length === 0, 'Không có tranh hỏng', await brokenArt());
@@ -144,7 +146,7 @@ try {
       await frameShot(game + '-91-ba-ban-ngu');
     }
     check(await until(shown, 120000), 'Lượt 3 bạn diễn xong');
-    await browser.sleep(1000);
+    await browser.sleep(2200); // chờ tên hiện đủ từng chữ và con dấu đóng xong
     await frameShot(game + '-92-ba-ban');
     const three = await browser.eval(`const card=document.querySelector('.caller-result-card').getBoundingClientRect(); const items=[...document.querySelectorAll('#resultNames .caller-result-person b')].map(n=>n.getBoundingClientRect()); const exit=document.querySelector('#resultHome').getBoundingClientRect(); const el=document.querySelector('.caller-result-card'); return { count: items.length, inside: items.every(r=>r.top>=card.top-1&&r.bottom<=card.bottom+1&&r.left>=card.left-1&&r.right<=card.right+1), exit: exit.bottom<=card.bottom+1, scroll: el.scrollHeight-el.clientHeight }`);
     check(three.count === 3 && three.inside && three.exit && three.scroll <= 2, 'Hiện đủ 3 tên, không phải cuộn', three);
@@ -160,14 +162,25 @@ try {
     const after = await browser.eval(`return { name: document.querySelector('#resultNames b').textContent, bubbles: document.querySelectorAll('.vit-bubble,.do-bubble,.vit-knock,.do-walker,.do-wave,.do-banner').length }`);
     check(after.name === skipped && after.bubbles === 0, 'Đúng tên đã chọn, không còn hiệu ứng chạy sót', after);
 
-    /* rời trò rồi vào lại */
+    /* nút phụ trên thẻ kết quả, rồi rời trò */
     await run(`document.querySelector('#resultHome').click()`);
+    if (game === 'postal') {
+      check(await until(`document.querySelector('#resultOverlay').hidden && document.querySelector('.vit-scene')?.dataset.phase === 'idle' && !document.querySelector('#startStory').disabled && document.querySelector('#callerHome').hidden`), '“Về xóm”: đóng giấy, ở lại xóm, sẵn sàng gọi tiếp');
+      check(await browser.eval(`return document.querySelectorAll('.vit-house').length === ${size} && !document.querySelector('.vit-kid, .vit-bubble, .vit-knock')`), 'Xóm trở lại yên tĩnh, đủ nhà');
+      await run(`document.querySelector('#backHome').click()`);
+    } else {
+      await browser.sleep(900);
+      const list = await browser.eval(`const card = document.querySelector('.caller-setup-card').getBoundingClientRect(); return { top: Math.round(card.top), view: innerHeight }`);
+      check(list.top > -80 && list.top < list.view * .6, '“Sửa danh sách”: đưa thẳng tới chỗ sửa tên', list);
+    }
     check(await until(`!document.querySelector('#callerHome').hidden && !document.querySelector('.journey-scene, .do-tools')`), 'Về màn chọn trò, dọn sạch sân khấu');
   }
 
   if (!only || only === 'ferry') {
     await run(`document.querySelector('[data-open-game="ferry"]').click()`);
     await until(`document.querySelector('.do-tools button')`);
+    await run(`document.querySelector('#gameStage').scrollIntoView({block:'center'})`); // như người dùng: sân khấu phải đang ở trong khung nhìn
+    await browser.sleep(250);
     const before = await browser.eval(`return document.querySelector('.do-pilot').src`);
     await run(`document.querySelector('.do-tools button').click()`);
     const switched = await browser.eval(`return { src: document.querySelector('.do-pilot').src, label: document.querySelector('.do-tools button').textContent }`);
