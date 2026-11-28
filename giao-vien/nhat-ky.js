@@ -10,7 +10,7 @@
     'teacher.lock': ['Khoá tài khoản', 'risk'], 'teacher.unlock': ['Mở khoá tài khoản', 'account'], 'teacher.delete': ['Xoá tài khoản', 'risk'],
     'class.create': ['Tạo lớp', 'class'], 'class.update': ['Sửa lớp', 'class'], 'class.assign': ['Giao / chuyển lớp', 'class'], 'class.delete': ['Xoá lớp', 'risk'],
     'student.delete': ['Xoá học sinh khỏi lớp', 'risk'], 'assignment.create': ['Giao bài', 'teach'], 'assignment.delete': ['Huỷ bài đã giao', 'teach'],
-    'doc.upload': ['Tải tài liệu lên', 'teach'], 'doc.publish': ['Công bố tài liệu', 'teach'], 'doc.unpublish': ['Chuyển tài liệu về nháp', 'teach'], 'doc.delete': ['Xoá tài liệu', 'risk'],
+    'doc.upload': ['Tải tài liệu lên', 'teach'], 'doc.classes': ['Đổi lớp nhận tài liệu', 'teach'], 'doc.publish': ['Công bố tài liệu', 'teach'], 'doc.unpublish': ['Chuyển tài liệu về nháp', 'teach'], 'doc.delete': ['Xoá tài liệu', 'risk'],
     'comments.save': ['Lưu sổ nhận xét', 'teach'], 'theme.change': ['Đổi cảnh nền học sinh', 'teach']
   };
   window.NHAT_KY_NHAN = ACTIONS; // Bảng điều khiển quản trị dùng chung nhãn

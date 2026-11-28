@@ -148,7 +148,7 @@ const MayChu = (() => {
   }
   async function fileAsDataUrl(file) { return new Promise((resolve,reject) => { const reader = new FileReader(); reader.onerror = () => reject(Error('Không đọc được tệp.')); reader.onload = () => resolve(reader.result); reader.readAsDataURL(file); }); }
   async function drawDocs(container, teacher = false) {
-    const result = await request('/api/docs'); const docs = result.documents || [];
+    const result = await request('/api/docs' + docQuery()); const docs = result.documents || [];
     if (teacher) {
       container.innerHTML = '<div class="cloud-import"><h3>Tải tài liệu lên</h3><form id="cloudDocForm" class="cloud-doc-form"><label>Tên tài liệu<input id="cloudDocTitle" maxlength="180" placeholder="Ví dụ: Phiếu luyện dấu hỏi, dấu ngã" required></label><div class="cloud-doc-fields"><label>Lớp<select id="cloudDocGrade"><option value="chung">Dùng chung</option><option value="1">Lớp 1</option><option value="2">Lớp 2</option><option value="3">Lớp 3</option></select></label><label>Mã chủ đề (nếu có)<select id="cloudDocTopic"><option value="">Không chọn</option>' + (typeof myTopics === 'function' ? myTopics().map(t => '<option value="' + escText(t.id) + '">' + escText(t.ten) + '</option>').join('') : '') + '</select></label></div><label>Ghi chú<textarea id="cloudDocNote" maxlength="500" rows="2"></textarea></label><label>Tệp (tối đa 10 MB)<input id="cloudDocFile" type="file" accept=".pdf,.docx,.pptx,.png,.jpg,.jpeg,.webp,.mp3,application/pdf,image/png,image/jpeg,image/webp,audio/mpeg" required></label><label class="project-check"><input id="cloudDocPublished" type="checkbox"> Công bố cho học sinh</label><button class="primary-btn">Tải tài liệu lên</button><p id="cloudDocMessage" role="status"></p></form></div>' +
         '<h3>Thư viện trên máy chủ</h3>' + docRows(docs,true);
@@ -172,14 +172,62 @@ const MayChu = (() => {
       return;
     }
     const shown = docs.filter(d => d.published !== false);
-    container.innerHTML = shown.length ? docRows(shown,false) : '<p>Thầy cô chưa công bố tài liệu nào.</p>';
+    const joined = Boolean(localStorage.getItem(CLASS_KEY));
+    container.innerHTML = (joined ? '' : '<p class="kdoc-join">🏫 Em chưa kết nối lớp. Vào <b>Cài đặt → Lớp học của em</b> nhập mã lớp để thấy tài liệu của lớp mình nhé!</p>') + (shown.length ? kidDocs(shown) : '<div class="kdoc-empty"><div aria-hidden="true">🐣</div><b>Thầy cô chưa chia sẻ tài liệu nào</b><p>Em quay lại sau nhé, sẽ có phiếu học tập mới!</p></div>');
     container.querySelectorAll('[data-doc-download]').forEach(button => button.onclick = () => downloadDoc(button.dataset.docDownload,button.dataset.docName));
+    container.querySelectorAll('[data-doc-view]').forEach(button => button.onclick = () => previewDoc(shown.find(d => d.id === button.dataset.docView)));
   }
   function docRows(docs, teacher) {
     return '<div class="cloud-doc-list">' + docs.map(d => '<article class="cloud-doc"><div><b>📚 ' + escText(d.title || d.name) + '</b><small>Lớp ' + (d.grade === 'chung' ? 'nào cũng dùng' : escText(d.grade)) + (d.topic ? ' · ' + escText((typeof getTopic === 'function' && getTopic(d.topic) || {}).ten || d.topic) : '') + ' · ' + (Number(d.size || 0) / 1024 / 1024).toFixed(2) + ' MB' + (teacher ? ' · ' + (d.published ? 'Đã công bố' : 'Bản nháp') : '') + '</small>' + (d.note ? '<span>' + escText(d.note) + '</span>' : '') + '</div><div class="cloud-doc-actions">' + (teacher ? '<button type="button" class="soft-btn" data-doc-download="' + escText(d.id) + '" data-doc-name="' + escText(d.name) + '">Tải về</button><button type="button" class="soft-btn danger" data-doc-delete="' + escText(d.id) + '">Xoá</button>' : '<a class="soft-btn" href="/api/docs/' + encodeURIComponent(d.id) + '" target="_blank" rel="noopener">Mở tài liệu</a>') + '</div></article>').join('') + '</div>';
   }
+  /* ===== Trang tài liệu của học sinh: thẻ dễ thương + nút “Xem” xem ngay trong trang (PDF, hình ảnh, nhạc) ===== */
+  const DOC_KIND = {
+    pdf: { label: 'PDF', icon: '📕', tone: 'rose', mime: 'application/pdf', view: 'frame' },
+    png: { label: 'Hình ảnh', icon: '🖼️', tone: 'sky', mime: 'image/png', view: 'image' }, jpg: { label: 'Hình ảnh', icon: '🖼️', tone: 'sky', mime: 'image/jpeg', view: 'image' },
+    jpeg: { label: 'Hình ảnh', icon: '🖼️', tone: 'sky', mime: 'image/jpeg', view: 'image' }, webp: { label: 'Hình ảnh', icon: '🖼️', tone: 'sky', mime: 'image/webp', view: 'image' },
+    mp3: { label: 'Bài nghe', icon: '🎵', tone: 'mint', mime: 'audio/mpeg', view: 'audio' },
+    docx: { label: 'Word', icon: '📘', tone: 'blue', view: '' }, pptx: { label: 'Trình chiếu', icon: '📙', tone: 'peach', view: '' }
+  };
+  const docQuery = () => { const code = localStorage.getItem(CLASS_KEY) || ''; return code ? '?classCode=' + encodeURIComponent(code) : ''; };
+  const docKind = d => DOC_KIND[String(d.name || '').split('.').pop().toLowerCase()] || { label: 'Tệp', icon: '📄', tone: 'sun', view: '' };
+  function kidDocs(docs) {
+    return '<div class="kdoc-grid">' + docs.map(d => {
+      const kind = docKind(d), id = escText(d.id), name = escText(d.name);
+      const meta = 'Lớp ' + (d.grade === 'chung' ? 'nào cũng học được' : escText(d.grade)) + (d.topic ? ' · ' + escText((typeof getTopic === 'function' && getTopic(d.topic) || {}).ten || d.topic) : '');
+      return '<article class="kdoc" data-tone="' + kind.tone + '"><div class="kdoc-badge" aria-hidden="true">' + kind.icon + '</div><div class="kdoc-body"><span class="kdoc-kind">' + kind.label + '</span>' + (d.forClass ? '<span class="kdoc-mine">⭐ Của lớp em</span>' : '') + '<h3>' + escText(d.title || d.name) + '</h3><p class="kdoc-meta">' + meta + ' · ' + Math.max(1, Math.round(Number(d.size || 0) / 1024)) + ' KB</p>' +
+        (d.note ? '<p class="kdoc-note">' + escText(d.note) + '</p>' : '') + '</div><div class="kdoc-actions">' +
+        (kind.view ? '<button type="button" class="kdoc-btn kdoc-view" data-doc-view="' + id + '">👀 Xem ngay</button>' : '') +
+        '<button type="button" class="kdoc-btn" data-doc-download="' + id + '" data-doc-name="' + name + '">⬇️ Tải về</button></div>' +
+        (kind.view ? '' : '<p class="kdoc-hint">Tệp này em tải về rồi mở bằng máy nhé.</p>') + '</article>';
+    }).join('') + '</div>';
+  }
+  async function previewDoc(d) {
+    const kind = docKind(d);
+    const dlg = document.createElement('dialog');
+    dlg.className = 'kdoc-dialog';
+    dlg.innerHTML = '<div class="kdoc-dhead"><b>' + kind.icon + ' ' + escText(d.title || d.name) + '</b><button type="button" class="kdoc-x" aria-label="Đóng">✕</button></div><div class="kdoc-stage"><p class="kdoc-wait">🐣 Đang mở tài liệu cho em…</p></div><div class="kdoc-dfoot"><a class="kdoc-btn" target="_blank" rel="noopener" hidden>↗ Mở ở tab mới</a><button type="button" class="kdoc-btn" data-doc-download="' + escText(d.id) + '" data-doc-name="' + escText(d.name) + '">⬇️ Tải về</button></div>';
+    document.body.append(dlg);
+    let url = '';
+    const close = () => { try { dlg.close(); } catch (e) { /* đã đóng */ } };
+    dlg.addEventListener('close', () => { if (url) URL.revokeObjectURL(url); dlg.remove(); });
+    dlg.querySelector('.kdoc-x').onclick = close;
+    dlg.addEventListener('click', e => { if (e.target === dlg) close(); });
+    dlg.querySelector('[data-doc-download]').onclick = () => downloadDoc(d.id, d.name);
+    dlg.showModal();
+    const stage = dlg.querySelector('.kdoc-stage');
+    try {
+      const bytes = await request('/api/docs/' + encodeURIComponent(d.id) + docQuery());
+      url = URL.createObjectURL(new Blob([bytes], { type: kind.mime }));
+      const open = dlg.querySelector('.kdoc-dfoot a'); open.href = url; open.hidden = kind.view !== 'frame';
+      stage.innerHTML = kind.view === 'image' ? '<img alt="' + escText(d.title || d.name) + '">' : kind.view === 'audio' ? '<div class="kdoc-audio"><div class="kdoc-disc" aria-hidden="true">🎵</div><audio controls></audio></div>' : '<iframe title="' + escText(d.title || d.name) + '"></iframe>';
+      (stage.querySelector('audio') || stage.firstElementChild).src = url;
+      if (kind.view === 'frame') stage.insertAdjacentHTML('beforeend', '<p class="kdoc-tip">Nếu chưa thấy tài liệu, em bấm “Mở ở tab mới” nhé.</p>');
+    } catch (error) {
+      stage.innerHTML = '<p class="kdoc-wait">😢 ' + escText(error.message || 'Chưa mở được tài liệu.') + '</p>';
+    }
+  }
   async function downloadDoc(id,name) {
-    try { const bytes = await request('/api/docs/' + encodeURIComponent(id)); const blob = new Blob([bytes]); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href),1000); }
+    try { const bytes = await request('/api/docs/' + encodeURIComponent(id) + docQuery()); const blob = new Blob([bytes]); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href),1000); }
     catch (error) { toast(error.message); }
   }
   async function drawTab() {
@@ -357,7 +405,7 @@ const MayChu = (() => {
     if (token) drawTab();
     installSaveHook();
   }
-  function docsPage() { return '<div class="docs-view"><div class="page-heading"><p class="eyebrow">THƯ VIỆN LỚP HỌC</p><h1>📚 Tài liệu của thầy cô</h1><p>Tài liệu luyện tập được thầy cô chia sẻ với lớp em.</p></div><section class="project-panel" id="publicDocs"><p>Đang tìm tài liệu…</p></section></div>'; }
+  function docsPage() { return '<div class="docs-view"><div class="page-heading"><p class="eyebrow">THƯ VIỆN LỚP HỌC</p><h1>📚 Tài liệu của thầy cô</h1><p>Bấm <b>👀 Xem ngay</b> để mở tài liệu ngay trên máy, hoặc <b>⬇️ Tải về</b> để giữ lại nhé!</p></div><section class="project-panel" id="publicDocs"><p>Đang tìm tài liệu…</p></section></div>'; }
   function bindDocs() { const body = document.querySelector('#publicDocs'); if (body) drawDocs(body,false).catch(() => { body.innerHTML = '<p>Mất kết nối. Em có thể thử lại sau nhé.</p>'; }); }
   function refreshCurrentProfile() {
     const code = localStorage.getItem(CLASS_KEY);

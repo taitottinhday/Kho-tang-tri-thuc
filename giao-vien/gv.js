@@ -636,9 +636,15 @@
   /* ---------------- Trang: Tài liệu ---------------- */
   const lessonOptions = (sel, withNone) => (withNone ? '<option value="">— Không gắn bài —</option>' : '') + [1, 2, 3].map(g => '<optgroup label="Lớp ' + g + '">' + lessonsOf(g).map((t, i) => '<option value="' + t.id + '"' + (t.id === sel ? ' selected' : '') + '>Bài ' + (i + 1) + ': ' + esc(t.ten) + '</option>').join('') + '</optgroup>').join('');
   async function pgDocs(v) {
-    const docs = await load('docs', true);
-    v.innerHTML = storageWarn() + pageHead('Dạy học', 'Tài liệu', 'Gửi phiếu bài tập, bài đọc, âm thanh cho học sinh.') + '<section class="card"><h2>Tải tài liệu lên</h2>' +
-      '<div class="form"><div class="row"><label class="field"><span>Dành cho</span><select id="dGrade"><option value="chung">Mọi lớp</option><option value="1">Lớp 1</option><option value="2">Lớp 2</option><option value="3">Lớp 3</option></select></label>' +
+    const [docs, classes] = await Promise.all([load('docs', true), load('classes', true)]);
+    const classNames = new Map(classes.map(c => [c.code, c.name || 'Lớp ' + c.code]));
+    const forWho = d => (d.classCodes || []).length ? d.classCodes.map(c => esc(classNames.get(c) || 'Lớp đã xoá')).join(', ') : 'Mọi lớp';
+    const picker = (id, picked) => '<fieldset class="class-pick" id="' + id + '"><legend>Giao cho lớp nào?</legend><label class="pick all"><input type="checkbox" data-all' + (picked.length ? '' : ' checked') + '><span>Mọi lớp trong trường</span></label>' +
+      (classes.length ? classes.map(c => '<label class="pick"><input type="checkbox" value="' + esc(c.code) + '"' + (picked.includes(c.code) ? ' checked' : '') + '><span>' + esc(c.name || c.code) + '</span></label>').join('') : '<span class="hint">Chưa có lớp. Tạo lớp ở mục Lớp học.</span>') + '</fieldset>';
+    const pickedOf = id => $$('#' + id + ' input[value]:checked').map(i => i.value);
+    const wirePicker = id => { const box = $('#' + id), all = $('[data-all]', box); const sync = () => { if (pickedOf(id).length) all.checked = false; else all.checked = true; }; all.onchange = () => { if (all.checked) $$('input[value]', box).forEach(i => { i.checked = false; }); else if (!pickedOf(id).length) all.checked = true; }; $$('input[value]', box).forEach(i => { i.onchange = sync; }); };
+    v.innerHTML = storageWarn() + pageHead('Dạy học', 'Tài liệu', 'Gửi phiếu bài tập, bài đọc, âm thanh cho đúng lớp. Học sinh xem trực tiếp ngay trên trang hoặc tải về.') + '<section class="card"><h2>Tải tài liệu lên</h2>' +
+      '<div class="form">' + picker('dClasses', isAdmin() ? [] : classes.slice(0, 1).map(c => c.code)) + '<div class="row"><label class="field"><span>Khối (nhãn hiển thị)</span><select id="dGrade"><option value="chung">Mọi khối</option><option value="1">Lớp 1</option><option value="2">Lớp 2</option><option value="3">Lớp 3</option></select></label>' +
       '<label class="field"><span>Gắn với bài (không bắt buộc)</span><select id="dTopic">' + lessonOptions('', true) + '</select></label></div>' +
       '<label class="field"><span>Ghi chú cho học sinh (không bắt buộc)</span><input id="dNote" maxlength="300" placeholder="Ví dụ: Phiếu ôn tập s/x – các em in ra làm nhé"></label>' +
       '<label class="check"><input type="checkbox" id="dPub" checked> Công bố ngay cho học sinh</label>' +
@@ -648,18 +654,24 @@
     const draw = () => {
       const q = $('#dSearch').value.toLocaleLowerCase('vi');
       const rows = docs.filter(d => (d.title + ' ' + d.name).toLocaleLowerCase('vi').includes(q));
-      $('#dList').innerHTML = rows.length ? '<div class="table-wrap"><table><thead><tr><th>Tài liệu</th><th class="hide-sm">Dành cho</th><th class="hide-sm">Cỡ</th><th>Trạng thái</th><th></th></tr></thead><tbody>' + rows.map(d => {
+      $('#dList').innerHTML = rows.length ? '<div class="table-wrap"><table><thead><tr><th>Tài liệu</th><th>Giao cho lớp</th><th class="hide-sm">Cỡ</th><th>Trạng thái</th><th></th></tr></thead><tbody>' + rows.map(d => {
         const ext = (d.name.split('.').pop() || '').slice(0, 4), t = d.topic && lessonById(d.topic);
         return '<tr><td><div class="who" style="font-weight:500"><span class="ext">' + esc(ext) + '</span><span><b>' + esc(d.title) + '</b>' + (t ? '<br><small class="muted">' + esc(t.ten) + '</small>' : '') + (d.note ? '<br><small class="muted">' + esc(d.note) + '</small>' : '') + '</span></div></td>' +
-          '<td class="hide-sm">' + (d.grade === 'chung' ? 'Mọi lớp' : 'Lớp ' + esc(d.grade)) + '</td><td class="hide-sm num">' + fmtSize(Number(d.size) || 0) + '</td>' +
+          '<td><button class="btn sm ghost-link" data-dcls="' + esc(d.id) + '" title="Đổi lớp nhận tài liệu">' + forWho(d) + '</button></td><td class="hide-sm num">' + fmtSize(Number(d.size) || 0) + '</td>' +
           '<td><button class="btn sm" data-pub="' + esc(d.id) + '">' + (d.published ? '<span class="pill ok">Đã công bố</span>' : '<span class="pill">Bản nháp</span>') + '</button></td>' +
           '<td><div class="actions"><button class="btn sm" data-dl="' + esc(d.id) + '">Tải về</button><button class="btn sm danger" data-ddel="' + esc(d.id) + '">Xoá</button></div></td></tr>'; }).join('') + '</tbody></table></div>'
         : '<div class="empty">Chưa có tài liệu.</div>';
       $$('[data-dl]', v).forEach(b => b.onclick = async () => { const d = docs.find(x => x.id === b.dataset.dl); try { download(d.name, await api('/api/docs/' + encodeURIComponent(d.id))); } catch (e) { fail(e); } });
       $$('[data-pub]', v).forEach(b => b.onclick = async () => { const d = docs.find(x => x.id === b.dataset.pub); try { await send('/api/docs/' + encodeURIComponent(d.id), 'PATCH', { published: !d.published }); d.published = !d.published; draw(); toast(d.published ? 'Học sinh đã thấy tài liệu này.' : 'Đã chuyển về bản nháp.'); } catch (e) { fail(e); } });
+      $$('[data-dcls]', v).forEach(b => b.onclick = () => {
+        const d = docs.find(x => x.id === b.dataset.dcls);
+        const dlg = dialog('<h2>Lớp nhận “' + esc(d.title) + '”</h2><form class="form" id="dcForm">' + picker('dcPick', d.classCodes || []) + '<div class="actions"><button type="button" class="btn" data-close>Huỷ</button><button class="btn primary">Lưu</button></div></form>');
+        wirePicker('dcPick');
+        $('#dcForm').onsubmit = async e => { e.preventDefault(); try { await send('/api/docs/' + encodeURIComponent(d.id), 'PATCH', { classCodes: pickedOf('dcPick') }); d.classCodes = pickedOf('dcPick'); dlg.close(); draw(); toast('Đã cập nhật lớp nhận tài liệu.'); } catch (err) { fail(err); } };
+      });
       $$('[data-ddel]', v).forEach(b => b.onclick = async () => { const d = docs.find(x => x.id === b.dataset.ddel); if (!await confirmBox('Xoá “' + d.title + '”?', 'Tài liệu sẽ bị xoá khỏi máy chủ.', 'Xoá')) return; try { await api('/api/docs/' + encodeURIComponent(d.id), { method: 'DELETE' }); docs.splice(docs.indexOf(d), 1); draw(); toast('Đã xoá.'); } catch (e) { fail(e); } });
     };
-    $('#dSearch').oninput = draw; draw();
+    $('#dSearch').oninput = draw; draw(); wirePicker('dClasses');
     const drop = $('#drop'), input = $('#dFile');
     drop.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); input.click(); } };
     ['dragenter', 'dragover'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('over'); }));
@@ -674,7 +686,7 @@
           if (f.size > MAX_DOC) throw Error('quá 10 MB');
           const data = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = () => rej(Error('không đọc được tệp')); r.readAsDataURL(f); });
           const title = f.name.replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' ');
-          const r = await send('/api/docs', 'POST', { name: f.name, title, grade: $('#dGrade').value, topic: $('#dTopic').value, note: $('#dNote').value, data, published: $('#dPub').checked });
+          const r = await send('/api/docs', 'POST', { name: f.name, title, grade: $('#dGrade').value, topic: $('#dTopic').value, note: $('#dNote').value, classCodes: pickedOf('dClasses'), data, published: $('#dPub').checked });
           docs.unshift(r.document); row.lastChild.textContent = 'Xong'; draw();
         } catch (e) { row.lastChild.textContent = 'Lỗi: ' + e.message; row.lastChild.style.color = 'var(--bad)'; }
       }

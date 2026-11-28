@@ -113,6 +113,7 @@ function validateDocument(input) {
   const name = text(q.name, 180), title = text(q.title || q.name, 180), grade = String(q.grade || 'chung');
   const topic = q.topic ? String(q.topic) : '';
   const note = text(q.note, 500), ext = path.extname(name).toLowerCase(), declared = DOC_TYPES[ext];
+  const classCodes = cleanClassCodes(q.classCodes);
   if (!name || !title || !declared) throw Error('Chọn PDF, Word (.docx), PowerPoint (.pptx), ảnh PNG/JPG/WebP hoặc âm thanh MP3.');
   if (!['1', '2', '3', 'chung'].includes(grade)) throw Error('Lớp tài liệu cần là 1, 2, 3 hoặc chung.');
   if (topic && !goodTopic(topic)) throw Error('Mã chủ đề chưa hợp lệ.');
@@ -128,8 +129,17 @@ function validateDocument(input) {
   else if (ext === '.pptx') matches = bytes.subarray(0, 4).toString('hex') === '504b0304' && bytes.includes(Buffer.from('ppt/presentation.xml')) && bytes.includes(Buffer.from([0x50,0x4b,0x05,0x06]));
   if (!matches) throw Error('Nội dung tệp không khớp với phần mở rộng đã khai báo.');
   return { id: typeof q.id === 'string' && /^d[a-z0-9-]{8,50}$/i.test(q.id) ? q.id : 'd' + crypto.randomUUID(), name,
-    title, grade, topic, note, mime: declared[0], disposition: declared[1], bytes, published: q.published === true };
+    title, grade, topic, note, classCodes, mime: declared[0], disposition: declared[1], bytes, published: q.published === true };
 }
+
+/* Tài liệu giao cho lớp nào (mảng rỗng = mọi lớp, như các tài liệu cũ). */
+function cleanClassCodes(value) {
+  const codes = [...new Set((Array.isArray(value) ? value : []).map(c => String(c).toUpperCase().trim()))];
+  if (codes.length > 30 || codes.some(c => !/^[A-HJ-NP-Z2-9]{6}$/.test(c))) throw Object.assign(Error('Mã lớp của tài liệu chưa hợp lệ.'), { status: 400 });
+  return codes;
+}
+const docClasses = d => Array.isArray(d.classCodes) ? d.classCodes : [];
+const docVisibleTo = (d, code) => !docClasses(d).length || (Boolean(code) && docClasses(d).includes(code));
 
 const MAX_HISTORY = 3000;
 const timeStamp = v => Number.isFinite(Number(v)) && Number(v) > 0 && Number(v) < 1e14 ? Math.round(Number(v)) : 0;
@@ -234,6 +244,7 @@ async function createStore(env = process.env, options = {}) {
       max: 8, idleTimeoutMillis: 30000, connectionTimeoutMillis: 10000 });
     await pool.query(`CREATE TABLE IF NOT EXISTS class_questions (id text PRIMARY KEY, body jsonb NOT NULL, published boolean NOT NULL DEFAULT false, updated_at timestamptz NOT NULL DEFAULT now());
       CREATE TABLE IF NOT EXISTS class_documents (id text PRIMARY KEY, name text NOT NULL, title text NOT NULL, grade text NOT NULL, topic text NOT NULL DEFAULT '', note text NOT NULL DEFAULT '', mime text NOT NULL, disposition text NOT NULL, body bytea NOT NULL, published boolean NOT NULL DEFAULT false, created_at timestamptz NOT NULL DEFAULT now());
+      ALTER TABLE class_documents ADD COLUMN IF NOT EXISTS class_codes text[] NOT NULL DEFAULT '{}';
       CREATE TABLE IF NOT EXISTS class_codes (code char(6) PRIMARY KEY, created_at timestamptz NOT NULL DEFAULT now());
       ALTER TABLE class_codes ADD COLUMN IF NOT EXISTS name text NOT NULL DEFAULT '';
       ALTER TABLE class_codes ADD COLUMN IF NOT EXISTS grade int NOT NULL DEFAULT 0;
@@ -252,9 +263,10 @@ function pgStore(pool) {
     async saveQuestions(rows) { for (const q of rows) await pool.query('INSERT INTO class_questions(id,body,published,updated_at) VALUES($1,$2::jsonb,$3,now()) ON CONFLICT(id) DO UPDATE SET body=$2::jsonb,published=$3,updated_at=now()', [q.id, JSON.stringify(q), q.active]); },
     async deleteQuestion(key) { const r = await pool.query('DELETE FROM class_questions WHERE id=$1', [key]); return r.rowCount > 0; },
     async publishDrafts() { const r = await pool.query('UPDATE class_questions SET published=true,body=jsonb_set(body,\'{active}\',\'true\'::jsonb),updated_at=now() WHERE published=false'); return r.rowCount; },
-    async listDocs(all = false) { const r = await pool.query('SELECT id,name,title,grade,topic,note,mime,disposition,published,octet_length(body) AS size,created_at FROM class_documents WHERE ($1::boolean OR published) ORDER BY created_at DESC', [all]); return r.rows; },
-    async getDoc(key) { const r = await pool.query('SELECT * FROM class_documents WHERE id=$1', [key]); if (!r.rowCount) return null; const d = r.rows[0]; return { ...d, bytes: Buffer.from(d.body) }; },
-    async saveDoc(d) { await pool.query('INSERT INTO class_documents(id,name,title,grade,topic,note,mime,disposition,body,published) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)', [d.id,d.name,d.title,d.grade,d.topic,d.note,d.mime,d.disposition,d.bytes,d.published]); },
+    async listDocs(all = false) { const r = await pool.query('SELECT id,name,title,grade,topic,note,mime,disposition,published,class_codes,octet_length(body) AS size,created_at FROM class_documents WHERE ($1::boolean OR published) ORDER BY created_at DESC', [all]); return r.rows.map(({ class_codes, ...d }) => ({ ...d, classCodes: class_codes || [] })); },
+    async getDoc(key) { const r = await pool.query('SELECT * FROM class_documents WHERE id=$1', [key]); if (!r.rowCount) return null; const { class_codes, ...d } = r.rows[0]; return { ...d, classCodes: class_codes || [], bytes: Buffer.from(d.body) }; },
+    async saveDoc(d) { await pool.query('INSERT INTO class_documents(id,name,title,grade,topic,note,mime,disposition,body,published,class_codes) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)', [d.id,d.name,d.title,d.grade,d.topic,d.note,d.mime,d.disposition,d.bytes,d.published,d.classCodes || []]); },
+    async setDocClasses(key, codes) { const r = await pool.query('UPDATE class_documents SET class_codes=$2 WHERE id=$1', [key, codes]); return r.rowCount > 0; },
     async deleteDoc(key) { const r = await pool.query('DELETE FROM class_documents WHERE id=$1', [key]); return r.rowCount > 0; },
     async createClass(code, info = {}) { await pool.query('INSERT INTO class_codes(code,name,grade,owner) VALUES($1,$2,$3,$4) ON CONFLICT DO NOTHING', [code, info.name || '', info.grade || 0, info.owner || '']); },
     async listClasses() { const r = await pool.query('SELECT code,name,grade,owner,created_at FROM class_codes ORDER BY created_at'); return r.rows.map(x => ({ code: x.code.trim(), name: x.name, grade: x.grade, owner: x.owner || '', createdAt: x.created_at })); },
@@ -328,6 +340,7 @@ function fileStore(directory) {
     async updateClass(code, info) { if (!data.classes.includes(code)) return false; data.classInfo = data.classInfo || {}; data.classInfo[code] = { ...data.classInfo[code], ...info }; await persist(); return true; },
     async deleteClass(code) { if (!data.classes.includes(code)) return false; data.classes = data.classes.filter(c => c !== code); if (data.classInfo) delete data.classInfo[code]; data.students = data.students.filter(s => s.classCode !== code); await persist(); return true; },
     async setDocPublished(key, published) { const d = data.docs.find(x => x.id === key); if (!d) return false; d.published = published; await persist(); return true; },
+    async setDocClasses(key, codes) { const d = data.docs.find(x => x.id === key); if (!d) return false; d.classCodes = codes; await persist(); return true; },
     async hasClass(code) { return data.classes.includes(code); },
     async getData(key) { const v = (data.kv || {})[key]; return v === undefined ? null : JSON.parse(JSON.stringify(v)); },
     async updateData(key, initial, update) {
@@ -566,27 +579,48 @@ function createApiHandler(store, env = process.env) {
         if (!await auth(req,res)) return; const key = decodeURIComponent(route.slice('/api/questions/'.length));
         return await store.deleteQuestion(key) ? json(res,200,{ deleted:true }) : json(res,404,{ error:'Không tìm thấy câu hỏi.' });
       }
-      if (route === '/api/docs' && req.method === 'GET') return json(res,200,{ documents: await store.listDocs(Boolean(await validToken(req))) });
+      if (route === '/api/docs' && req.method === 'GET') {
+        const viewer = await validToken(req);
+        const all = await store.listDocs(Boolean(viewer));
+        if (viewer) return json(res,200,{ documents: all.map(d => ({ ...d, classCodes: docClasses(d) })) });
+        // Học sinh chỉ thấy tài liệu chung và tài liệu của lớp mình; không lộ mã của lớp khác.
+        const code = String(url.searchParams.get('classCode') || '').toUpperCase();
+        return json(res,200,{ documents: all.filter(d => docVisibleTo(d, code)).map(({ classCodes, ...d }) => ({ ...d, forClass: docClasses({ classCodes }).length > 0 })) });
+      }
       if (route === '/api/docs' && req.method === 'POST') {
-        if (!await auth(req,res)) return;
+        const user = await auth(req,res); if (!user) return;
         const body = JSON.parse((await readBody(req, 14 * 1024 * 1024)).toString('utf8'));
         let doc;
-        try { doc = validateDocument(body); } catch (error) { error.status = 400; throw error; }
-        await store.saveDoc(doc); await audit(await validToken(req), 'doc.upload', doc.title + (doc.published ? ' (công bố)' : ' (bản nháp)')); return json(res,201,{ document: { id:doc.id,name:doc.name,title:doc.title,grade:doc.grade,topic:doc.topic,note:doc.note,mime:doc.mime,published:doc.published,size:doc.bytes.length } });
+        try { doc = validateDocument(body); } catch (error) { error.status = error.status || 400; throw error; }
+        const mine = new Set((await myClasses(user)).map(c => c.code));
+        if (doc.classCodes.some(c => !mine.has(c))) return denyClass(res);
+        await store.saveDoc(doc);
+        await audit(user, 'doc.upload', doc.title + (doc.published ? ' (công bố)' : ' (bản nháp)') + ' · ' + (doc.classCodes.length ? doc.classCodes.length + ' lớp' : 'mọi lớp'));
+        return json(res,201,{ document: { id:doc.id,name:doc.name,title:doc.title,grade:doc.grade,topic:doc.topic,note:doc.note,mime:doc.mime,published:doc.published,classCodes:doc.classCodes,size:doc.bytes.length } });
       }
       if (route.startsWith('/api/docs/') && req.method === 'GET') {
         const doc = await store.getDoc(decodeURIComponent(route.slice('/api/docs/'.length)));
-        if (!doc || (!doc.published && !await validToken(req))) return json(res,404,{ error:'Không tìm thấy tài liệu.' });
+        const viewer = doc ? await validToken(req) : null;
+        if (!doc || (!doc.published && !viewer) || (!viewer && !docVisibleTo(doc, String(url.searchParams.get('classCode') || '').toUpperCase()))) return json(res,404,{ error:'Không tìm thấy tài liệu.' });
         const disposition = doc.disposition === 'inline' ? 'inline' : 'attachment';
         res.writeHead(200,{ 'Content-Type':doc.mime,'Content-Length':doc.bytes.length,'Content-Disposition': disposition + "; filename*=UTF-8''" + encodeURIComponent(safeName(doc.name)), 'X-Content-Type-Options':'nosniff','Cache-Control':'private, no-store' });
         return res.end(doc.bytes);
       }
       if (route.startsWith('/api/docs/') && req.method === 'PATCH') {
-        if (!await auth(req,res)) return; const b = JSON.parse((await readBody(req,2000)).toString('utf8'));
+        const user = await auth(req,res); if (!user) return; const b = JSON.parse((await readBody(req,4000)).toString('utf8'));
         const key = decodeURIComponent(route.slice('/api/docs/'.length));
-        if (!await store.setDocPublished(key, b.published === true)) return json(res,404,{ error:'Không tìm thấy tài liệu.' });
-        await audit(await validToken(req), b.published === true ? 'doc.publish' : 'doc.unpublish', (await store.getDoc(key))?.title || key);
-        return json(res,200,{ published: b.published === true });
+        if (Array.isArray(b.classCodes)) {
+          const codes = cleanClassCodes(b.classCodes), mine = new Set((await myClasses(user)).map(c => c.code));
+          if (codes.some(c => !mine.has(c))) return denyClass(res);
+          if (!await store.setDocClasses(key, codes)) return json(res,404,{ error:'Không tìm thấy tài liệu.' });
+          await audit(user, 'doc.classes', ((await store.getDoc(key))?.title || key) + ' · ' + (codes.length ? codes.length + ' lớp' : 'mọi lớp'));
+          if (typeof b.published !== 'boolean') return json(res,200,{ classCodes: codes });
+        }
+        if (typeof b.published === 'boolean' || !Array.isArray(b.classCodes)) {
+          if (!await store.setDocPublished(key, b.published === true)) return json(res,404,{ error:'Không tìm thấy tài liệu.' });
+          await audit(user, b.published === true ? 'doc.publish' : 'doc.unpublish', (await store.getDoc(key))?.title || key);
+        }
+        return json(res,200,{ published: b.published === true, classCodes: Array.isArray(b.classCodes) ? cleanClassCodes(b.classCodes) : undefined });
       }
       if (route.startsWith('/api/docs/') && req.method === 'DELETE') {
         if (!await auth(req,res)) return; const key = decodeURIComponent(route.slice('/api/docs/'.length));

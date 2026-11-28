@@ -297,3 +297,11 @@ body.role-admin .console-head .btn:not(.primary){background:rgba(255,255,255,.9)
   .class-tile,.mcard,.btn{transition:none}
   .class-tile:hover,.mcard:hover,.btn.primary:hover{transform:none}
 }
+
+/* ---------- Tài liệu: chọn lớp nhận ---------- */
+.class-pick{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 12px;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:var(--soft)}
+.class-pick legend{padding:0 6px;font-size:.84rem;font-weight:700;color:var(--ink-2)}
+.pick{display:inline-flex;align-items:center;gap:7px;min-height:38px;padding:4px 12px;border:1px solid var(--line);border-radius:99px;background:#fff;font-size:.9rem;font-weight:600;cursor:pointer}
+.pick:has(input:checked){border-color:var(--pri-ring);background:var(--pri-l);color:var(--pri-d)}
+.pick input{accent-color:var(--pri)}
+.ghost-link{border-color:transparent;background:none;color:var(--pri);text-align:left;white-space:normal}

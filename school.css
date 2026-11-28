@@ -121,3 +121,45 @@ body.calm :is(.streak-mascot,.streak-pill>span){animation:none!important}
   html.cd-painted body .cd-pick .cd-chip{white-space:nowrap}
   html.cd-painted body .cd-pick .cd-chip>b{font-size:.7rem!important;white-space:nowrap;letter-spacing:-.2px}
 }
+
+/* ===== Tài liệu của thầy cô: thẻ dễ thương + xem trước (đợt 25) ===== */
+.kdoc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,270px),1fr));gap:14px}
+.kdoc{--k:#ffe3ea;--k-ink:#a5314f;position:relative;display:flex;flex-direction:column;gap:10px;padding:16px;border:2px solid #fff;border-radius:22px;background:linear-gradient(180deg,var(--k) 0 76px,#fff 76px);box-shadow:0 10px 22px -14px rgba(60,50,110,.45);transition:transform .18s}
+.kdoc:hover{transform:translateY(-3px) rotate(-.4deg)}
+.kdoc[data-tone="sky"]{--k:#dff0ff;--k-ink:#235f96}.kdoc[data-tone="mint"]{--k:#d9f6e8;--k-ink:#1f7a53}.kdoc[data-tone="blue"]{--k:#e3e8ff;--k-ink:#3a49a8}
+.kdoc[data-tone="peach"]{--k:#ffe8d4;--k-ink:#a2551c}.kdoc[data-tone="sun"]{--k:#fff3c4;--k-ink:#8a6a00}
+.kdoc-badge{display:grid;place-items:center;width:58px;height:58px;border-radius:18px;background:#fff;font-size:1.9rem;box-shadow:0 5px 12px -6px rgba(60,50,110,.5)}
+.kdoc-body{display:grid;gap:4px;min-width:0}
+.kdoc-kind{justify-self:start;padding:2px 10px;border-radius:99px;background:var(--k);color:var(--k-ink);font-size:.74rem;font-weight:800}
+.kdoc h3{margin:2px 0 0;font-size:1.05rem;line-height:1.3;color:#2b2d4a;overflow-wrap:anywhere}
+.kdoc-meta{margin:0;font-size:.8rem;color:#6a6d8c}
+.kdoc-note{margin:2px 0 0;padding:7px 10px;border-radius:12px;background:#fff8e6;color:#6b5a2a;font-size:.86rem;line-height:1.4}
+.kdoc-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:auto}
+.kdoc-btn{display:inline-flex;align-items:center;justify-content:center;gap:5px;min-height:44px;padding:8px 16px;border:2px solid #e6e3f5;border-radius:99px;background:#fff;color:#3b3d63;font:inherit;font-size:.92rem;font-weight:800;text-decoration:none;cursor:pointer;transition:transform .15s,box-shadow .15s}
+.kdoc-btn:hover{transform:translateY(-2px);box-shadow:0 8px 14px -10px rgba(60,50,110,.6)}
+.kdoc-btn{white-space:nowrap}
+.kdoc-actions .kdoc-btn{flex:1 1 100%}
+.kdoc-view{border-color:transparent;background:var(--k-ink);color:#fff}
+.kdoc-hint{margin:0;font-size:.78rem;color:#7b7d98}
+.kdoc-empty{display:grid;justify-items:center;gap:6px;padding:34px 16px;border:2px dashed #d9d4f1;border-radius:24px;background:#faf8ff;text-align:center;color:#4a4c70}
+.kdoc-empty div{font-size:3rem}.kdoc-empty p{margin:0}
+.kdoc-dialog{width:min(960px,calc(100% - 20px));max-height:calc(100dvh - 20px);padding:0;border:0;border-radius:24px;background:#fff;color:#2b2d4a;overflow:hidden}
+.kdoc-dialog[open]{display:flex;flex-direction:column}
+.kdoc-dialog::backdrop{background:rgba(36,30,70,.55);backdrop-filter:blur(3px)}
+.kdoc-dhead{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 14px 12px 18px;background:#f1edff}
+.kdoc-dhead b{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:1rem}
+.kdoc-x{flex:none;width:44px;height:44px;border:0;border-radius:50%;background:#fff;color:#5b5d85;font-size:1.1rem;font-weight:800;cursor:pointer}
+.kdoc-stage{flex:1;display:grid;place-items:center;min-height:min(70dvh,560px);background:#f7f6fc;overflow:auto}
+.kdoc-stage iframe{width:100%;height:min(72dvh,640px);border:0;background:#fff}
+.kdoc-stage img{max-width:100%;max-height:min(72dvh,640px);object-fit:contain}
+.kdoc-wait{padding:30px;text-align:center;font-weight:700;color:#5b5d85}
+.kdoc-tip{margin:0;padding:6px 12px;font-size:.8rem;color:#7b7d98;text-align:center}
+.kdoc-audio{display:grid;justify-items:center;gap:16px;padding:30px 16px;width:100%}
+.kdoc-audio audio{width:min(100%,460px)}
+.kdoc-disc{display:grid;place-items:center;width:110px;height:110px;border-radius:50%;background:#d9f6e8;font-size:3rem;animation:kdocSpin 6s linear infinite}
+.kdoc-dfoot{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;padding:10px 14px;border-top:1px solid #ece9f8}
+@keyframes kdocSpin{to{transform:rotate(360deg)}}
+@media(max-width:430px){.kdoc-dialog{width:100%;max-height:100dvh;border-radius:0}.kdoc-dfoot .kdoc-btn{flex:1}}
+@media(prefers-reduced-motion:reduce){.kdoc,.kdoc-btn{transition:none}.kdoc:hover,.kdoc-btn:hover{transform:none}.kdoc-disc{animation:none}}
+.kdoc-mine{justify-self:start;margin-top:2px;padding:2px 10px;border-radius:99px;background:#fff3c4;color:#8a6a00;font-size:.74rem;font-weight:800}
+.kdoc-join{margin:0 0 12px;padding:10px 14px;border-radius:16px;background:#eef6ff;color:#2d4f78;font-size:.9rem;line-height:1.45}
