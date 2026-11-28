@@ -1,10 +1,11 @@
 import { createCinema } from './caller-phim.mjs';
+import { createUfoCinema } from './caller-ufo.mjs';
 import { makeRoster, parseNames, reserveDraw, completeDraw, restoreStudent, normalizeDailyState, buildDetectiveClues, secureShuffle } from './goi-hoc-sinh-core.mjs';
 const SPEEDS = [60, 90, 120]; // giây cho một lượt gọi – học sinh tiểu học cần đọc chậm
 const OLD_SPEED = { 10: 60, 15: 60, 20: 90, 25: 60, 35: 90 }; // máy đang lưu nhịp cũ → nhịp mới
 const PACE = { 60: 1, 90: 1.25, 120: 1.5 }; // nhịp chậm thì mỗi câu đứng lâu hơn
 
-/* Three classroom stories share one roster and one calling round. */
+/* Classroom stories share one roster and one calling round. */
 const KEY = 'vuonchu.callerGames.v1';
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => Array.from(root.querySelectorAll(selector));
@@ -14,7 +15,8 @@ const localDate = () => { const date = new Date(); return [date.getFullYear(), S
 const GAME = {
   prince: { scope: 'girls', name: 'Hoàng tử cưỡi ngựa', subtitle: 'Khu vườn trước lâu đài', icon: '♘', scene: 'garden', start: 'Mở cổng khu vườn' },
   penalty: { scope: 'boys', name: 'Sút phạt đền', subtitle: 'Trận cầu dưới ánh đèn', icon: '⚽', scene: 'stadium', start: 'Bắt đầu loạt sút' },
-  detective: { scope: 'all', name: 'Thám tử tìm nghi phạm', subtitle: 'Văn phòng hồ sơ bí ẩn', icon: '⌕', scene: 'office', start: 'Mở hồ sơ vụ án' }
+  detective: { scope: 'all', name: 'Thám tử tìm nghi phạm', subtitle: 'Văn phòng hồ sơ bí ẩn', icon: '⌕', scene: 'office', start: 'Mở hồ sơ vụ án' },
+  ufo: { scope: 'all', name: 'UFO Trả bài', subtitle: 'Tín hiệu lạ trên bầu trời lớp mình', icon: '🛸', scene: 'ufo', start: 'Mở tín hiệu vũ trụ' }
 };
 const LINES = {
   prince: ['Nên chọn ai đây ta…', '{name} à… hay là…', 'Bạn này cười xinh quá!', 'Ơ khoan đã, để ta nghĩ lại…', 'Gió vừa mách ta một điều bí mật…', 'Kỵ mã của ta đang phân vân rồi!'],
@@ -79,6 +81,10 @@ async function page(view) {
             <span class="game-card-scene office-scene" aria-hidden="true"><img class="caller-teaser-photo" src="../assets/phim/goi/tt-6.webp" alt="" decoding="async"></span>
             <span class="game-card-copy"><b>Thám tử tìm nghi phạm</b><small>Danh sách cả lớp</small><span class="game-card-action" aria-hidden="true">↗</span></span>
           </button>
+          <button class="caller-game-card ufo-card" data-open-game="ufo" type="button">
+            <span class="game-card-scene ufo-card-scene" aria-hidden="true"><i class="ufo-card-beam"></i><i class="ufo-card-ship">🛸</i></span>
+            <span class="game-card-copy"><b>UFO Trả bài</b><small>Danh sách cả lớp</small><span class="game-card-action" aria-hidden="true">↗</span></span>
+          </button>
         </section>
 
         <section class="caller-setup-card" aria-label="Danh sách học sinh và thiết lập">
@@ -93,7 +99,7 @@ async function page(view) {
         </section>
 
         <section class="caller-history-home"><div class="caller-history-title"><span>✨</span><div><b>Đã gọi hôm nay</b><small id="todayCount">Chưa có bạn nào</small></div><button id="refreshRound" type="button" title="Cho cả lớp một lượt mới">Làm mới lượt gọi <i>↻</i></button></div><div class="caller-history-chips" id="todayHistory"><span class="caller-history-empty">Lịch sử hôm nay sẽ xuất hiện ở đây.</span></div><button class="caller-history-more" id="historyMore" type="button" aria-controls="todayHistory" aria-expanded="false" hidden></button></section>
-        <p class="caller-fairness-note">🎓 Tên được chọn ngẫu nhiên ngay khi bắt đầu. Các cú lừa, cú sút và manh mối chỉ làm sân khấu hồi hộp hơn.</p>
+        <p class="caller-fairness-note">🎓 Tên được chọn ngẫu nhiên ngay khi bắt đầu. Cú lừa, cú sút, manh mối và tín hiệu UFO chỉ làm sân khấu hồi hộp hơn.</p>
       </section>
 
       <section class="caller-play" id="callerPlay" hidden>
@@ -133,8 +139,18 @@ async function page(view) {
   const play = $('#callerPlay', root);
   const gameStage = $('#gameStage', root);
   const board = $('#nameBoard', root);
+  const boardWrap = board.closest('.caller-board-wrap');
+  const boardHomeMarker = document.createComment('caller-board-home');
+  boardWrap.parentNode.insertBefore(boardHomeMarker, boardWrap);
+  function placeBoardForGame(key) {
+    if (key === 'ufo') $('#callerCinema', root).append(boardWrap);
+    else if (boardWrap.parentNode !== boardHomeMarker.parentNode) boardHomeMarker.parentNode.insertBefore(boardWrap, boardHomeMarker.nextSibling);
+  }
   const startButton = $('#startStory', root);
   const skipButton = $('#skipStory', root);
+  const liveSpeed = $('#liveSpeed', root);
+  const storySpeedLabels = Array.from(liveSpeed.options, option => option.textContent);
+  const ufoSpeedLabels = ['Nhanh', 'Vừa', 'Chậm'];
   const savedSound = $('#soundToggle', root);
   $('#girlsNames', root).value = settings.lists.girls;
   $('#boysNames', root).value = settings.lists.boys;
@@ -234,19 +250,53 @@ async function page(view) {
       '<path d="M16 30c0-14 8-22 19-22s19 8 19 22l-7 2-2-7-9 5-7-5-5 8z"/><circle cx="16" cy="17" r="5"/><circle cx="54" cy="17" r="5"/>'
     ][style];
     const accessory = (student.signature >>> 20) % 5 === 0 ? '<path d="M32 7l4-6 4 6" fill="none" stroke="#ffe17e" stroke-width="3" stroke-linecap="round"/>' : '';
-    return '<svg class="student-chibi" viewBox="0 0 70 86" aria-hidden="true"><ellipse cx="35" cy="80" rx="19" ry="4" fill="#203a52" opacity=".12"/><path class="chibi-arm arm-left" d="M23 48 13 58"/><path class="chibi-arm arm-right" d="m47 48 10 10"/><path d="M22 46q13-10 26 0l5 27H17z" fill="' + palette[1] + '" stroke="#fff" stroke-width="2.5"/><path d="M29 66h5v12h-8zm9 0h5l4 12h-8z" fill="#52617d"/><ellipse cx="35" cy="30" rx="18" ry="19" fill="' + skin + '" stroke="#fff" stroke-width="2.5"/><g fill="' + hair + '" stroke="#fff" stroke-width="1.4">' + fringe + '</g><ellipse cx="29" cy="32" rx="2" ry="2.8" fill="#354251"/><ellipse cx="41" cy="32" rx="2" ry="2.8" fill="#354251"/><path d="M31 39q4 4 8 0" fill="none" stroke="#b96c65" stroke-width="1.8" stroke-linecap="round"/><ellipse cx="25" cy="37" rx="3" ry="1.6" fill="#e78991" opacity=".55"/><ellipse cx="45" cy="37" rx="3" ry="1.6" fill="#e78991" opacity=".55"/>' + accessory + '</svg>';
+    return `<svg class="student-chibi" viewBox="0 0 70 86" aria-hidden="true">
+      <ellipse cx="35" cy="80" rx="19" ry="4" fill="#203a52" opacity=".12"/>
+      <path class="chibi-arm arm-left" d="M23 48 13 58"/>
+      <path class="chibi-arm arm-right" d="m47 48 10 10"/>
+      <path d="M22 46q13-10 26 0l5 27H17z" fill="${palette[1]}" stroke="#fff" stroke-width="2.5"/>
+      <g fill="#52617d">
+        <path class="chibi-leg leg-left" d="M29 66h5v12h-8z"/>
+        <path class="chibi-leg leg-right" d="M38 66h5l4 12h-8z"/>
+      </g>
+      <ellipse cx="35" cy="30" rx="18" ry="19" fill="${skin}" stroke="#fff" stroke-width="2.5"/>
+      <g fill="${hair}" stroke="#fff" stroke-width="1.4">${fringe}</g>
+      <ellipse cx="29" cy="32" rx="2" ry="2.8" fill="#354251"/>
+      <ellipse cx="41" cy="32" rx="2" ry="2.8" fill="#354251"/>
+      <path d="M31 39q4 4 8 0" fill="none" stroke="#b96c65" stroke-width="1.8" stroke-linecap="round"/>
+      <ellipse cx="25" cy="37" rx="3" ry="1.6" fill="#e78991" opacity=".55"/>
+      <ellipse cx="45" cy="37" rx="3" ry="1.6" fill="#e78991" opacity=".55"/>
+      ${accessory}
+    </svg>`;
   }
   function renderRoster() {
-    const meta = GAME[activeGame];
     const list = getGameRoster();
     const used = calledSet();
-    const cols = Math.min(9, Math.max(3, Math.ceil(Math.sqrt(Math.max(1, list.length) * 1.8))));
+    const isUfo = activeGame === 'ufo';
+    const shortName = name => name.trim().split(/\s+/).at(-1) || name;
+    const nameCounts = new Map();
+    if (isUfo) {
+      for (const { name } of list) {
+        const short = shortName(name);
+        nameCounts.set(short, (nameCounts.get(short) || 0) + 1);
+      }
+    }
+    const cols = isUfo
+      ? Math.min(24, Math.max(1, Math.ceil(Math.max(1, list.length) / 2)))
+      : Math.min(9, Math.max(3, Math.ceil(Math.sqrt(Math.max(1, list.length) * 1.8))));
     board.style.setProperty('--roster-cols', cols);
     board.classList.toggle('is-detective-board', activeGame === 'detective');
     board.classList.toggle('is-goal-board', activeGame === 'penalty');
+    board.classList.toggle('is-ufo-board', isUfo);
     board.innerHTML = list.map((student, index) => {
       const palette = PALETTES[student.palette % PALETTES.length];
-      return '<article class="caller-student ' + (used.has(student.id) ? 'is-done' : '') + '" role="listitem" data-id="' + esc(student.id) + '" style="--student-delay:' + (index % 45 * 18) + 'ms;--student-color:' + palette[0] + ';--student-accent:' + palette[1] + '"><span class="student-avatar-wrap">' + makeAvatar(student) + '<i class="student-spark">✦</i></span><span class="student-name" title="' + esc(student.name) + '">' + esc(student.name) + '</span>' + (activeGame === 'detective' ? '<span class="student-file-code">HS-' + student.caseCode + '</span>' : '') + '</article>';
+      let label = student.name;
+      if (isUfo) {
+        const short = shortName(student.name);
+        const familyInitial = student.name.trim().charAt(0);
+        label = nameCounts.get(short) > 1 ? short + ' ' + familyInitial + '.' : short;
+      }
+      return '<article class="caller-student ' + (used.has(student.id) ? 'is-done' : '') + '" role="listitem" data-id="' + esc(student.id) + '" style="--student-delay:' + (index % 45 * 18) + 'ms;--student-color:' + palette[0] + ';--student-accent:' + palette[1] + '"><span class="student-avatar-wrap">' + makeAvatar(student) + '<i class="student-spark">✦</i></span><span class="student-name" title="' + esc(student.name) + '">' + esc(label) + '</span>' + (activeGame === 'detective' ? '<span class="student-file-code">HS-' + student.caseCode + '</span>' : '') + '</article>';
     }).join('');
     $('#noNames', root).hidden = list.length > 0;
     updateGameStats();
@@ -290,7 +340,7 @@ async function page(view) {
     gain.gain.setValueAtTime(.0001, ctx.currentTime + delaySeconds); gain.gain.exponentialRampToValueAtTime(volume, ctx.currentTime + delaySeconds + .015); gain.gain.exponentialRampToValueAtTime(.0001, ctx.currentTime + delaySeconds + duration);
     oscillator.connect(gain); gain.connect(ctx.destination); oscillator.start(ctx.currentTime + delaySeconds); oscillator.stop(ctx.currentTime + delaySeconds + duration + .03);
   }
-  const MUSIC = { prince: [523.25, 659.25, 783.99, 659.25, 587.33, 698.46], penalty: [392, 440, 523.25, 392, 349.23, 466.16], detective: [293.66, 349.23, 392, 311.13, 349.23, 261.63] };
+  const MUSIC = { prince: [523.25, 659.25, 783.99, 659.25, 587.33, 698.46], penalty: [392, 440, 523.25, 392, 349.23, 466.16], detective: [293.66, 349.23, 392, 311.13, 349.23, 261.63], ufo: [523.25, 659.25, 987.77, 783.99, 659.25, 1174.66] };
   function startMusic() {
     if (!savedSound.checked || musicTimer) return;
     const notes = MUSIC[activeGame];
@@ -349,7 +399,10 @@ async function page(view) {
       goal() { noise(.7, .18, 940, .3); [587, 784, 988].forEach((note, i) => tone(note, .37, .025, 'triangle', i * .11)); },
       stamp() { tone(126, .13, .039, 'triangle'); noise(.12, .10, 390); },
       heartbeat() { tone(72, .18, .06); tone(61, .16, .048, 'sine', .19); tone(72, .18, .05, 'sine', .54); },
-      chime() { [740, 988, 1175].forEach((note, i) => tone(note, .29, .026, 'sine', i * .081)); }
+      chime() { [740, 988, 1175].forEach((note, i) => tone(note, .29, .026, 'sine', i * .081)); },
+      ufoScan() { [880, 784, 659].forEach((note, i) => tone(note, .24, .025, 'sine', i * .12)); },
+      ufoLock() { [523, 784, 1047].forEach((note, i) => tone(note, .34, .032, 'triangle', i * .105)); },
+      ufoDepart() { [988, 1175, 1397].forEach((note, i) => tone(note, .22, .02, 'sine', i * .09)); }
     };
     effects[effect]?.();
   }
@@ -427,12 +480,26 @@ async function page(view) {
   }
   function reveal(batch) {
     const meta = GAME[activeGame];
+    const isUfo = activeGame === 'ufo';
     const overlay = $('#resultOverlay', root);
-    $('#resultEyebrow', root).textContent = activeGame === 'detective' ? 'HỒ SƠ ĐÃ MỞ' : activeGame === 'penalty' ? 'BẢNG TỈ SỐ VỪA SÁNG' : 'LỜI MỜI TỪ LÂU ĐÀI';
+    overlay.classList.toggle('ufo-result', isUfo);
+    $('#resultEyebrow', root).textContent = activeGame === 'detective' ? 'HỒ SƠ ĐÃ MỞ' : activeGame === 'penalty' ? 'BẢNG TỈ SỐ VỪA SÁNG' : activeGame === 'ufo' ? 'UFO ĐÃ CHỌN · LÊN TRẢ BÀI' : 'LỜI MỜI TỪ LÂU ĐÀI';
     $('#resultIcon', root).textContent = meta.icon;
-    $('#resultHeading', root).textContent = activeGame === 'detective' ? 'Đã tìm ra nghi phạm!' : activeGame === 'penalty' ? 'VÀOOOO! Được gọi rồi!' : 'Hoàng tử đã chọn!';
-    $('#resultNames', root).innerHTML = batch.map((student, index) => '<span class="caller-result-person" style="--person-index:' + index + '"><i class="caller-medal" aria-hidden="true">' + esc(Array.from(student.name.trim().split(/\s+/).pop() || '?')[0].toUpperCase()) + '</i><b>' + esc(student.name) + '</b></span>').join('');
-    $('#resultCaption', root).textContent = batch.length > 1 ? 'Các bạn cùng lên trả lời câu hỏi của cô giáo nhé!' : activeGame === 'detective' ? 'Mời em lên trả lời câu hỏi của cô giáo!' : activeGame === 'penalty' ? 'Cả sân vận động đang cổ vũ cho em!' : 'Nàng có đồng ý cùng hoàng tử trả lời câu hỏi không?';
+    $('#resultIcon', root).hidden = isUfo;
+    const heading = $('#resultHeading', root);
+    heading.setAttribute('aria-describedby', isUfo ? 'resultEyebrow' : 'resultNames resultCaption');
+    if (isUfo) {
+      heading.innerHTML = batch.map(student => '<span>' + esc(student.name.toLocaleUpperCase('vi')) + '</span>').join(' ');
+      heading.dataset.count = batch.length;
+    } else {
+      delete heading.dataset.count;
+      heading.textContent = activeGame === 'detective' ? 'Đã tìm ra nghi phạm!' : activeGame === 'penalty' ? 'VÀOOOO! Được gọi rồi!' : 'Hoàng tử đã chọn!';
+    }
+    $('#resultNames', root).innerHTML = batch.map((student, index) => '<span class="caller-result-person' + (isUfo ? ' ufo-result-person' : '') + '" style="--person-index:' + index + '">' + (isUfo ? makeAvatar(student) : '<i class="caller-medal" aria-hidden="true">' + esc(Array.from(student.name.trim().split(/\s+/).pop() || '?')[0].toUpperCase()) + '</i>') + '<b>' + esc(student.name) + '</b></span>').join('');
+    $('#resultCaption', root).textContent = isUfo ? '' : batch.length > 1 ? 'Các bạn cùng lên trả lời câu hỏi của cô giáo nhé!' : activeGame === 'detective' ? 'Mời em lên trả lời câu hỏi của cô giáo!' : activeGame === 'penalty' ? 'Cả sân vận động đang cổ vũ cho em!' : 'Nàng có đồng ý cùng hoàng tử trả lời câu hỏi không?';
+    $('#resultCaption', root).hidden = isUfo;
+    $('#playAgain', root).textContent = isUfo ? 'Gọi tiếp' : 'Chơi lại ↻';
+    $('#resultHome', root).textContent = isUfo ? 'Xong' : 'Về màn hình chính';
     overlay.hidden = false;
     requestAnimationFrame(() => {
       if (overlay.hidden || !root.isConnected) return;
@@ -444,7 +511,7 @@ async function page(view) {
       tile?.classList.add('is-done');
     }
     setEmotion(batch, 'is-winner');
-    makeConfetti();
+    if (!isUfo) makeConfetti();
     if (scene) scene.celebrate();
     tone(784, .22, .055, 'triangle'); tone(988, .28, .05, 'triangle', .12); tone(1174, .5, .045, 'sine', .26);
   }
@@ -649,18 +716,29 @@ async function page(view) {
     $('#resultOverlay', root).hidden = true; $('#resultOverlay', root).classList.remove('is-shown');
     $('#slowOverlay', root).classList.remove('is-active'); gameStage.classList.remove('is-slow');
     renderRoster(); setEmotion([]);
-    $('#stageStatus', root).textContent = 'Câu chuyện đang bắt đầu…';
+    $('#stageStatus', root).textContent = draw.game === 'ufo' ? 'UFO đang tìm tín hiệu…' : 'Câu chuyện đang bắt đầu…';
     if (savedSound.checked) { soundContext(); startMusic(); }
-    const begin = performance.now(); const totalMs = settings.seconds * 1000;
     try {
       scene?.reset();
-      const timeLeft = () => totalMs - (performance.now() - begin);
-      if (draw.game === 'prince') await playPrince(batch, pool, totalMs, timeLeft);
-      if (draw.game === 'penalty') await playPenalty(batch, pool, totalMs, timeLeft);
-      if (draw.game === 'detective') await playDetective(batch, pool, totalMs);
-      await delay(scene?.revealWait?.() || 0); // để cả lớp kịp đọc tên trên sân khấu trước khi bảng kết quả che lên
-      const remainder = totalMs - (performance.now() - begin);
-      if (remainder > 0) await delay(remainder);
+      if (draw.game === 'ufo') {
+        const winnerIds = new Set(batch.map(student => student.id));
+        const decoys = secureShuffle(pool.filter(student => !winnerIds.has(student.id)));
+        await scene.play(batch, decoys, {
+          pace: PACE[settings.seconds] || 1,
+          wait: delay,
+          focus: (student, mood) => setEmotion(student ? [student] : [], mood)
+        });
+      } else {
+        const begin = performance.now();
+        const totalMs = settings.seconds * 1000;
+        const timeLeft = () => totalMs - (performance.now() - begin);
+        if (draw.game === 'prince') await playPrince(batch, pool, totalMs, timeLeft);
+        if (draw.game === 'penalty') await playPenalty(batch, pool, totalMs, timeLeft);
+        if (draw.game === 'detective') await playDetective(batch, pool, totalMs);
+        await delay(scene?.revealWait?.() || 0);
+        const remainder = timeLeft();
+        if (remainder > 0) await delay(remainder);
+      }
       finishStory(run);
     } catch (error) {
       if (run.controller.signal.aborted || disposed) return;
@@ -672,6 +750,7 @@ async function page(view) {
   async function openGame(key) {
     if (!GAME[key]) return;
     if (scene) { scene.destroy(); scene = null; }
+    placeBoardForGame(key);
     activeGame = key;
     dialogueSequence++; dialogueEpoch++; lineUntil = 0;
     const meta = GAME[key];
@@ -679,13 +758,17 @@ async function page(view) {
     $('#playGameIcon', root).textContent = meta.icon;
     $('#playGameName', root).textContent = meta.name;
     $('#playGameSubtitle', root).textContent = meta.subtitle;
-    $('#stageTheme', root).textContent = key === 'prince' ? 'KHU VƯỜN TRƯỚC LÂU ĐÀI' : key === 'penalty' ? 'SÂN VẬN ĐỘNG ĐÊM' : 'VĂN PHÒNG THÁM TỬ';
-    $('#dialogueAvatar', root).textContent = key === 'prince' ? '♘' : key === 'penalty' ? '⚽' : '⌕';
-    $('#dialogueText', root).textContent = key === 'prince' ? 'Gió đang lay cờ trên tháp… ai sẽ được mời lên ngựa?' : key === 'penalty' ? 'Khán đài đã sáng đèn. Cầu thủ đang đặt bóng…' : 'Mưa rơi ngoài cửa sổ. Một vụ án mới bắt đầu…';
+    const speedLabels = key === 'ufo' ? ufoSpeedLabels : storySpeedLabels;
+    Array.from(liveSpeed.options).forEach((option, index) => { option.textContent = speedLabels[index]; });
+    $('#stageTheme', root).textContent = key === 'prince' ? 'KHU VƯỜN TRƯỚC LÂU ĐÀI' : key === 'penalty' ? 'SÂN VẬN ĐỘNG ĐÊM' : key === 'detective' ? 'VĂN PHÒNG THÁM TỬ' : 'UFO TRẢ BÀI';
+    $('#dialogueAvatar', root).textContent = key === 'prince' ? '♘' : key === 'penalty' ? '⚽' : key === 'detective' ? '⌕' : '🛸';
+    $('#dialogueText', root).textContent = key === 'prince' ? 'Gió đang lay cờ trên tháp… ai sẽ được mời lên ngựa?' : key === 'penalty' ? 'Khán đài đã sáng đèn. Cầu thủ đang đặt bóng…' : key === 'detective' ? 'Mưa rơi ngoài cửa sổ. Một vụ án mới bắt đầu…' : 'Bầu trời đêm vừa nhận được một tín hiệu lạ…';
     $('#resultOverlay', root).hidden = true; $('#resultOverlay', root).classList.remove('is-shown');
     gameStage.className = 'caller-stage scene-' + meta.scene;
     renderRoster();
-    scene = createCinema($('#callerCinema', root), meta.scene, { gsap, sound: soundEffect });
+    scene = key === 'ufo'
+      ? createUfoCinema($('#callerCinema', root), board, { sound: soundEffect })
+      : createCinema($('#callerCinema', root), meta.scene, { gsap, sound: soundEffect });
     updateGameStats();
     if (savedSound.checked) startMusic();
   }
@@ -694,13 +777,14 @@ async function page(view) {
     stopMusic();
     dialogueSequence++; dialogueEpoch++; lineUntil = 0;
     if (scene) { scene.destroy(); scene = null; }
+    placeBoardForGame('home');
     activeGame = ''; play.hidden = true; home.hidden = false; setRoster();
   }
   async function refreshRound() {
     if (busy || !activeGame) return;
     settings.daily.round = { girls: [], boys: [], all: [] };
     persist(); renderRoster(); updateGameStats();
-    await typeDialogue('Một lượt mới bắt đầu! Các bạn sẵn sàng chưa?', 420);
+    if (activeGame !== 'ufo') await typeDialogue('Một lượt mới bắt đầu! Các bạn sẵn sàng chưa?', 420);
   }
   function refreshToday() {
     if (busy) return;

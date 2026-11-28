@@ -1,4 +1,4 @@
-/* Original three-game calling stage. The scene itself is rendered by local PixiJS; GSAP and CSS add game feel. */
+/* Shared classroom calling stage. The scenes use local artwork, GSAP and CSS animation. */
 .caller-page{--ink:#263843;--muted:#71817e;--line:#e6e9e1;--cream:#fffdf7;max-width:1400px;width:100%;margin:0 auto;color:var(--ink);font-family:'Be Vietnam Pro',system-ui,sans-serif}
 .caller-page button,.caller-page textarea,.caller-page select{font:inherit}
 .caller-page button{touch-action:manipulation}
