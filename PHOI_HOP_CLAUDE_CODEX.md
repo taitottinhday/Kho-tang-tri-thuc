@@ -373,3 +373,12 @@ Lỗi tìm thấy ở bộ khung (đã sửa): giáo viên thấy/xoá được 
 - `chu-de.js/css`: hiệu ứng mùa luôn vẽ sau nội dung; chữ nhỏ trên tiêu đề đọc được; menu theo màu mùa.
 - `may-chu.js`: học sinh không còn thấy nhãn “Đã công bố”. `giao-vien/caller-cinema.css`: ảnh thẻ Gọi tên không đè chữ trên điện thoại.
 - Còn chưa sửa: ảnh xem trước nền tải chậm (bản Railway cũ), họ tên gãy 3 dòng ở bảng Học sinh trên điện thoại, một lỗi 404 ở trang đăng nhập giáo viên.
+
+## Đợt 24 – Giao diện doanh nghiệp + chức năng mới cho giáo viên / quản trị (28/11, phiên c3)
+Tham khảo: Khan Academy / Kahoot / Quizizz (học sinh cần giúp, bài sai nhiều → giao ôn), phần mềm trường học VN (nhận xét theo TT27), Google Admin / Clever (nhật ký, báo cáo), phần mềm doanh nghiệp (Ctrl+K, màu trung tính, không emoji).
+- `giao-vien/giao-dien-moi.css` (nạp cuối): token mới – giáo viên xanh rêu #1f5a47, quản trị xanh than #2c4875 + thanh bên #141a24; biểu đồ cùng tông; ảnh đại diện = chữ cái đầu; bảng Học sinh thành thẻ ở ≤640px.
+- `gv.js`: bỏ emoji ở giao diện người lớn; Tìm nhanh (Ctrl+K: trang, lớp, học sinh, không cần dấu); nút “Giao ôn” ở “Bài còn sai nhiều”; Tổng quan trường → “Xuất báo cáo Excel” (3 trang tính); GV mở rộng thêm summary/needsHelp/activity/pageHead/…
+- Mới: `so-nhan-xet.js` (#nhan-xet – gợi ý nhận xét theo mức T/H/C, lưu theo lớp + đợt, xuất Excel, in) và `nhat-ky.js` (#nhat-ky, chỉ quản trị).
+- `server/api.js`: `audit()` ghi `auditLog` (600 mục, không ghi mật khẩu) cho đăng nhập, tài khoản, lớp, học sinh, giao bài, tài liệu, sổ nhận xét, cảnh nền; `GET /api/admin/audit`; `GET|PUT /api/comment-books/:lop/:dot` (chỉ người phụ trách lớp hoặc quản trị).
+- `index.html`: favicon (hết lỗi 404 ở trang đăng nhập), mục Sổ nhận xét, Nhật ký hoạt động, nút Tìm nhanh.
+- Kiểm thử mới: `node tests/dot24_e2e.js 1366 900` và `390 844` (ảnh ở qa-results/dot24/).

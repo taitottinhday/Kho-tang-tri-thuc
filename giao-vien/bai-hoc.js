@@ -62,7 +62,7 @@
         return '<section class="card section"><div class="card-head"><h2>' + KIEU[loai].icon + ' ' + KIEU[loai].ten + ' (' + list.filter(r => !r.hidden).length + ')</h2><button class="btn sm primary" data-add="' + loai + '">+ Thêm câu</button></div><p class="hint">' + KIEU[loai].mo + '.</p>' +
           (list.length ? '<ul class="q-list">' + list.map(r => '<li class="q-item' + (r.hidden ? ' off' : '') + '"><div class="q-body">' + preview(r.q) +
             '<p class="q-tags">' + (r.own ? '<span class="pill ok">Thầy cô thêm</span>' : r.changed ? '<span class="pill warn">Đã sửa</span>' : '') + (r.hidden ? '<span class="pill">Đang ẩn – học sinh không thấy</span>' : '') + '</p></div>' +
-            '<div class="q-act"><button class="btn sm" data-edit="' + r.key + '">✏️ Sửa</button><button class="btn sm" data-hide="' + r.key + '">' + (r.hidden ? '👁 Hiện lại' : '🙈 Ẩn') + '</button>' +
+            '<div class="q-act"><button class="btn sm" data-edit="' + r.key + '">Sửa</button><button class="btn sm" data-hide="' + r.key + '">' + (r.hidden ? 'Hiện lại' : 'Ẩn') + '</button>' +
             (r.own ? '<button class="btn sm danger" data-remove="' + r.key + '">Xoá</button>' : r.changed ? '<button class="btn sm" data-undo="' + r.key + '">↩ Về câu gốc</button>' : '') + '</div></li>').join('') + '</ul>' : '<div class="empty">Chưa có câu nào thuộc kiểu này.</div>') + '</section>';
       };
       const dirty = e.hidden.length || e.added.length || Object.keys(e.edits).length || e.noGen;
@@ -92,7 +92,7 @@
     if (loai === 'chon') {
       const wrong = q ? q.luaChon.filter(o => o !== q.dapAn) : [];
       fields = '<label class="field"><span>1. Gõ câu và đánh dấu chỗ học sinh cần điền</span><input id="fDe" maxlength="200" value="' + esc(q ? q.de : '') + '" placeholder="Ví dụ: Bé đội ___ón khi ra nắng."></label>' +
-        '<div><button type="button" class="btn sm" id="fBlank">➕ Chèn chỗ trống vào vị trí con trỏ</button></div>' +
+        '<div><button type="button" class="btn sm" id="fBlank">Chèn chỗ trống vào vị trí con trỏ</button></div>' +
         '<label class="field"><span>2. Đáp án đúng</span><input id="fDung" maxlength="40" value="' + esc(q ? q.dapAn : '') + '" placeholder="Ví dụ: n"></label>' +
         '<fieldset class="fs"><legend>3. Đáp án sai (ít nhất 1)</legend><div class="row">' + [0, 1, 2].map(i => '<input class="fSai" maxlength="40" aria-label="Đáp án sai ' + (i + 1) + '" value="' + esc(wrong[i] || '') + '" placeholder="' + (i === 0 ? 'Ví dụ: l' : 'Không bắt buộc') + '">').join('') + '</div></fieldset>';
     } else if (loai === 'timLoi') {
@@ -101,8 +101,8 @@
         '<div class="row"><label class="field"><span>2. Chữ nào trong câu sẽ bị viết sai?</span><input id="fDung" maxlength="30" value="' + esc(q ? q.tuDung : '') + '" placeholder="Ví dụ: sẻ"></label>' +
         '<label class="field"><span>3. Viết sai thành</span><input id="fSaiTu" maxlength="30" value="' + esc(q ? q.tuSai : '') + '" placeholder="Ví dụ: xẻ"></label></div>';
     } else fields = '<label class="field"><span>Gõ câu máy sẽ đọc cho học sinh viết lại</span><input id="fCau" maxlength="160" value="' + esc(q ? q.cau : '') + '" placeholder="Ví dụ: Bà kể chuyện cho cả nhà nghe."></label>';
-    const d = dialog('<h2>' + KIEU[loai].icon + ' ' + (q ? 'Sửa câu' : 'Thêm câu') + ' – ' + KIEU[loai].ten + '</h2><p class="muted">' + esc(nameOf(t)) + '</p><form class="form" id="sf">' + fields +
-      '<div class="pv"><b>Học sinh sẽ thấy:</b><div id="fPv"></div></div><p class="form-err" id="fErr" role="alert"></p><div class="actions"><button type="button" class="btn" data-close>Huỷ</button><button class="btn primary">💾 Lưu câu</button></div></form>');
+    const d = dialog('<h2>' + (q ? 'Sửa câu' : 'Thêm câu') + ' – ' + KIEU[loai].ten + '</h2><p class="muted">' + esc(nameOf(t)) + '</p><form class="form" id="sf">' + fields +
+      '<div class="pv"><b>Học sinh sẽ thấy:</b><div id="fPv"></div></div><p class="form-err" id="fErr" role="alert"></p><div class="actions"><button type="button" class="btn" data-close>Huỷ</button><button class="btn primary">Lưu câu</button></div></form>');
     const val = id => ($(id, d) ? $(id, d).value.normalize('NFC').trim().replace(/\s+/g, ' ') : '');
     function build() {
       if (loai === 'chon') {
@@ -181,8 +181,8 @@
     return out;
   }
   function importDialog(done) {
-    const d = dialog('<h2>📥 Thêm nhiều câu từ Excel</h2><ol class="steps"><li><b>Tải tệp mẫu</b> rồi mở bằng Excel (có sẵn danh sách bài và 3 câu ví dụ).<br><button type="button" class="btn sm" id="imTpl">⬇️ Tải tệp mẫu Excel</button></li>' +
-      '<li><b>Điền mỗi câu một dòng</b>, lưu lại như bình thường.</li><li><b>Chọn tệp vừa lưu</b>:<br><label class="btn sm primary">📂 Chọn tệp Excel<input type="file" id="imFile" accept=".xlsx" hidden></label></li></ol>' +
+    const d = dialog('<h2>Thêm nhiều câu từ Excel</h2><ol class="steps"><li><b>Tải tệp mẫu</b> rồi mở bằng Excel (có sẵn danh sách bài và 3 câu ví dụ).<br><button type="button" class="btn sm" id="imTpl">Tải tệp mẫu Excel</button></li>' +
+      '<li><b>Điền mỗi câu một dòng</b>, lưu lại như bình thường.</li><li><b>Chọn tệp vừa lưu</b>:<br><label class="btn sm primary">Chọn tệp Excel<input type="file" id="imFile" accept=".xlsx" hidden></label></li></ol>' +
       '<details><summary>Hoặc dán trực tiếp từ Excel</summary><label class="field"><span>Bôi đen các dòng trong Excel (đủ cột như tệp mẫu) → Copy → dán vào đây</span><textarea id="imPaste" rows="4"></textarea></label><button type="button" class="btn sm" id="imPasteBtn">Xem trước</button></details>' +
       '<div id="imOut" aria-live="polite"></div><div class="actions"><button type="button" class="btn" data-close>Đóng</button><button type="button" class="btn primary" id="imSave" hidden></button></div>');
     let good = [];
@@ -191,7 +191,7 @@
       $('#imOut', d).innerHTML = (parsed.length ? '<p><b>' + good.length + ' câu dùng được</b>' + (bad.length ? ' · <span class="bad-text">' + bad.length + ' dòng cần sửa</span>' : '') + '</p>' : '<p class="bad-text">Không đọc được câu nào. Thầy cô kiểm tra lại các cột như tệp mẫu.</p>') +
         (bad.length ? '<ul class="list">' + bad.slice(0, 30).map(x => '<li><span><b>Dòng ' + x.line + ':</b> ' + esc(x.error) + '<br><small class="muted">' + esc(x.raw) + '</small></span></li>').join('') + '</ul>' : '') +
         (good.length ? '<ul class="q-list compact">' + good.slice(0, 60).map(x => '<li class="q-item"><div class="q-body"><small class="muted">' + esc(nameOf(x.t)) + ' · ' + KIEU[x.item.loai].ten + '</small>' + preview(x.item) + '</div></li>').join('') + '</ul>' : '');
-      const btn = $('#imSave', d); btn.hidden = !good.length; btn.textContent = '✅ Thêm ' + good.length + ' câu vào bài học';
+      const btn = $('#imSave', d); btn.hidden = !good.length; btn.textContent = 'Thêm ' + good.length + ' câu vào bài học';
     };
     $('#imTpl', d).onclick = () => download('mau-cau-hoi-vuon-chu.xlsx', templateFile());
     $('#imFile', d).onchange = async e => {

@@ -38,6 +38,8 @@ Mở `http://localhost:3000` trong trình duyệt. Để học sinh dùng điệ
 - **Câu hỏi biến đổi**: ngoài câu soạn sẵn, `data/sinh-cau.js` sinh thêm hơn 400 câu từ kho từ và khung câu; tên bạn nhỏ, người thân, số đếm đổi mỗi lần nên học lại vẫn gặp câu mới. Câu sinh làm sai vẫn vào mục Ôn lại như câu thường.
 - **Hứng tuyết chữ** (Trò chơi): bông tuyết mang các cách viết rơi xuống, bé chạm bông tuyết viết đúng để điền vào câu; 60 giây, 3 trái tim, sao băng giá làm tuyết rơi chậm.
 - **Đổi cảnh nền** ngay trên Trang học hoặc trong Cài đặt. Có Noel, Tết, Trung thu, Khai giảng, 20/11, Thiếu nhi và Vườn xanh. Có thể chọn tự động hoặc bật giảm chuyển động.
+- **Trang giáo viên** (`/giao-vien/`): Tổng quan có học sinh cần quan tâm và bài sai nhiều (bấm **Giao ôn**), **Sổ nhận xét** gợi ý lời nhận xét chính tả theo mức Hoàn thành tốt / Hoàn thành / Chưa hoàn thành cho từng đợt, sửa rồi lưu, xuất Excel hoặc in. Bấm **Ctrl + K** để tìm nhanh trang, lớp, học sinh.
+- **Quản trị trường**: Tổng quan trường có **Xuất báo cáo Excel** (giáo viên, lớp, học sinh cần quan tâm) và mục **Nhật ký hoạt động** ghi ai đã đăng nhập, tạo/khoá tài khoản, giao lớp, xoá lớp, tải tài liệu… (không ghi mật khẩu).
 - **Chuỗi lửa và tủ đồ** mở từ biểu tượng lửa trên thanh trên. Hoàn thành một lượt luyện để ghi ngày học. Các mốc 3, 10, 15, 30, 50, 100, 200 và 365 ngày mở đồ cho bạn đồng hành. Trang phục đã mở được giữ khi bắt đầu chuỗi mới.
 
 ## Kiểm thử

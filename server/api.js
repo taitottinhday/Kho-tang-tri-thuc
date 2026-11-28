@@ -394,6 +394,16 @@ function createApiHandler(store, env = process.env) {
   const canClass = async (user, code) => (await myClasses(user)).some(c => c.code === code);
   const denyClass = res => json(res, 403, { error: 'Lớp này do giáo viên khác phụ trách. Thầy cô liên hệ quản trị nếu cần chuyển lớp.' });
   const auth = async (req, res, role = '') => { const user = await validToken(req); if (!user) { json(res, 401, { error: 'Thầy cô hãy đăng nhập để tiếp tục.' }); return false; } if (role && user.role !== role) { json(res, 403, { error: 'Tài khoản không có quyền thực hiện thao tác này.' }); return false; } return user; };
+  /* Nhật ký hoạt động cho quản trị: ai làm gì, lúc nào. Không bao giờ ghi mật khẩu hay nội dung tệp.
+     Lỗi khi ghi nhật ký không được làm hỏng thao tác chính. */
+  const MAX_LOG = 600;
+  const audit = async (user, action, detail = '') => {
+    const admin = user?.role === 'admin';
+    const entry = { at: new Date().toISOString(), by: admin ? 'admin' : String(user?.username || ''), name: admin ? 'Quản trị viên' : String(user?.name || user?.username || ''), action, detail: String(detail).slice(0, 200) };
+    try { await store.updateData('auditLog', [], list => [entry, ...(Array.isArray(list) ? list : [])].slice(0, MAX_LOG)); }
+    catch (error) { console.error('Không ghi được nhật ký:', error.message); }
+  };
+  const classLabel = async code => (await store.listClasses()).find(item => item.code === code)?.name || 'mã ' + code;
   return async function handle(req, res) {
     let url; try { url = new URL(req.url, 'http://localhost'); } catch { return json(res,400,{ error:'Địa chỉ yêu cầu chưa đúng.' }); }
     const route = url.pathname;
@@ -410,6 +420,7 @@ function createApiHandler(store, env = process.env) {
           return json(res, 400, { error: 'Cảnh nền này không có trong danh sách.' });
         }
         const choice = await store.updateData('siteTheme', { season: null }, () => ({ season }));
+        await audit(await validToken(req), 'theme.change', seasonOptions[season]?.name || seasonOptions[season]?.label || season);
         return json(res, 200, choice);
       }
       if (route === '/api/login' && req.method === 'POST') {
@@ -435,11 +446,13 @@ function createApiHandler(store, env = process.env) {
           if (one.times.length >= 5) one.lockedUntil = now + 10 * 60 * 1000;
           if (all.times.length >= 30) all.lockedUntil = now + 10 * 60 * 1000;
           failed.set(keyOne, one); failed.set(keyAll, all);
+          if (one.times.length === 5 && account) await audit({ role: 'teacher', username: account.username, name: account.name }, 'login.locked', 'Nhập sai mật khẩu 5 lần');
           if (failed.size > 5000) for (const [k, b] of failed) if (b.lockedUntil < now && !b.times.some(t => now - t < 10 * 60 * 1000)) failed.delete(k);
           return json(res,401,{ error: one.lockedUntil ? 'Đã tạm khoá đăng nhập tài khoản này 10 phút vì nhập sai nhiều lần.' : accountKey ? 'Tên đăng nhập hoặc mật khẩu chưa đúng. Thầy cô thử lại nhé.' : 'Mật khẩu chưa đúng. Thầy cô thử lại nhé.' });
         }
         failed.delete(keyOne);
         if (account) await store.updateData('teacherAccounts', [], list => list.map(row => row.username === account.username ? { ...row, lastLoginAt: new Date().toISOString() } : row));
+        await audit(account ? { role: 'teacher', username: account.username, name: account.name } : { role: 'admin' }, 'login');
         return json(res,200,{ token: tokenFor(account ? { ...account, role: 'teacher' } : {}), expiresIn: 43200 });
       }
       if (route === '/api/me' && req.method === 'GET') {
@@ -460,6 +473,7 @@ function createApiHandler(store, env = process.env) {
           fresh = hashPassword(password, { ...row });
           return fresh;
         }));
+        await audit(user, 'password.self');
         return json(res, 200, { token: tokenFor({ ...fresh, role: 'teacher' }), changed: true });
       }
       if (route === '/api/admin/teachers' && req.method === 'GET') {
@@ -487,6 +501,7 @@ function createApiHandler(store, env = process.env) {
           return [{ username, name, salt, passwordHash: crypto.scryptSync(password, salt, 32).toString('hex'), sv: 0, active: true, createdAt: new Date().toISOString() }, ...rows];
         });
         const teacher = created[0];
+        await audit({ role: 'admin' }, 'teacher.create', teacher.name + ' (@' + teacher.username + ')');
         return json(res, 201, { teacher: { ...publicTeacher(teacher), classes: [], students: 0 } });
       }
       const teacherMatch = route.match(/^\/api\/admin\/teachers\/([a-z0-9][a-z0-9._-]{2,39})$/);
@@ -507,6 +522,10 @@ function createApiHandler(store, env = process.env) {
         }));
         const teacher = rows.find(row => row.username === username);
         if (!teacher) return json(res, 404, { error: 'Không tìm thấy tài khoản giáo viên.' });
+        const who = teacher.name + ' (@' + teacher.username + ')';
+        if (Object.hasOwn(body, 'active')) await audit({ role: 'admin' }, body.active === true ? 'teacher.unlock' : 'teacher.lock', who);
+        if (password) await audit({ role: 'admin' }, 'teacher.password', who);
+        if (name && !Object.hasOwn(body, 'active') && !password) await audit({ role: 'admin' }, 'teacher.update', who);
         return json(res, 200, { teacher: publicTeacher(teacher) });
       }
       if (teacherMatch && req.method === 'DELETE') {
@@ -518,6 +537,7 @@ function createApiHandler(store, env = process.env) {
         if (to && (to === username || !rows.some(row => row.username === to && row.active !== false))) return json(res, 400, { error: 'Chọn một giáo viên khác đang hoạt động để nhận lớp.' });
         const moved = await store.moveClasses(username, to);
         await store.updateData('teacherAccounts', [], list => list.filter(row => row.username !== username));
+        await audit({ role: 'admin' }, 'teacher.delete', '@' + username + (moved ? ' · chuyển ' + moved + ' lớp cho ' + (to ? '@' + to : 'quản trị') : ''));
         return json(res, 200, { deleted: true, movedClasses: moved, to: to || 'admin' });
       }
       if (route === '/api/questions' && req.method === 'GET') {
@@ -552,7 +572,7 @@ function createApiHandler(store, env = process.env) {
         const body = JSON.parse((await readBody(req, 14 * 1024 * 1024)).toString('utf8'));
         let doc;
         try { doc = validateDocument(body); } catch (error) { error.status = 400; throw error; }
-        await store.saveDoc(doc); return json(res,201,{ document: { id:doc.id,name:doc.name,title:doc.title,grade:doc.grade,topic:doc.topic,note:doc.note,mime:doc.mime,published:doc.published,size:doc.bytes.length } });
+        await store.saveDoc(doc); await audit(await validToken(req), 'doc.upload', doc.title + (doc.published ? ' (công bố)' : ' (bản nháp)')); return json(res,201,{ document: { id:doc.id,name:doc.name,title:doc.title,grade:doc.grade,topic:doc.topic,note:doc.note,mime:doc.mime,published:doc.published,size:doc.bytes.length } });
       }
       if (route.startsWith('/api/docs/') && req.method === 'GET') {
         const doc = await store.getDoc(decodeURIComponent(route.slice('/api/docs/'.length)));
@@ -563,11 +583,17 @@ function createApiHandler(store, env = process.env) {
       }
       if (route.startsWith('/api/docs/') && req.method === 'PATCH') {
         if (!await auth(req,res)) return; const b = JSON.parse((await readBody(req,2000)).toString('utf8'));
-        return await store.setDocPublished(decodeURIComponent(route.slice('/api/docs/'.length)), b.published === true) ? json(res,200,{ published: b.published === true }) : json(res,404,{ error:'Không tìm thấy tài liệu.' });
+        const key = decodeURIComponent(route.slice('/api/docs/'.length));
+        if (!await store.setDocPublished(key, b.published === true)) return json(res,404,{ error:'Không tìm thấy tài liệu.' });
+        await audit(await validToken(req), b.published === true ? 'doc.publish' : 'doc.unpublish', (await store.getDoc(key))?.title || key);
+        return json(res,200,{ published: b.published === true });
       }
       if (route.startsWith('/api/docs/') && req.method === 'DELETE') {
         if (!await auth(req,res)) return; const key = decodeURIComponent(route.slice('/api/docs/'.length));
-        return await store.deleteDoc(key) ? json(res,200,{ deleted:true }) : json(res,404,{ error:'Không tìm thấy tài liệu.' });
+        const title = (await store.getDoc(key))?.title || key;
+        if (!await store.deleteDoc(key)) return json(res,404,{ error:'Không tìm thấy tài liệu.' });
+        await audit(await validToken(req), 'doc.delete', title);
+        return json(res,200,{ deleted:true });
       }
       if (route === '/api/classes' && req.method === 'POST') {
         const user = await auth(req,res); if (!user) return;
@@ -576,14 +602,19 @@ function createApiHandler(store, env = process.env) {
         info.owner = user.role === 'teacher' ? user.username : String(body.owner || '').trim().toLowerCase();
         if (info.owner && user.role === 'admin' && !(await accounts()).some(row => row.username === info.owner)) return json(res,400,{ error:'Không tìm thấy giáo viên được chọn.' });
         do { code = Array.from({length:6}, () => chars[crypto.randomInt(chars.length)]).join(''); } while (await store.hasClass(code));
-        await store.createClass(code, info); return json(res,201,{ code, ...info });
+        await store.createClass(code, info); await audit(user, 'class.create', (info.name || code) + (info.owner && user.role === 'admin' ? ' · giao @' + info.owner : '')); return json(res,201,{ code, ...info });
       }
       if (route === '/api/classes' && req.method === 'GET') { const user = await auth(req,res); if (!user) return; return json(res,200,{ classes: await myClasses(user) }); }
       const classMatch = route.match(/^\/api\/classes\/([A-HJ-NP-Z2-9]{6})$/);
       if (classMatch && (req.method === 'PATCH' || req.method === 'DELETE')) {
         const user = await auth(req,res); if (!user) return;
         if (!await canClass(user, classMatch[1])) return (await store.hasClass(classMatch[1])) ? denyClass(res) : json(res,404,{ error:'Không tìm thấy lớp.' });
-        if (req.method === 'DELETE') return await store.deleteClass(classMatch[1]) ? json(res,200,{ deleted:true }) : json(res,404,{ error:'Không tìm thấy lớp.' });
+        const label = await classLabel(classMatch[1]);
+        if (req.method === 'DELETE') {
+          if (!await store.deleteClass(classMatch[1])) return json(res,404,{ error:'Không tìm thấy lớp.' });
+          await audit(user, 'class.delete', label);
+          return json(res,200,{ deleted:true });
+        }
         const body = JSON.parse((await readBody(req,2000)).toString('utf8'));
         if (Object.hasOwn(body, 'owner')) {
           /* giao lớp / chuyển lớp cho giáo viên khác: chỉ quản trị */
@@ -591,10 +622,36 @@ function createApiHandler(store, env = process.env) {
           const owner = String(body.owner || '').trim().toLowerCase();
           if (owner && !(await accounts()).some(row => row.username === owner && row.active !== false)) return json(res,400,{ error:'Chọn một giáo viên đang hoạt động.' });
           await store.setClassOwner(classMatch[1], owner);
+          await audit(user, 'class.assign', label + ' → ' + (owner ? '@' + owner : 'quản trị giữ'));
           if (!Object.hasOwn(body, 'name')) return json(res,200,{ code: classMatch[1], owner });
         }
         const info = classInfo(body);
-        return await store.updateClass(classMatch[1], info) ? json(res,200,info) : json(res,404,{ error:'Không tìm thấy lớp.' });
+        if (!await store.updateClass(classMatch[1], info)) return json(res,404,{ error:'Không tìm thấy lớp.' });
+        await audit(user, 'class.update', info.name && info.name !== label ? label + ' → ' + info.name : label);
+        return json(res,200,info);
+      }
+      if (route === '/api/admin/audit' && req.method === 'GET') {
+        if (!await auth(req, res, 'admin')) return;
+        return json(res, 200, { entries: (await store.getData('auditLog')) || [] });
+      }
+      /* Sổ nhận xét: bản nhận xét thầy cô soạn cho một lớp theo từng đợt. Chỉ người phụ trách lớp (hoặc quản trị) đọc và ghi. */
+      const bookMatch = route.match(/^\/api\/comment-books\/([A-HJ-NP-Z2-9]{6})\/(gk1|ck1|gk2|ck2|thang)$/);
+      if (bookMatch && (req.method === 'GET' || req.method === 'PUT')) {
+        const user = await auth(req, res); if (!user) return;
+        const [, code, period] = bookMatch;
+        if (!await canClass(user, code)) return (await store.hasClass(code)) ? denyClass(res) : json(res, 404, { error: 'Không tìm thấy lớp.' });
+        const key = code + ':' + period;
+        if (req.method === 'GET') return json(res, 200, { book: ((await store.getData('commentBooks')) || {})[key] || null });
+        const body = JSON.parse((await readBody(req, 200 * 1024)).toString('utf8'));
+        const comments = {};
+        for (const [id, value] of Object.entries(body?.comments || {}).slice(0, 80)) {
+          const line = String(value || '').replace(/\s+/g, ' ').trim().slice(0, 500);
+          if (line && id.length <= 80 && id !== '__proto__') comments[id] = line;
+        }
+        const book = { comments, savedAt: new Date().toISOString(), by: user.role === 'admin' ? 'admin' : user.username };
+        await store.updateData('commentBooks', {}, all => ({ ...all, [key]: book }));
+        await audit(user, 'comments.save', (await classLabel(code)) + ' · ' + Object.keys(comments).length + ' nhận xét');
+        return json(res, 200, { book });
       }
       if (route === '/api/lessons' && req.method === 'GET') return json(res,200,{ edits: (await store.getData('lessonEdits')) || {} });
       const lessonMatch = route.match(/^\/api\/lessons\/([a-z0-9-]{1,40})$/);
@@ -632,6 +689,7 @@ function createApiHandler(store, env = process.env) {
         for (const c of codes) if (!await canClass(user, c)) return denyClass(res);
         const now = Date.now(), made = codes.map(classCode => ({ id: 'a' + crypto.randomBytes(6).toString('hex'), classCode, ...info, by: user.username, createdAt: now, explicitSubmission: true }));
         await store.updateData('assignments', [], list => made.concat(list).slice(0, 500));
+        await audit(user, 'assignment.create', info.topic + ' · ' + codes.length + ' lớp' + (info.due ? ' · hạn ' + info.due : ''));
         return json(res,201,{ assignments: made });
       }
       const assignMatch = route.match(/^\/api\/assignments\/([a-z0-9]{6,30})$/);
@@ -645,6 +703,7 @@ function createApiHandler(store, env = process.env) {
           if (rest.length === list.length) throw Object.assign(Error('Không tìm thấy bài đã giao.'), { status: 404 });
           return rest;
         });
+        await audit(user, 'assignment.delete', assignMatch[1]);
         return json(res,200,{ deleted:true });
       }
       if (route === '/api/live-games' && req.method === 'POST') {
@@ -798,7 +857,9 @@ function createApiHandler(store, env = process.env) {
       const studentMatch = route.match(/^\/api\/students\/([A-HJ-NP-Z2-9]{6})\/([\w-]+)$/);
       if (studentMatch && req.method === 'DELETE') {
         const user = await auth(req,res); if (!user) return; if (!await canClass(user, studentMatch[1])) return denyClass(res);
-        return await store.deleteStudent(studentMatch[1],studentMatch[2]) ? json(res,200,{ deleted:true }) : json(res,404,{ error:'Không tìm thấy học sinh.' });
+        if (!await store.deleteStudent(studentMatch[1],studentMatch[2])) return json(res,404,{ error:'Không tìm thấy học sinh.' });
+        await audit(user, 'student.delete', (await classLabel(studentMatch[1])) + ' · ' + studentMatch[2]);
+        return json(res,200,{ deleted:true });
       }
       return json(res,404,{ error:'Không tìm thấy API này.' });
     } catch (error) {

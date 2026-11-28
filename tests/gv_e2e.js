@@ -51,7 +51,7 @@ const fs = require('fs'), os = require('os'), path = require('path');
       document.querySelector('#dGrade').value='2'; const i = document.querySelector('#dFile'); i.files = dt.files; i.dispatchEvent(new Event('change')); return 1`);
     ok(await until(`[...document.querySelectorAll('#dQueue b')].length === 2 && [...document.querySelectorAll('#dQueue b')].every(x=>!/Đang/.test(x.textContent))`), 'Tải 2 tệp chạy xong');
     const q = await b.eval(`return [...document.querySelectorAll('#dQueue b')].map(x=>x.textContent)`);
-    ok(/Xong/.test(q[0]) && /❌/.test(q[1]), 'PDF thật được nhận, tệp giả mạo bị từ chối', q);
+    ok(/Xong/.test(q[0]) && /^Lỗi: /.test(q[1]), 'PDF thật được nhận, tệp giả mạo bị từ chối', q);
     ok(await b.eval(`return document.querySelector('#dList').textContent.includes('Phieu on tap s x')`), 'Tài liệu hiện trong thư viện');
     ok(await fitsX(), 'Trang Tài liệu không tràn ngang'); await shot('3-tai-lieu');
     // ===== Câu đố luyện thêm =====

@@ -50,7 +50,7 @@ async function page(view) {
         <form data-create class="admin-form">
           <label>Họ và tên<input name="name" maxlength="80" autocomplete="off" placeholder="Ví dụ: Nguyễn Thị An" required></label>
           <label>Tên đăng nhập<input name="username" minlength="3" maxlength="40" pattern="[a-z0-9][a-z0-9._\\-]{2,39}" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="Ví dụ: nguyenthian" required><small>3–40 ký tự: chữ thường không dấu, số, dấu chấm, gạch dưới hoặc gạch nối.</small></label>
-          <label>Mật khẩu ban đầu<span class="admin-pass"><input name="password" type="text" minlength="10" maxlength="200" autocomplete="off" spellcheck="false" placeholder="Ít nhất 10 ký tự" required><button type="button" class="btn sm" data-gen>🎲 Tạo</button></span></label>
+          <label>Mật khẩu ban đầu<span class="admin-pass"><input name="password" type="text" minlength="10" maxlength="200" autocomplete="off" spellcheck="false" placeholder="Ít nhất 10 ký tự" required><button type="button" class="btn sm" data-gen>Tạo ngẫu nhiên</button></span></label>
           <button class="btn primary" type="submit">Tạo tài khoản</button>
           <p class="admin-feedback" role="status" aria-live="polite"></p>
         </form>
@@ -66,7 +66,7 @@ async function page(view) {
     <dialog class="admin-dialog" data-edit><form method="dialog" data-edit-form>
       <h3 data-edit-title>Chỉnh sửa tài khoản</h3><input type="hidden" name="username">
       <label>Họ và tên<input name="name" maxlength="80" required></label>
-      <label>Đặt lại mật khẩu<span class="admin-pass"><input name="password" type="text" minlength="10" maxlength="200" autocomplete="off" spellcheck="false"><button type="button" class="btn sm" data-gen>🎲 Tạo</button></span><small>Để trống nếu không đổi. Đổi mật khẩu sẽ đăng xuất giáo viên khỏi mọi máy.</small></label>
+      <label>Đặt lại mật khẩu<span class="admin-pass"><input name="password" type="text" minlength="10" maxlength="200" autocomplete="off" spellcheck="false"><button type="button" class="btn sm" data-gen>Tạo ngẫu nhiên</button></span><small>Để trống nếu không đổi. Đổi mật khẩu sẽ đăng xuất giáo viên khỏi mọi máy.</small></label>
       <div class="admin-actions"><button class="btn" value="cancel" formnovalidate>Hủy</button><button class="btn primary" type="submit" value="save">Lưu thay đổi</button></div>
     </form></dialog>
     <dialog class="admin-dialog" data-delete><form method="dialog" data-delete-form>
@@ -144,7 +144,7 @@ async function page(view) {
   function showSlip(username, password) {
     const slip = $('[data-slip]'), text = loginInfo(username, password);
     slip.hidden = false;
-    slip.innerHTML = '<b>Phiếu đăng nhập cho giáo viên</b><pre>' + esc(text) + '</pre><button type="button" class="btn sm">📋 Chép để gửi</button><small>Mật khẩu chỉ hiện lúc này. Hãy chép và gửi riêng cho giáo viên.</small>';
+    slip.innerHTML = '<b>Phiếu đăng nhập cho giáo viên</b><pre>' + esc(text) + '</pre><button type="button" class="btn sm">Chép phiếu</button><small>Mật khẩu chỉ hiện lúc này. Hãy chép và gửi riêng cho giáo viên.</small>';
     slip.querySelector('button').onclick = () => navigator.clipboard?.writeText(text).then(() => toast('Đã chép phiếu đăng nhập.'), () => toast('Thầy cô bôi đen rồi chép phiếu nhé.', true));
   }
 
